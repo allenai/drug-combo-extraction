@@ -12,6 +12,8 @@ LABEL2IDX = {
 }
 
 NOT_COMB = "NOT-COMB"
+ENTITY_START_MARKER = "<<m>>"
+ENTITY_END_MARKER = "<</m>>"
 
 class DrugEntity:
     def __init__(self, drug_name, span_start, span_end):
@@ -146,11 +148,31 @@ def process_doc(raw, add_no_combination_relations=True, merge_relations_transiti
 
     return Document(final_relations, text)
 
-def generate_text_label_pairs(doc):
+def add_entity_markers(text, relation_entities):
+    relation_entities = sorted(relation_entities, key=lambda entity: entity.span_start)
+    position_offset = 0
+    for drug in relation_entities:
+        # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
+        # result in a whitespace-delimited "<m>" token before the entity.
+        assert text[drug.span_start + position_offset - 1] == " "
+        text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
+        position_offset += len(ENTITY_START_MARKER + " ")
+
+        # Insert "</m> " after each entity.
+        assert text[drug.span_end + position_offset] == " "
+        text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
+        position_offset += len(ENTITY_END_MARKER + " ")
+    return text
+
+def generate_text_label_pairs(doc, mark_entities=True):
     # Generate maximal positive examples from raw annotations.
     samples = []
     for relation in doc.relations:
-        samples.append({"text": doc.text, "target": relation.relation_label})
+        if mark_entities:
+            text = add_entity_markers(doc.text, relation.drug_entities)
+        else:
+            text = doc.text
+        samples.append({"text": text, "target": relation.relation_label})
     return samples
 
 def create_datapoints(raw):
