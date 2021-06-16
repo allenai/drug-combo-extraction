@@ -21,41 +21,15 @@ class DrugEntity:
         self.span_start = span_start
         self.span_end = span_end
 
-    def __eq__(self, other):
-        return self.drug_name == other.drug_name and \
-            self.span_start == other.span_start and \
-            self.span_end == other.span_end
-
-    def __str__(self):
-        entity = {"Drug": self.drug_name,
-                  "Span": [self.span_start, self.span_end]}
-        return json.dumps(entity, indent=2)
-
 class DrugRelation:
     def __init__(self, drug_entities, relation_label):
         self.drug_entities = drug_entities
         self.relation_label = relation_label
 
-    def __eq__(self, other):
-        return self.drug_entities == other.drug_entities and \
-            self.relation_label == other.relation_label
-
-    def __str__(self):
-        drug_entities = [str(e) for e in self.drug_entities]
-        relation = {"Drug Entities": drug_entities,
-                    "Label": self.relation_label}
-        return json.dumps(relation, indent=2)
-
 class Document:
     def __init__(self, relations, text):
         self.relations = relations
         self.text = text
-
-    def __str__(self):
-        relations = [str(r) for r in self.relations]
-        document = {"Text": self.text,
-                    "Relations": relations}
-        return json.dumps(document, indent=2)
 
 def find_no_combination_examples(relations, entities):
     # Find the set of all pairs of entities that belong in some relation (other than NOT-COMB) together in the same sentence.
