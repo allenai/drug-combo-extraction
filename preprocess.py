@@ -1,5 +1,3 @@
-from collections import defaultdict
-import json
 import random
 
 random.seed(2021)
@@ -42,13 +40,12 @@ def find_no_combination_examples(relations, entities):
                     entity_cooccurrences.add((i, j))
 
     no_comb_relations = []
-    # Add NOT-COMB relations.
+    # Add implicit NOT-COMB relations.
     for i in range(len(entities)):
         for j in range(i+1, len(entities)):
             if (i, j) not in entity_cooccurrences:
                 not_comb_relation = {'class': NOT_COMB, 'spans': [i, j]}
                 no_comb_relations.append(not_comb_relation)
-
     return no_comb_relations
 
 def relations_mergeable(r1, r2, recurse=True):
@@ -73,9 +70,7 @@ def merge(r1, r2):
 def consolidate_relations(relations):
     # Iteratively merge relations that can be merged (and insert as new relations).
     # This is to capture transitivity among relations - i.e. r(a, b) ∧ r(b, c) => r(a, b, c).
-
     make_relation_hashable = lambda relation: (relation["class"], str(sorted(relation["spans"])))
-
     consolidated = relations
     consolidated_hashable = set([make_relation_hashable(c) for c in consolidated])
     while True:
@@ -96,30 +91,29 @@ def consolidate_relations(relations):
 
 def process_doc(raw, add_no_combination_relations=True, merge_relations_transitively=True):
     text = raw['paragraph']
-
-    assert raw['sentence'] in text, "Sentence must be a substring of the containing paragraph."
     sentence_start_idx = text.find(raw['sentence'])
-    sentence_end_idx = sentence_start_idx + len(raw['sentence'])
+    assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
 
+    # Construct DrugEntity objects.
     drug_entities = []
     for span in raw['spans']:
         entity = DrugEntity(span['text'], span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
-        if not (span['start'] + sentence_start_idx >= sentence_start_idx and span['end'] + sentence_start_idx < sentence_end_idx):
-            raise ValueError("Entity out of bounds.")
         drug_entities.append(entity)
-    
+
     relations = raw['rels']
     if add_no_combination_relations:
+        # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
         relations = relations + find_no_combination_examples(relations, drug_entities)
     if merge_relations_transitively:
+        # Merge relations transitively to form additional higher-order relations, when possible.
         relations = consolidate_relations(relations)
 
+    # Construct DrugRelation objects, which contain full information about the document's annotations.
     final_relations = []
     for relation in relations:
         entities = [drug_entities[entity_idx] for entity_idx in relation['spans']]
         rel_label = LABEL2IDX[relation['class']]
         final_relations.append(DrugRelation(entities, rel_label) )
-
     return Document(final_relations, text)
 
 def add_entity_markers(text, relation_entities):
@@ -138,21 +132,17 @@ def add_entity_markers(text, relation_entities):
         position_offset += len(ENTITY_END_MARKER + " ")
     return text
 
-def generate_text_label_pairs(doc, mark_entities=True):
-    # Generate maximal positive examples from raw annotations.
+def create_datapoints(raw, mark_entities=True):
+    processed_document = process_doc(raw)
     samples = []
-    for relation in doc.relations:
+    for relation in processed_document.relations:
+        # Mark drug entities with special tokens.
         if mark_entities:
-            text = add_entity_markers(doc.text, relation.drug_entities)
+            text = add_entity_markers(processed_document.text, relation.drug_entities)
         else:
-            text = doc.text
+            text = processed_document.text
         samples.append({"text": text, "target": relation.relation_label})
     return samples
-
-def create_datapoints(raw):
-    processed_document = process_doc(raw)
-    marked_rows = generate_text_label_pairs(processed_document)
-    return marked_rows
 
 def create_dataset(raw_data, shuffle=True):
     dataset = []
