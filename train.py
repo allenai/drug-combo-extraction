@@ -1,26 +1,25 @@
+import argparse
 import jsonlines
 import pytorch_lightning as pl
-import torch
-from torch.utils.data import DataLoader
 
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
-from preprocess import preprocess_data
+from preprocess import create_dataset
 
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="path to Huggingface Transformers model path")
-parser.add_argument('--training-file', type=str, required=False, default="examples.jsonl")
-parser.add_argument('--test-file', type=str, required=False, default="examples.jsonl")
+parser.add_argument('--training-file', type=str, required=False, default="data/examples2.jsonl")
+parser.add_argument('--test-file', type=str, required=False, default="data/examples.jsonl")
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
-    training_data = preprocess_data(training_data)
-    test_data = preprocess_data(test_data)
+    training_data = create_dataset(training_data)
+    test_data = create_dataset(test_data)
 
     data_module = DrugSynergyDataModule(training_data, test_data)
     data_module.setup()
