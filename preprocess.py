@@ -12,6 +12,7 @@ LABEL2IDX = {
 NOT_COMB = "NOT-COMB"
 ENTITY_START_MARKER = "<<m>>"
 ENTITY_END_MARKER = "<</m>>"
+SPECIAL_TOKENS = [ENTITY_START_MARKER, ENTITY_END_MARKER]
 
 class DrugEntity:
     def __init__(self, drug_name, span_start, span_end):
@@ -100,6 +101,7 @@ def process_doc(raw, add_no_combination_relations=True, merge_relations_transiti
         entity = DrugEntity(span['text'], span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
         drug_entities.append(entity)
 
+
     relations = raw['rels']
     if add_no_combination_relations:
         # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
@@ -149,7 +151,6 @@ def create_dataset(raw_data, shuffle=True):
     for row in raw_data:
         datapoints = create_datapoints(row)
         dataset.extend(datapoints)
-    
     if shuffle:
         random.shuffle(dataset)
     return dataset
