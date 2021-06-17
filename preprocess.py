@@ -1,5 +1,7 @@
 import random
 
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
+
 random.seed(2021)
 
 LABEL2IDX = {
@@ -8,11 +10,7 @@ LABEL2IDX = {
     "NEG": 0,
     "NOT-COMB": 0
 }
-
 NOT_COMB = "NOT-COMB"
-ENTITY_START_MARKER = "<<m>>"
-ENTITY_END_MARKER = "<</m>>"
-SPECIAL_TOKENS = [ENTITY_START_MARKER, ENTITY_END_MARKER]
 
 class DrugEntity:
     def __init__(self, drug_name, span_start, span_end):
