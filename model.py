@@ -6,8 +6,10 @@ from transformers import (
                             AdamW,
                             BertModel,
                             BertPreTrainedModel,
-                            get_linear_schedule_with_warmup
+                            get_linear_schedule_with_warmup,
+                            PretrainedConfig
 )
+from typing import Optional
 
 from constants import ENTITY_PAD_IDX
 from utils import accuracy, f1
@@ -21,7 +23,13 @@ class ModelOutput:
 
 # Adapted from https://github.com/princeton-nlp/PURE
 class BertForRelation(BertPreTrainedModel):
-    def __init__(self, config, num_rel_labels):
+    def __init__(self, config: PretrainedConfig, num_rel_labels: int):
+        """Initialize simple BERT-based relation extraction model
+
+        Args:
+            config: Pretrained model config (loaded from model)
+            num_rel_labels: Size of label set that each relation could take
+        """
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.bert = BertModel(config)
@@ -31,7 +39,23 @@ class BertForRelation(BertPreTrainedModel):
         self.init_weights()
 
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, all_entity_idxs=None, input_position=None):
+    def forward(self,
+                input_ids: torch.Tensor,
+                token_type_ids: Optional[torch.Tensor] = None,
+                attention_mask: Optional[torch.Tensor] = None,
+                labels: Optional[torch.Tensor] = None,
+                all_entity_idxs: Optional[torch.Tensor] = None,
+                input_position: Optional[torch.Tensor] = None) -> ModelOutput:
+        """BertForRelation model, forward pass.
+
+        Args:
+            input_ids: Subword indices in the vocabulary for words in the document
+            token_type_ids: Sequence segment IDs (currently set to all 0's) - TODO(Vijay): update this
+            attention_mask: Mask which describes which tokens should be ignored (i.e. padding tokens)
+            labels: Tensor of numerical labels
+            all_entity_idxs: Tensor of indices of each drug entity's special start token in each document
+            input_position: Just here to satisfy the interface (TODO(Vijay): remove this if possible)
+        """
         # TODO(Vijay): delete input_positions, since it's seemingly not used
         # TODO(Vijay): analyze the output with the `output_attentions` flag, to help interpret the model's predictions.
         outputs = self.bert(input_ids,
@@ -61,14 +85,22 @@ class BertForRelation(BertPreTrainedModel):
         return ModelOutput(logits, loss)
 
 class RelationExtractor(pl.LightningModule):
-
     def __init__(self,
                  model: BertForRelation,
-                 num_train_optimization_steps,
-                 lr=1e-3,
-                 correct_bias=True,
-                 warmup_proportion=0.1,
+                 num_train_optimization_steps: int,
+                 lr: float = 1e-3,
+                 correct_bias: bool = True,
+                 warmup_proportion: float = 0.1,
     ):
+        """PyTorch Lightning module which wraps the BERT-based model.
+
+        Args:
+            model: Base BERT model for relation classification
+            num_train_optimization_steps: Number of optimization steps in training
+            lr: Learning rate
+            correct_bias: Whether to correct bias in AdamW
+            warmup_proportion: How much data to reserve for linear learning rate warmup (https://paperswithcode.com/method/linear-warmup)
+        """
         # TODO(Vijay): configure these parameters via command line arguments.
         super().__init__()
         self.model = model
@@ -78,7 +110,7 @@ class RelationExtractor(pl.LightningModule):
         self.warmup_proportion = warmup_proportion
 
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=self.lr)
+        optimizer = AdamW(self.parameters(), lr=self.lr, correct_bias=self.correct_bias)
         optimization_steps = int(self.num_train_optimization_steps * self.warmup_proportion)
         scheduler = get_linear_schedule_with_warmup(optimizer,
                                                     optimization_steps,
@@ -89,6 +121,15 @@ class RelationExtractor(pl.LightningModule):
         }
 
     def training_step(self, inputs, batch_idx):
+        """Training step in PyTorch Lightning.
+
+        Args:
+            inputs: Batch of data points
+            batch_idx: Not used in this model (just here to satisfy the interface)
+
+        Return:
+            Loss tensor
+        """
         # outputs: TokenClassifierOutput
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
@@ -96,6 +137,15 @@ class RelationExtractor(pl.LightningModule):
         return output.loss
 
     def validation_step(self, inputs, batch_idx):
+        """Validation step in PyTorch Lightning.
+
+        Args:
+            inputs: Batch of data points
+            batch_idx: Not used in this model (just here to satisfy the interface)
+
+        Return:
+            Loss tensor
+        """
         # outputs: TokenClassifierOutput
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
@@ -103,6 +153,15 @@ class RelationExtractor(pl.LightningModule):
         return output.loss
 
     def test_step(self, inputs, batch_idx):
+        """Testing step in PyTorch Lightning.
+
+        Args:
+            inputs: Batch of data points
+            batch_idx: Not used in this model (just here to satisfy the interface)
+
+        Return:
+            Accuracy value (float) on the test set
+        """
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
         self.log("test_loss", output.loss, prog_bar=True, logger=True)
