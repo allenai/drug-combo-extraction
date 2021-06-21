@@ -10,6 +10,7 @@ from transformers import (
 )
 
 from constants import ENTITY_PAD_IDX
+from utils import accuracy, f1
 
 BertLayerNorm = torch.nn.LayerNorm
 
@@ -107,6 +108,10 @@ class RelationExtractor(pl.LightningModule):
         self.log("test_loss", output.loss, prog_bar=True, logger=True)
         logits = output.logits
         predictions = torch.argmax(logits, dim=1)
-        accuracy = float(torch.sum(predictions == labels).item()) / len(predictions)
+        accuracy = accuracy(predictions, labels)
+        f1, prec, rec = f1(predictions, labels)
         self.log("accuracy", accuracy, prog_bar=True, logger=True)
+        self.log("precision", prec, prog_bar=True, logger=True)
+        self.log("recall", rec, prog_bar=True, logger=True)
+        self.log("f1", f1, prog_bar=True, logger=True)
         return accuracy
