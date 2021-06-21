@@ -102,7 +102,7 @@ class DrugSynergyDataModule(pl.LightningDataModule):
                  dev_train_ratio: float = 0.1,
                  max_seq_length: int = 512,
                  num_workers: int = 4):
-        '''Construct a DataModule for convenient PyTorchLightning training.
+        '''Construct a DataModule for convenient PyTorch Lightning training.
 
         Args:
             train_data: List of (text, label) pairs for training and validation
@@ -117,7 +117,7 @@ class DrugSynergyDataModule(pl.LightningDataModule):
             num_workers: Number of CPU workers to use for loading data
 
         Returns:
-            self: PyTorchLightning DataModule to load all data during training, validation, and testing.
+            self: PyTorch Lightning DataModule to load all data during training, validation, and testing.
         '''
         super().__init__()
         self.train_data = train_data
