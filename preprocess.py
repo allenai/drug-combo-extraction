@@ -2,6 +2,7 @@ from itertools import chain, combinations
 import random
 
 from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
+from typing import Dict, Iterable, List, Set
 
 random.seed(2021)
 
@@ -15,27 +16,47 @@ NOT_COMB = "NOT-COMB"
 
 class DrugEntity:
     def __init__(self, drug_name, span_start, span_end):
-        self.drug_name = drug_name
-        self.span_start = span_start
-        self.span_end = span_end
+        self.drug_name: str = drug_name
+        self.span_start: int = span_start
+        self.span_end: int = span_end
 
 class DrugRelation:
     def __init__(self, drug_entities, relation_label):
-        self.drug_entities = drug_entities
-        self.relation_label = relation_label
+        self.drug_entities: List[DrugEntity] = drug_entities
+        self.relation_label: int = relation_label
 
 class Document:
     def __init__(self, relations, text):
-        self.relations = relations
-        self.text = text
+        self.relations: List[DrugRelation] = relations
+        self.text: str = text
 
-def powerset(iterable):
-    # Adapted from https://docs.python.org/3/library/itertools.html#itertools-recipes.
+def powerset(iterable: Iterable) -> List[Set]:
+    """Return the powerset of an iterable.
+    Adapted from https://docs.python.org/3/library/itertools.html#itertools-recipes.
+
+    Args:
+        iterable: The iterable to take the powerset of.
+
+    Returns:
+        powerset: A list containing the powerset of `iterable`.
+    """
     s = list(iterable)
     powerset = chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
-    return [set(subset) for subset in powerset if len(subset) > 1]
+    powerset = [set(subset) for subset in powerset if len(subset) > 1]
+    return powerset
 
-def find_no_combination_examples(relations, entities):
+def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntity]) -> List[Dict]:
+    """Construct NOT-COMB relations - relations that are not mentioned as being used in combination.
+    We do this by exclusion - any set of entities that are not explicitly mentioned as being combined,
+    are treated as NOT-COMB.
+
+    Args:
+        relations: list of relations (each represented as a dict), directly taken from annotated data.
+        entities: list of all drugs mentioned in the sentence of interest.
+
+    Returns:
+        no_comb_relations: list of relations between entities implicitly labeled as NOT-COMB (by exclusion).
+    """
     # Find the set of all pairs of entities that belong in some relation (other than NOT-COMB) together in the same sentence.
     entity_cooccurrences = []
     for relation in relations:
@@ -60,7 +81,16 @@ def find_no_combination_examples(relations, entities):
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw, add_no_combination_relations=True):
+def process_doc(raw: Dict, add_no_combination_relations: bool = True) -> Document:
+    """Convert a raw annotated document into a Document class.
+
+    Args:
+        raw: Document from the Drug Synergy dataset, corresponding to one annotated sentence.
+        add_no_combination_relations: Whether to add implicit NOT-COMB relations.
+
+    Returns:
+        document: Processed version of the input document.
+    """
     text = raw['paragraph']
     sentence_start_idx = text.find(raw['sentence'])
     assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
@@ -82,11 +112,25 @@ def process_doc(raw, add_no_combination_relations=True):
     for relation in relations:
         entities = [drug_entities[entity_idx] for entity_idx in relation['spans']]
         rel_label = LABEL2IDX[relation['class']]
-        final_relations.append(DrugRelation(entities, rel_label) )
-    return Document(final_relations, text)
+        final_relations.append(DrugRelation(entities, rel_label))
+    document = Document(final_relations, text)
+    return document
 
-def add_entity_markers(text, relation_entities):
-    relation_entities = sorted(relation_entities, key=lambda entity: entity.span_start)
+def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
+    """Add special entity tokens around each drug entity in the annotated text.
+    We specifically add "<<m>>" and "<</m>>" before and after (respectively) each drug entity span,
+    and construct these tokens in such a way that they are always delimited by whitespace from the
+    surrounding text.
+
+    Args:
+        text: Raw, un-tokenized text that has been annotated with relations and entity spans.
+        relation_entities: List of entity objects, each describing the span of a drug mention.
+
+    Returns:
+        text: Raw text, with special entity tokens inserted around drug entities.
+    """
+
+    relation_entities: List = sorted(relation_entities, key=lambda entity: entity.span_start)
     position_offset = 0
     for drug in relation_entities:
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
@@ -101,7 +145,17 @@ def add_entity_markers(text, relation_entities):
         position_offset += len(ENTITY_END_MARKER + " ")
     return text
 
-def create_datapoints(raw, mark_entities=True):
+def create_datapoints(raw: Dict, mark_entities: bool = True):
+    """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
+
+    Args:
+        raw: Dictionary of key-value pairs representing raw annotated document.
+        mark_entities: Whether or not to add special entity token markers around each drug entity (default: True).
+
+    Returns:
+        samples: List of (text, relation label) pairs representing all positive/negative relations
+                 contained in the sentence.
+    """
     processed_document = process_doc(raw)
     samples = []
     for relation in processed_document.relations:
@@ -113,7 +167,17 @@ def create_datapoints(raw, mark_entities=True):
         samples.append({"text": text, "target": relation.relation_label})
     return samples
 
-def create_dataset(raw_data, shuffle=True):
+def create_dataset(raw_data: List[Dict], shuffle: bool = True) -> List[Dict]:
+    """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
+    consisting of marked text and a relation label, for each candidate relation in each document.
+
+    Args:
+        raw_data: List of documents in the dataset.
+        shuffle: Whether or not to randomly reorder the relation instances in the dataset before returning.
+
+    Returns:
+        dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
+    """
     dataset = []
     for row in raw_data:
         datapoints = create_datapoints(row)
