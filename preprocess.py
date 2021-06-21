@@ -60,26 +60,7 @@ def find_no_combination_examples(relations, entities):
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def relations_mergeable(r1, r2, recurse=True):
-    r1_spans = set(r1['spans'])
-    r2_spans = set(r2['spans'])
-    intersection = r1_spans.intersection(r2_spans)
-    same_label = r1['class'] == r2['class']
-    common_entity = len(intersection) >= 1 and len(intersection) < min(len(r1_spans), len(r2_spans))
-    # Merge the two relations if they:
-    # - have the same relation label
-    # - share at least one drug in common
-    # - are not subsets/supersets of each other
-    return same_label and common_entity
-
-def merge(r1, r2):
-    merged_relation = {
-        "class": r1['class'],
-        "spans": list(set(r1['spans']).union(set(r2['spans'])))
-    }
-    return merged_relation
-
-def process_doc(raw, add_no_combination_relations=True, merge_relations_transitively=True):
+def process_doc(raw, add_no_combination_relations=True):
     text = raw['paragraph']
     sentence_start_idx = text.find(raw['sentence'])
     assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
