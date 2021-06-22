@@ -134,7 +134,6 @@ class RelationExtractor(pl.LightningModule):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
         self.log("loss", output.loss, prog_bar=False, logger=True, on_step=True, on_epoch=False)
-        return output.loss
 
     def validation_step(self, inputs, batch_idx):
         """Validation step in PyTorch Lightning.
@@ -150,7 +149,6 @@ class RelationExtractor(pl.LightningModule):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
         self.log("val_loss", output.loss, prog_bar=True, logger=True, on_step=False, on_epoch=True)
-        return output.loss
 
     def test_step(self, inputs, batch_idx):
         """Testing step in PyTorch Lightning.
@@ -173,4 +171,4 @@ class RelationExtractor(pl.LightningModule):
         self.log("precision", prec, prog_bar=True, logger=True)
         self.log("recall", rec, prog_bar=True, logger=True)
         self.log("f1", f, prog_bar=True, logger=True)
-        return accuracy
+        return predictions

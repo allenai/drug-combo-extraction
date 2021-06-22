@@ -58,6 +58,6 @@ if __name__ == "__main__":
             max_epochs=args.num_train_epochs,
         )
         trainer.fit(system, datamodule=dm)
-        trainer.test(system, datamodule=dm)
+        predictions = trainer.test(system, datamodule=dm)
     except:
         shutil.rmtree(dirpath)
