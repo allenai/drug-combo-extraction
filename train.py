@@ -1,6 +1,8 @@
 import argparse
 import jsonlines
 import pytorch_lightning as pl
+import tempfile
+import shutil
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
@@ -9,7 +11,10 @@ from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset, LABEL2IDX
 
+dirpath = tempfile.mkdtemp()
+
 parser = argparse.ArgumentParser()
+parser.add_argument('--output-dir', type=str, required=False, default=dirpath)
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
@@ -21,35 +26,38 @@ parser.add_argument('--num-train-epochs', default=3, type=int, help="Total numbe
 parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Fraction of negative training examples to keep (due to label imbalance)")
 
 if __name__ == "__main__":
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
 
-    training_data = list(jsonlines.open(args.training_file))
-    test_data = list(jsonlines.open(args.test_file))
-    training_data = create_dataset(training_data, sample_negatives_ratio=args.negative_sampling_rate)
-    test_data = create_dataset(test_data)
+        training_data = list(jsonlines.open(args.training_file))
+        test_data = list(jsonlines.open(args.test_file))
+        training_data = create_dataset(training_data, sample_negatives_ratio=args.negative_sampling_rate)
+        test_data = create_dataset(test_data)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
-    tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
-    dm = DrugSynergyDataModule(training_data,
-                               test_data,
-                               tokenizer,
-                               LABEL2IDX,
-                               train_batch_size=args.batch_size,
-                               dev_batch_size=args.batch_size,
-                               test_batch_size=args.batch_size,
-                               dev_train_ratio=args.dev_train_split,
-                               max_seq_length=args.max_seq_length)
-    dm.setup()
+        tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
+        tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
+        dm = DrugSynergyDataModule(training_data,
+                                test_data,
+                                tokenizer,
+                                LABEL2IDX,
+                                train_batch_size=args.batch_size,
+                                dev_batch_size=args.batch_size,
+                                test_batch_size=args.batch_size,
+                                dev_train_ratio=args.dev_train_split,
+                                max_seq_length=args.max_seq_length)
+        dm.setup()
 
-    num_labels=len(set(dm.label_to_idx.values()))
-    model = BertForRelation.from_pretrained(
-            args.pretrained_lm, cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE), num_rel_labels=num_labels)
-    num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
-    system = RelationExtractor(model, num_train_optimization_steps)
-    trainer = pl.Trainer(
-        gpus=1,
-        precision=16,
-        max_epochs=args.num_train_epochs,
-    )
-    trainer.fit(system, datamodule=dm)
-    trainer.test(system, datamodule=dm)
+        num_labels=len(set(dm.label_to_idx.values()))
+        model = BertForRelation.from_pretrained(
+                args.pretrained_lm, cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE), num_rel_labels=num_labels)
+        num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
+        system = RelationExtractor(model, num_train_optimization_steps)
+        trainer = pl.Trainer(
+            gpus=1,
+            precision=16,
+            max_epochs=args.num_train_epochs,
+        )
+        trainer.fit(system, datamodule=dm)
+        trainer.test(system, datamodule=dm)
+    except:
+        shutil.rmtree(dirpath)
