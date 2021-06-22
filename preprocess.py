@@ -1,3 +1,4 @@
+from itertools import chain, combinations
 import random
 
 from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
@@ -28,67 +29,38 @@ class Document:
         self.relations = relations
         self.text = text
 
+def powerset(iterable):
+    # Adapted from https://docs.python.org/3/library/itertools.html#itertools-recipes.
+    s = list(iterable)
+    powerset = chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+    return [set(subset) for subset in powerset if len(subset) > 1]
+
 def find_no_combination_examples(relations, entities):
     # Find the set of all pairs of entities that belong in some relation (other than NOT-COMB) together in the same sentence.
-    entity_cooccurrences = set()
+    entity_cooccurrences = []
     for relation in relations:
         if relation["class"] != NOT_COMB:
             span_idxs = sorted(relation["spans"])
-            for i in range(len(span_idxs)):
-                for j in range(i+1, len(span_idxs)):
-                    entity_cooccurrences.add((i, j))
+            entity_cooccurrences.append(set(span_idxs))
+
+    entity_idxs = range(len(entities))
+    candidate_no_combinations = powerset(entity_idxs)
 
     no_comb_relations = []
     # Add implicit NOT-COMB relations.
-    for i in range(len(entities)):
-        for j in range(i+1, len(entities)):
-            if (i, j) not in entity_cooccurrences:
-                not_comb_relation = {'class': NOT_COMB, 'spans': [i, j]}
-                no_comb_relations.append(not_comb_relation)
+    for candidate in candidate_no_combinations:
+        entity_found = False
+        for c in entity_cooccurrences:
+            if candidate.issubset(c):
+                entity_found = True
+        # If a set of drugs is not contained in any other relation, then consider it as an implicit
+        # NOT-COMB relation.
+        if not entity_found:
+            no_comb_relation = {'class': NOT_COMB, 'spans': list(candidate)}
+            no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def relations_mergeable(r1, r2, recurse=True):
-    r1_spans = set(r1['spans'])
-    r2_spans = set(r2['spans'])
-    intersection = r1_spans.intersection(r2_spans)
-    same_label = r1['class'] == r2['class']
-    common_entity = len(intersection) >= 1 and len(intersection) < min(len(r1_spans), len(r2_spans))
-    # Merge the two relations if they:
-    # - have the same relation label
-    # - share at least one drug in common
-    # - are not subsets/supersets of each other
-    return same_label and common_entity
-
-def merge(r1, r2):
-    merged_relation = {
-        "class": r1['class'],
-        "spans": list(set(r1['spans']).union(set(r2['spans'])))
-    }
-    return merged_relation
-
-def consolidate_relations(relations):
-    # Iteratively merge relations that can be merged (and insert as new relations).
-    # This is to capture transitivity among relations - i.e. r(a, b) ∧ r(b, c) => r(a, b, c).
-    make_relation_hashable = lambda relation: (relation["class"], str(sorted(relation["spans"])))
-    consolidated = relations
-    consolidated_hashable = set([make_relation_hashable(c) for c in consolidated])
-    while True:
-        newly_consolidated = []
-        newly_consolidated_hashable = consolidated_hashable
-        for r1 in consolidated:
-            for r2 in consolidated:
-                if relations_mergeable(r1, r2):
-                    merged_relation = merge(r1, r2)
-                    merged_relation_hashable = (merged_relation["class"], str(sorted(merged_relation["spans"])))
-                    if merged_relation_hashable not in consolidated_hashable and merged_relation_hashable not in newly_consolidated_hashable:
-                        newly_consolidated.append(merged_relation)
-                        newly_consolidated_hashable.add(merged_relation_hashable)
-        if len(newly_consolidated) == 0:
-            break
-        consolidated.extend(newly_consolidated)
-    return consolidated
-
-def process_doc(raw, add_no_combination_relations=True, merge_relations_transitively=True):
+def process_doc(raw, add_no_combination_relations=True):
     text = raw['paragraph']
     sentence_start_idx = text.find(raw['sentence'])
     assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
@@ -104,9 +76,6 @@ def process_doc(raw, add_no_combination_relations=True, merge_relations_transiti
     if add_no_combination_relations:
         # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
         relations = relations + find_no_combination_examples(relations, drug_entities)
-    if merge_relations_transitively:
-        # Merge relations transitively to form additional higher-order relations, when possible.
-        relations = consolidate_relations(relations)
 
     # Construct DrugRelation objects, which contain full information about the document's annotations.
     final_relations = []
