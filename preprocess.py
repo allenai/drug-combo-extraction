@@ -167,13 +167,14 @@ def create_datapoints(raw: Dict, mark_entities: bool = True):
         samples.append({"text": text, "target": relation.relation_label})
     return samples
 
-def create_dataset(raw_data: List[Dict], shuffle: bool = True) -> List[Dict]:
+def create_dataset(raw_data: List[Dict], shuffle: bool = True, sample_negatives_ratio=None) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
     Args:
         raw_data: List of documents in the dataset.
         shuffle: Whether or not to randomly reorder the relation instances in the dataset before returning.
+        sample_negatives_ratio: Ratio at which to sample negatives, to mitigate label imbalance.
 
     Returns:
         dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
@@ -182,6 +183,12 @@ def create_dataset(raw_data: List[Dict], shuffle: bool = True) -> List[Dict]:
     for row in raw_data:
         datapoints = create_datapoints(row)
         dataset.extend(datapoints)
+    if sample_negatives_ratio is not None:
+        non_negatives = [d for d in dataset if d["target"] != 0]
+        negatives = [d for d in dataset if d["target"] == 0]
+        random.shuffle(negatives)
+        negatives = negatives[:int(sample_negatives_ratio * len(negatives))]
+        dataset = non_negatives + negatives
     if shuffle:
         random.shuffle(dataset)
     return dataset
