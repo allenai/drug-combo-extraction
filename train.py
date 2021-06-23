@@ -24,14 +24,15 @@ parser.add_argument('--dev-train-split', type=float, required=False, default=0.1
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=3, type=int, help="Total number of training epochs to perform.")
-parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Fraction of negative training examples to keep (due to label imbalance)")
+parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Upsample or downsample negative training examples for training (due to label imbalance)")
+parser.add_argument('--positive-sampling-rate', default=25.0, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
-    training_data = create_dataset(training_data, sample_negatives_ratio=args.negative_sampling_rate)
+    training_data = create_dataset(training_data, sample_negatives_ratio=args.negative_sampling_rate, sample_positives_ratio=args.positive_sampling_rate)
     test_data = create_dataset(test_data)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
