@@ -144,8 +144,7 @@ class RelationExtractor(pl.LightningModule):
         # outputs: TokenClassifierOutput
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        self.log("loss", output.loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-        return output.loss
+        self.log("loss", output.loss, prog_bar=False, logger=True, on_step=True, on_epoch=False)
 
     def validation_step(self, inputs, batch_idx):
         """Validation step in PyTorch Lightning.
