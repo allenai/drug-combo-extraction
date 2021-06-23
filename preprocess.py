@@ -81,7 +81,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, add_no_combination_relations: bool = True) -> Document:
+def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_paragraph_context: bool = True) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
@@ -91,9 +91,13 @@ def process_doc(raw: Dict, add_no_combination_relations: bool = True) -> Documen
     Returns:
         document: Processed version of the input document.
     """
-    text = raw['paragraph']
-    sentence_start_idx = text.find(raw['sentence'])
-    assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
+    if include_paragraph_context:
+        text = raw['paragraph']
+        sentence_start_idx = text.find(raw['sentence'])
+        assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
+    else:
+        text = raw['sentence']
+        sentence_start_idx = 0
 
     # Construct DrugEntity objects.
     drug_entities = []
