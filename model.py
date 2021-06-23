@@ -88,7 +88,7 @@ class RelationExtractor(pl.LightningModule):
     def __init__(self,
                  model: BertForRelation,
                  num_train_optimization_steps: int,
-                 lr: float = 1e-3,
+                 lr: float = 1e-5,
                  correct_bias: bool = True,
                  warmup_proportion: float = 0.1,
     ):
@@ -108,9 +108,20 @@ class RelationExtractor(pl.LightningModule):
         self.lr = lr
         self.correct_bias = correct_bias
         self.warmup_proportion = warmup_proportion
+        self.test_predictions = []
+        self.test_batch_idxs = []
 
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=self.lr, correct_bias=self.correct_bias)
+        # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
+        param_optimizer = list(self.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer
+                        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer
+                        if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters, lr=self.lr, correct_bias=self.correct_bias)
         optimization_steps = int(self.num_train_optimization_steps * self.warmup_proportion)
         scheduler = get_linear_schedule_with_warmup(optimizer,
                                                     optimization_steps,
@@ -133,7 +144,7 @@ class RelationExtractor(pl.LightningModule):
         # outputs: TokenClassifierOutput
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        self.log("loss", output.loss, prog_bar=False, logger=True, on_step=True, on_epoch=False)
+        self.log("loss", output.loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         return output.loss
 
     def validation_step(self, inputs, batch_idx):
@@ -149,7 +160,7 @@ class RelationExtractor(pl.LightningModule):
         # outputs: TokenClassifierOutput
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
         output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        self.log("val_loss", output.loss, prog_bar=True, logger=True, on_step=False, on_epoch=True)
+        self.log("val_loss", output.loss, prog_bar=False, logger=True, on_step=False, on_epoch=True)
         return output.loss
 
     def test_step(self, inputs, batch_idx):
@@ -167,10 +178,11 @@ class RelationExtractor(pl.LightningModule):
         self.log("test_loss", output.loss, prog_bar=True, logger=True)
         logits = output.logits
         predictions = torch.argmax(logits, dim=1)
+        self.test_predictions.extend(predictions.tolist())
+        self.test_batch_idxs.extend([batch_idx for _ in predictions.tolist()])
         acc = accuracy(predictions, labels)
         f, prec, rec = f1(predictions, labels)
         self.log("accuracy", acc, prog_bar=True, logger=True)
         self.log("precision", prec, prog_bar=True, logger=True)
         self.log("recall", rec, prog_bar=True, logger=True)
         self.log("f1", f, prog_bar=True, logger=True)
-        return accuracy
