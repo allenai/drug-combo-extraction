@@ -61,6 +61,3 @@ if __name__ == "__main__":
     metrics = trainer.test(system, datamodule=dm)
     print(f"METRICS:\n{json.dumps(metrics, indent=4)}")
     test_predictions = system.test_predictions
-
-    marker = "done"
-    breakpoint()
