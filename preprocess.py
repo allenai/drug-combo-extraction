@@ -192,7 +192,4 @@ def create_dataset(raw_data: List[Dict], shuffle: bool = True, sample_negatives_
         dataset = non_negatives + negatives
     if shuffle:
         random.shuffle(dataset)
-    labels = [d["target"] for d in dataset]
-    from collections import Counter
-    print(f"Counter(labels): {Counter(labels)}")
     return dataset
