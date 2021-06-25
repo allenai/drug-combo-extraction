@@ -37,12 +37,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
     Returns:
         dataset: TensorDataset containing numerical representation of the dataset's text strings and discrete labels.
     """
-    all_input_ids = []
-    all_token_type_ids = []
-    all_attention_masks = []
     targets = []
-    all_entity_idxs = []
-
     max_entities_length = -1
     # Store subwords and entity positions for each document in the first pass over the dataset.
     all_doc_subwords = []
@@ -71,6 +66,11 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
         all_doc_entity_start_positions.append(entity_start_token_idxs)
         max_entities_length = max(max_entities_length, len(entity_start_token_idxs))
 
+    all_input_ids = []
+    all_token_type_ids = []
+    all_attention_masks = []
+    all_entity_idxs = []
+
     for i, doc_subwords in enumerate(all_doc_subwords):
         doc_input_ids = tokenizer.convert_tokens_to_ids(doc_subwords)
         entity_start_token_idxs = all_doc_entity_start_positions[i]
@@ -87,6 +87,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
     all_attention_masks = torch.tensor(all_attention_masks, dtype=torch.long)
     targets = torch.tensor(targets, dtype=torch.long)
     all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.long)
+
     dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idxs)
     return dataset
 
