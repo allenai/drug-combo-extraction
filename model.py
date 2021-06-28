@@ -8,7 +8,7 @@ from transformers import (
                             BertPreTrainedModel,
                             PretrainedConfig
 )
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 from constants import ENTITY_PAD_IDX
 from optimizers import adamw_with_linear_warmup, simple_adamw
@@ -103,7 +103,9 @@ class RelationExtractor(pl.LightningModule):
                  lr: float = 5e-4,
                  correct_bias: bool = True,
                  warmup_proportion: float = 0.1,
-                 optimizer_strategy: Callable = simple_adamw):
+                 optimizer_strategy: Callable = simple_adamw,
+                 label_weights: Optional[List] = None,
+    ):
         """PyTorch Lightning module which wraps the BERT-based model.
 
         Args:
@@ -126,6 +128,10 @@ class RelationExtractor(pl.LightningModule):
         self.test_predictions = []
         self.test_batch_idxs = []
         self.optimizer_strategy = optimizer_strategy
+        if label_weights is not None:
+            self.label_weights = torch.tensor(label_weights, device="cuda:0")
+        else:
+            self.label_weights = None
 
     def configure_optimizers(self):
         # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
@@ -149,7 +155,7 @@ class RelationExtractor(pl.LightningModule):
         # outputs: TokenClassifierOutput
         _, _, _, labels, _ = inputs
         logits = self(inputs, pass_text = True)
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
         self.log("loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
         predictions = torch.argmax(logits, dim=1)
@@ -174,7 +180,7 @@ class RelationExtractor(pl.LightningModule):
         # outputs: TokenClassifierOutput
         _, _, _, labels, _ = inputs
         logits = self(inputs, pass_text = True)
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
         self.log("val_loss", loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         return loss
@@ -192,7 +198,7 @@ class RelationExtractor(pl.LightningModule):
         input_ids, _, _, labels, _ = inputs
         logits = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
         self.log("test_loss", loss, prog_bar=True, logger=True)
         predictions = torch.argmax(logits, dim=1)
