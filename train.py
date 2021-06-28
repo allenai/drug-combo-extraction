@@ -17,7 +17,7 @@ parser.add_argument('--batch-size', type=int, required=False, default=12) # This
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
-parser.add_argument('--num-train-epochs', default=3, type=int, help="Total number of training epochs to perform.")
+parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Upsample or downsample negative training examples for training (due to label imbalance)")
 parser.add_argument('--positive-sampling-rate', default=25.0, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
 
