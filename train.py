@@ -25,6 +25,8 @@ parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Upsample or downsample negative training examples for training (due to label imbalance)")
 parser.add_argument('--positive-sampling-rate', default=25.0, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
+parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
+parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 
 if __name__ == "__main__":
@@ -32,7 +34,7 @@ if __name__ == "__main__":
 
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
-    training_data = create_dataset(training_data, sample_negatives_ratio=args.negative_sampling_rate, sample_positives_ratio=args.positive_sampling_rate)
+    training_data = create_dataset(training_data, add_no_combination_relations=args.ignore_no_comb_relations, include_paragraph_context=args.include_paragraph_context)
     test_data = create_dataset(test_data)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
@@ -60,7 +62,6 @@ if __name__ == "__main__":
     system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
     trainer = pl.Trainer(
         gpus=1,
-        precision=16,
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
