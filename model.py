@@ -23,18 +23,33 @@ class ModelOutput:
 
 # Adapted from https://github.com/princeton-nlp/PURE
 class BertForRelation(BertPreTrainedModel):
-    def __init__(self, config: PretrainedConfig, num_rel_labels: int):
+    def __init__(self,
+                 config: PretrainedConfig,
+                 num_rel_labels: int,
+                 unfreeze_all_bert_layers: bool = False,
+                 unfreeze_final_bert_layer: bool = False,
+                 unfreeze_bias_terms_only: bool = True):
         """Initialize simple BERT-based relation extraction model
 
         Args:
             config: Pretrained model config (loaded from model)
             num_rel_labels: Size of label set that each relation could take
+            unfreeze_all_bert_layers: Finetune all layers of BERT
+            unfreeze_final_bert_layer: Finetune only the final encoder layer of BERT
+            unfreeze_bias_terms_only: Finetune only the bias terms in BERT (aka BitFit)
         """
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.bert = BertModel(config)
-        for param in self.bert.parameters():
-            param.requires_grad = False
+        for name, param in self.bert.named_parameters():
+            if unfreeze_final_bert_layer:
+                if "encoder.layer.11" not in name:
+                    param.requires_grad = False
+            elif unfreeze_bias_terms_only:
+                if "bias" not in name:
+                    param.requires_grad = False
+            elif not unfreeze_all_bert_layers:
+                param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)

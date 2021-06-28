@@ -28,6 +28,7 @@ parser.add_argument('--positive-sampling-rate', default=25.0, type=float, help="
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
+parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -52,7 +53,12 @@ if __name__ == "__main__":
 
     num_labels=len(set(dm.label_to_idx.values()))
     model = BertForRelation.from_pretrained(
-            args.pretrained_lm, cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE), num_rel_labels=num_labels)
+            args.pretrained_lm,
+            cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
+            num_rel_labels=num_labels,
+            unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
+            unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
+            unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
 
     # Add rows to embedding matrix if not large enough to accomodate special tokens.
     if len(tokenizer) > len(model.bert.embeddings.word_embeddings.weight):
