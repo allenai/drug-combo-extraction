@@ -129,7 +129,9 @@ class RelationExtractor(pl.LightningModule):
         self.test_batch_idxs = []
         self.optimizer_strategy = optimizer_strategy
         if label_weights is not None:
-            self.label_weights = torch.tensor(label_weights, device="cuda:0")
+            # This defines a class variable, but automatically moves the tensor to the
+            # device that the module trains on.
+            self.register_buffer("label_weights", torch.tensor(label_weights))
         else:
             self.label_weights = None
 
