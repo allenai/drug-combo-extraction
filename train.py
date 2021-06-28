@@ -65,7 +65,14 @@ if __name__ == "__main__":
         model.bert.resize_token_embeddings(len(tokenizer))
 
     num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
-    system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
+
+    if args.negative_sampling_rate != 1.0 or args.positive_sampling_rate != 1.0:
+        label_loss_weighting = [args.negative_sampling_rate, args.positive_sampling_rate]
+        label_loss_weighting = [w / sum(label_loss_weighting) for w in label_loss_weighting]
+    else:
+        label_loss_weighting = None
+
+    system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer, label_weights=label_loss_weighting)
     trainer = pl.Trainer(
         gpus=1,
         max_epochs=args.num_train_epochs,
