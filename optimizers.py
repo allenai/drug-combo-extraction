@@ -1,4 +1,3 @@
-from torch.optim import Adam
 from transformers import AdamW, get_linear_schedule_with_warmup
 
 def adamw_with_linear_warmup(named_parameters, lr, correct_bias, num_train_optimization_steps, warmup_proportion):
@@ -19,10 +18,6 @@ def adamw_with_linear_warmup(named_parameters, lr, correct_bias, num_train_optim
             'optimizer': optimizer,
             'scheduler': scheduler,
         }
-
-def simple_adam(named_parameters, lr, correct_bias=None, num_train_optimization_steps=None, warmup_proportion=None):
-    parameters = [p for n, p in named_parameters]
-    return Adam(parameters, lr=lr)
 
 def simple_adamw(named_parameters, lr, correct_bias, num_train_optimization_steps=None, warmup_proportion=None):
     parameters = [p for n, p in named_parameters]
