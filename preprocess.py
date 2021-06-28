@@ -62,7 +62,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
     for relation in relations:
         if relation["class"] != NOT_COMB:
             span_idxs = sorted(relation["spans"])
-            entity_cooccurrences.append(tuple(span_idxs))
+            entity_cooccurrences.append(set(span_idxs))
 
     entity_idxs = range(len(entities))
     candidate_no_combinations = powerset(entity_idxs)
@@ -72,7 +72,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
     for candidate in candidate_no_combinations:
         entity_found = False
         for c in entity_cooccurrences:
-            if candidate.issubset(set(c)):
+            if candidate.issubset(c):
                 entity_found = True
         # If a set of drugs is not contained in any other relation, then consider it as an implicit
         # NOT-COMB relation.
@@ -87,6 +87,7 @@ def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_pa
     Args:
         raw: Document from the Drug Synergy dataset, corresponding to one annotated sentence.
         add_no_combination_relations: Whether to add implicit NOT-COMB relations.
+        include_paragraph_context: Whether to include full-paragraph context around each drug-mention sentence
 
     Returns:
         document: Processed version of the input document.
