@@ -140,17 +140,17 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     for drug in relation_entities:
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
-        assert text[drug.span_start + position_offset - 1] == " "
+        assert text[drug.span_start + position_offset - 1] == " " or drug.span_start + position_offset == 0
         text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
         position_offset += len(ENTITY_START_MARKER + " ")
 
         # Insert "</m> " after each entity.
-        assert text[drug.span_end + position_offset] == " "
+        assert text[drug.span_end + position_offset] == " " or drug.span_end + position_offset == len(text) - 1
         text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
         position_offset += len(ENTITY_END_MARKER + " ")
     return text
 
-def create_datapoints(raw: Dict, mark_entities: bool = True):
+def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_relations=True, include_paragraph_context=True):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
@@ -161,7 +161,9 @@ def create_datapoints(raw: Dict, mark_entities: bool = True):
         samples: List of (text, relation label) pairs representing all positive/negative relations
                  contained in the sentence.
     """
-    processed_document = process_doc(raw)
+    processed_document = process_doc(raw,
+                                     add_no_combination_relations=add_no_combination_relations,
+                                     include_paragraph_context=include_paragraph_context)
     samples = []
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.
