@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
-    training_data = create_dataset(training_data, add_no_combination_relations=args.ignore_no_comb_relations, include_paragraph_context=args.include_paragraph_context)
+    training_data = create_dataset(training_data, add_no_combination_relations=args.ignore_no_comb_relations, include_paragraph_context=not args.ignore_paragraph_context)
     test_data = create_dataset(test_data)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
