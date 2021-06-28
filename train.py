@@ -24,7 +24,7 @@ parser.add_argument('--max-seq-length', type=int, required=False, default=512, h
 parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--negative-example-loss-weight', default=1.0, type=float, help="Loss weight for negative class labels in training (to help with label imbalance)")
-parser.add_argument('--positive-example-loss-weight', default=25.0, type=float, help="Loss weight for positive class labels in training (to help with label imbalance)")
+parser.add_argument('--positive-example-loss-weight', default=10.0, type=float, help="Loss weight for positive class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
