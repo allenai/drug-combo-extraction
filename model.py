@@ -114,7 +114,6 @@ class RelationExtractor(pl.LightningModule):
 
     def configure_optimizers(self):
         # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
-        '''
         param_optimizer = list(self.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
@@ -132,8 +131,6 @@ class RelationExtractor(pl.LightningModule):
             'optimizer': optimizer,
             'scheduler': scheduler,
         }
-        '''
-        return Adam(self.parameters(), lr=self.lr)
 
 
     def forward(self, inputs, pass_text = True):
