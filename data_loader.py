@@ -2,17 +2,41 @@ import pytorch_lightning as pl
 import torch
 from torch.utils.data import random_split, DataLoader, TensorDataset
 from transformers import AutoTokenizer
+from typing import Dict, List
 
 from constants import CLS, ENTITY_END_MARKER, ENTITY_PAD_IDX, ENTITY_START_MARKER, SEP
 
-def make_fixed_length(array, max_length, padding_value=0):
+def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> List:
+    """Helper function to make a variable-length array into a fixed-length one.
+    If the array is shorter than the fixed length, pad with the given value. If
+    longer than the fixed length, truncate it.
+
+    Args:
+        array: Array whose length we want to fix
+        max_length: Desired length to fix
+        padding_value: Value to pad array with, if shorter than desired length
+
+    Returns:
+        fixed_array: Fixed-length, padded version of the input array.
+    """
     if len(array) >= max_length:
-        return array[:max_length]
+        fixed_array = array[:max_length]
     else:
         pad_length = max_length - len(array)
-        return array + [padding_value] * pad_length
+        fixed_array = array + [padding_value] * pad_length
+    return fixed_array
 
-def construct_dataset(data, tokenizer, max_seq_length=512):
+def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length: int = 512) -> TensorDataset:
+    """Converts raw data (in the form of text/label pairs) into a binarized, training-ready Torch TensorDataset.
+
+    Args:
+        data: List of dictionaries, each containing a string of entity-marked text and a discrete label
+        tokenizer: Huggingface tokenizer, to perform word segmentation
+        max_seq_length: Fixed length (in subwords) to use for representing all documents
+
+    Returns:
+        dataset: TensorDataset containing numerical representation of the dataset's text strings and discrete labels.
+    """
     all_input_ids = []
     all_token_type_ids = []
     all_attention_masks = []
@@ -67,9 +91,33 @@ def construct_dataset(data, tokenizer, max_seq_length=512):
     return dataset
 
 class DrugSynergyDataModule(pl.LightningDataModule):
-    def __init__(self, train_data, test_data, tokenizer, label_to_idx, train_batch_size=32, dev_batch_size=32, test_batch_size=32, dev_train_ratio=0.1, max_seq_length=512, num_workers=4):
-        '''
-        dev_train_ratio: hold out x% of the training set as a dev set.
+    def __init__(self,
+                 train_data: List[Dict],
+                 test_data: List[Dict],
+                 tokenizer: AutoTokenizer,
+                 label_to_idx: Dict,
+                 train_batch_size: int = 32,
+                 dev_batch_size: int = 32,
+                 test_batch_size: int = 32,
+                 dev_train_ratio: float = 0.1,
+                 max_seq_length: int = 512,
+                 num_workers: int = 4):
+        '''Construct a DataModule for convenient PyTorch Lightning training.
+
+        Args:
+            train_data: List of (text, label) pairs for training and validation
+            test_data: List of (text, label) pairs for testing
+            tokenizer: Tokenizer/subword segmenter to process raw text
+            label_to_idx: Fixed mapping of label strings to numerical values
+            train_batch_size: Batch size for training
+            dev_batch_size: Batch size for validation
+            test_batch_size: Batch size for testing
+            dev_train_ratio: Hold out this fraction of the training set as a dev set
+            max_seq_length: Fixed document length to use for the dataset
+            num_workers: Number of CPU workers to use for loading data
+
+        Returns:
+            self: PyTorch Lightning DataModule to load all data during training, validation, and testing.
         '''
         super().__init__()
         self.train_data = train_data
