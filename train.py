@@ -66,8 +66,8 @@ if __name__ == "__main__":
 
     num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
 
-    if args.negative_sampling_rate != 1.0 or args.positive_sampling_rate != 1.0:
-        label_loss_weighting = [args.negative_sampling_rate, args.positive_sampling_rate]
+    if args.negative_example_loss_weight != 1.0 or args.positive_example_loss_weight != 1.0:
+        label_loss_weighting = [args.negative_example_loss_weight, args.positive_example_loss_weight]
         label_loss_weighting = [w / sum(label_loss_weighting) for w in label_loss_weighting]
     else:
         label_loss_weighting = None
