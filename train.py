@@ -25,6 +25,7 @@ parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Upsample or downsample negative training examples for training (due to label imbalance)")
 parser.add_argument('--positive-sampling-rate', default=25.0, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
+parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -56,7 +57,7 @@ if __name__ == "__main__":
         model.bert.resize_token_embeddings(len(tokenizer))
 
     num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
-    system = RelationExtractor(model, num_train_optimization_steps, tokenizer=tokenizer)
+    system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
     trainer = pl.Trainer(
         gpus=1,
         precision=16,
