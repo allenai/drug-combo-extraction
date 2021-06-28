@@ -156,6 +156,8 @@ def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_
     Args:
         raw: Dictionary of key-value pairs representing raw annotated document.
         mark_entities: Whether or not to add special entity token markers around each drug entity (default: True).
+        add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
+        include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
 
     Returns:
         samples: List of (text, relation label) pairs representing all positive/negative relations
@@ -174,7 +176,12 @@ def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_
         samples.append({"text": text, "target": relation.relation_label})
     return samples
 
-def create_dataset(raw_data: List[Dict], shuffle: bool = True, sample_negatives_ratio=1.0, sample_positives_ratio=1.0) -> List[Dict]:
+def create_dataset(raw_data: List[Dict],
+                   shuffle: bool = True,
+                   sample_negatives_ratio=1.0,
+                   sample_positives_ratio=1.0,
+                   add_no_combination_relations=True,
+                   include_paragraph_context=True) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
@@ -183,13 +190,17 @@ def create_dataset(raw_data: List[Dict], shuffle: bool = True, sample_negatives_
         shuffle: Whether or not to randomly reorder the relation instances in the dataset before returning.
         sample_negatives_ratio: Ratio at which to sample negatives, to mitigate label imbalance.
         sample_positives_ratio: Ratio at which to sample positives, to mitigate label imbalance.
+        add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
+        include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
 
     Returns:
         dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
     """
     dataset = []
     for row in raw_data:
-        datapoints = create_datapoints(row)
+        datapoints = create_datapoints(row,
+                                       add_no_combination_relations=add_no_combination_relations,
+                                       include_paragraph_context=include_paragraph_context)
         dataset.extend(datapoints)
     if sample_negatives_ratio != 1.0 or sample_positives_ratio != 1.0:
         non_negatives = [d for d in dataset if d["target"] != 0]
