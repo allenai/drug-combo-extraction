@@ -85,7 +85,7 @@ class RelationExtractor(pl.LightningModule):
                  model: BertForRelation,
                  num_train_optimization_steps: int,
                  tokenizer: AutoTokenizer,
-                 lr: float = 3e-4,
+                 lr: float = 5e-4,
                  correct_bias: bool = True,
                  warmup_proportion: float = 0.1,
                  optimizer_strategy: Callable = simple_adamw):
