@@ -95,6 +95,7 @@ class RelationExtractor(pl.LightningModule):
             lr: Learning rate
             correct_bias: Whether to correct bias in AdamW
             warmup_proportion: How much data to reserve for linear learning rate warmup (https://paperswithcode.com/method/linear-warmup)
+            optimizer_strategy: Constructor to create an optimizer to use (e.g. AdamW with a linear warmup schedule)
         """
         # TODO(Vijay): configure these parameters via command line arguments.
         super().__init__()
