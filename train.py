@@ -3,7 +3,6 @@ import json
 import jsonlines
 import pytorch_lightning as pl
 import tempfile
-import shutil
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
@@ -51,8 +50,13 @@ if __name__ == "__main__":
     num_labels=len(set(dm.label_to_idx.values()))
     model = BertForRelation.from_pretrained(
             args.pretrained_lm, cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE), num_rel_labels=num_labels)
+
+    # Add rows to embedding matrix if not large enough to accomodate special tokens.
+    if len(tokenizer) > len(model.bert.embeddings.word_embeddings.weight):
+        model.bert.resize_token_embeddings(len(tokenizer))
+
     num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
-    system = RelationExtractor(model, num_train_optimization_steps)
+    system = RelationExtractor(model, num_train_optimization_steps, tokenizer=tokenizer)
     trainer = pl.Trainer(
         gpus=1,
         precision=16,
@@ -60,5 +64,4 @@ if __name__ == "__main__":
     )
     trainer.fit(system, datamodule=dm)
     metrics = trainer.test(system, datamodule=dm)
-    print(f"METRICS:\n{json.dumps(metrics, indent=4)}")
     test_predictions = system.test_predictions
