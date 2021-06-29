@@ -33,8 +33,6 @@ class BertForRelation(BertPreTrainedModel):
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.bert = BertModel(config)
-        for param in self.bert.parameters():
-            param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
@@ -113,7 +111,6 @@ class RelationExtractor(pl.LightningModule):
         self.optimizer_strategy = optimizer_strategy
 
     def configure_optimizers(self):
-        # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
         return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
