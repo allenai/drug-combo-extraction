@@ -35,8 +35,6 @@ class BertForRelation(BertPreTrainedModel):
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.bert = BertModel(config)
-        for param in self.bert.parameters():
-            param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
