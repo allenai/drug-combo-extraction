@@ -136,7 +136,6 @@ class RelationExtractor(pl.LightningModule):
             self.label_weights = None
 
     def configure_optimizers(self):
-        # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
         return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
