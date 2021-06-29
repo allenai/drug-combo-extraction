@@ -32,7 +32,7 @@ if __name__ == "__main__":
     training_data = create_dataset(training_data,
                                    sample_negatives_ratio=args.negative_sampling_rate,
                                    sample_positives_ratio=args.positive_sampling_rate,
-                                   add_no_combination_relations=args.ignore_no_comb_relations,
+                                   add_no_combination_relations=not args.ignore_no_comb_relations,
                                    include_paragraph_context=not args.ignore_paragraph_context)
     test_data = create_dataset(test_data)
 
