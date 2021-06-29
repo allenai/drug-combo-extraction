@@ -1,8 +1,6 @@
 import argparse
-import json
 import jsonlines
 import pytorch_lightning as pl
-import tempfile
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
@@ -11,10 +9,7 @@ from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset, LABEL2IDX
 
-dirpath = tempfile.mkdtemp()
-
 parser = argparse.ArgumentParser()
-parser.add_argument('--output-dir', type=str, required=False, default=dirpath)
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
