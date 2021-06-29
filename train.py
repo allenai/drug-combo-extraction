@@ -44,10 +44,6 @@ if __name__ == "__main__":
     model = BertForRelation.from_pretrained(
             args.pretrained_lm, cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE), num_rel_labels=num_labels)
 
-    # Add rows to embedding matrix if not large enough to accomodate special tokens.
-    if len(tokenizer) > len(model.bert.embeddings.word_embeddings.weight):
-        model.bert.resize_token_embeddings(len(tokenizer))
-
     num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
     system = RelationExtractor(model, num_train_optimization_steps, tokenizer=tokenizer)
     trainer = pl.Trainer(
