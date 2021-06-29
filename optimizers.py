@@ -1,6 +1,7 @@
 from transformers import AdamW, get_linear_schedule_with_warmup
 
 def adamw_with_linear_warmup(named_parameters, lr, correct_bias, num_train_optimization_steps, warmup_proportion):
+        # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
         param_optimizer = list(named_parameters)
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
