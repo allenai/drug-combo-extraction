@@ -2,7 +2,6 @@ import pytorch_lightning as pl
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.optim import Adam
 from transformers import (
                             AdamW,
                             AutoTokenizer,
@@ -111,16 +110,7 @@ class RelationExtractor(pl.LightningModule):
         self.test_batch_idxs = []
 
     def configure_optimizers(self):
-        # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
-        param_optimizer = list(self.named_parameters())
-        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer
-                        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
-            {'params': [p for n, p in param_optimizer
-                        if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
-        optimizer = AdamW(optimizer_grouped_parameters, lr=self.lr, correct_bias=self.correct_bias)
+        optimizer = AdamW(self.parameters(), lr=self.lr, correct_bias=self.correct_bias)
         optimization_steps = int(self.num_train_optimization_steps * self.warmup_proportion)
         scheduler = get_linear_schedule_with_warmup(optimizer,
                                                     optimization_steps,
