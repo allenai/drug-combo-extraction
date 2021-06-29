@@ -1,8 +1,6 @@
 import argparse
-import json
 import jsonlines
 import pytorch_lightning as pl
-import tempfile
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
@@ -11,10 +9,7 @@ from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset, LABEL2IDX
 
-dirpath = tempfile.mkdtemp()
-
 parser = argparse.ArgumentParser()
-parser.add_argument('--output-dir', type=str, required=False, default=dirpath)
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
@@ -41,14 +36,14 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
     dm = DrugSynergyDataModule(training_data,
-                            test_data,
-                            tokenizer,
-                            LABEL2IDX,
-                            train_batch_size=args.batch_size,
-                            dev_batch_size=args.batch_size,
-                            test_batch_size=args.batch_size,
-                            dev_train_ratio=args.dev_train_split,
-                            max_seq_length=args.max_seq_length)
+                               test_data,
+                               tokenizer,
+                               LABEL2IDX,
+                               train_batch_size=args.batch_size,
+                               dev_batch_size=args.batch_size,
+                               test_batch_size=args.batch_size,
+                               dev_train_ratio=args.dev_train_split,
+                               max_seq_length=args.max_seq_length)
     dm.setup()
 
     num_labels=len(set(dm.label_to_idx.values()))
@@ -78,5 +73,5 @@ if __name__ == "__main__":
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
-    metrics = trainer.test(system, datamodule=dm)
+    trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
