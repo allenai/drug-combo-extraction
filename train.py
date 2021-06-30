@@ -22,7 +22,7 @@ parser.add_argument('--max-seq-length', type=int, required=False, default=512, h
 parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Upsample or downsample negative training examples for training (due to label imbalance)")
-parser.add_argument('--positive-sampling-rate', default=1.0, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
+parser.add_argument('--positive-sampling-rate', default=2.6, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
 parser.add_argument('--negative-example-loss-weight', default=1.0, type=float, help="Loss weight for negative class labels in training (to help with label imbalance)")
 parser.add_argument('--positive-example-loss-weight', default=10.0, type=float, help="Loss weight for positive class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
