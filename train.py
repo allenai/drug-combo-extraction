@@ -1,3 +1,6 @@
+# Usage
+# python train.py --balance-training-batch-labels
+
 import argparse
 import jsonlines
 import pytorch_lightning as pl
@@ -26,6 +29,7 @@ parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If 
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
+parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -49,7 +53,8 @@ if __name__ == "__main__":
                                dev_batch_size=args.batch_size,
                                test_batch_size=args.batch_size,
                                dev_train_ratio=args.dev_train_split,
-                               max_seq_length=args.max_seq_length)
+                               max_seq_length=args.max_seq_length,
+                               balance_training_batch_labels=args.balance_training_batch_labels)
     dm.setup()
 
     num_labels=len(set(dm.label_to_idx.values()))
