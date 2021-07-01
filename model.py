@@ -3,16 +3,15 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from transformers import (
-                            AdamW,
                             AutoTokenizer,
                             BertModel,
                             BertPreTrainedModel,
-                            get_linear_schedule_with_warmup,
                             PretrainedConfig
 )
-from typing import Optional
+from typing import Callable, Optional
 
 from constants import ENTITY_PAD_IDX
+from optimizers import adamw_with_linear_warmup, simple_adamw
 from utils import accuracy, f1
 
 BertLayerNorm = torch.nn.LayerNorm
@@ -84,10 +83,10 @@ class RelationExtractor(pl.LightningModule):
                  model: BertForRelation,
                  num_train_optimization_steps: int,
                  tokenizer: AutoTokenizer,
-                 lr: float = 1e-3,
+                 lr: float = 5e-4,
                  correct_bias: bool = True,
                  warmup_proportion: float = 0.1,
-    ):
+                 optimizer_strategy: Callable = simple_adamw):
         """PyTorch Lightning module which wraps the BERT-based model.
 
         Args:
@@ -96,6 +95,7 @@ class RelationExtractor(pl.LightningModule):
             lr: Learning rate
             correct_bias: Whether to correct bias in AdamW
             warmup_proportion: How much data to reserve for linear learning rate warmup (https://paperswithcode.com/method/linear-warmup)
+            optimizer_strategy: Constructor to create an optimizer to use (e.g. AdamW with a linear warmup schedule)
         """
         # TODO(Vijay): configure these parameters via command line arguments.
         super().__init__()
@@ -108,18 +108,10 @@ class RelationExtractor(pl.LightningModule):
         self.test_sentences = []
         self.test_predictions = []
         self.test_batch_idxs = []
+        self.optimizer_strategy = optimizer_strategy
 
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=self.lr, correct_bias=self.correct_bias)
-        optimization_steps = int(self.num_train_optimization_steps * self.warmup_proportion)
-        scheduler = get_linear_schedule_with_warmup(optimizer,
-                                                    optimization_steps,
-                                                    self.num_train_optimization_steps)
-        return {
-            'optimizer': optimizer,
-            'scheduler': scheduler,
-        }
-
+        return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
