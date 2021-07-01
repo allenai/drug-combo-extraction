@@ -30,21 +30,22 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
     dm = DrugSynergyDataModule(training_data,
-                                        test_data,
-                                        tokenizer,
-                                        LABEL2IDX,
-                                        train_batch_size=args.batch_size,
-                                        dev_batch_size=args.batch_size,
-                                        test_batch_size=args.batch_size,
-                                        dev_train_ratio=args.dev_train_split,
-                                        max_seq_length=args.max_seq_length)
+                               test_data,
+                               tokenizer,
+                               LABEL2IDX,
+                               train_batch_size=args.batch_size,
+                               dev_batch_size=args.batch_size,
+                               test_batch_size=args.batch_size,
+                               dev_train_ratio=args.dev_train_split,
+                               max_seq_length=args.max_seq_length)
     dm.setup()
 
     num_labels=len(set(dm.label_to_idx.values()))
     model = BertForRelation.from_pretrained(
             args.pretrained_lm, cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE), num_rel_labels=num_labels)
+
     num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
-    system = RelationExtractor(model, num_train_optimization_steps)
+    system = RelationExtractor(model, num_train_optimization_steps, tokenizer=tokenizer)
     trainer = pl.Trainer(
         gpus=1,
         precision=16,
@@ -52,3 +53,4 @@ if __name__ == "__main__":
     )
     trainer.fit(system, datamodule=dm)
     trainer.test(system, datamodule=dm)
+    test_predictions = system.test_predictions

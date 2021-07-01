@@ -1,9 +1,10 @@
 import pytorch_lightning as pl
 import torch
 from torch import nn
-from torch.nn import CrossEntropyLoss
+import torch.nn.functional as F
 from transformers import (
                             AdamW,
+                            AutoTokenizer,
                             BertModel,
                             BertPreTrainedModel,
                             get_linear_schedule_with_warmup,
@@ -76,18 +77,13 @@ class BertForRelation(BertPreTrainedModel):
         rep = self.layer_norm(mean_entity_embs)
         rep = self.dropout(rep)
         logits = self.classifier(rep)
-
-        if labels is not None:
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_rel_labels), labels.view(-1))
-        else:
-            loss = None
-        return ModelOutput(logits, loss)
+        return logits
 
 class RelationExtractor(pl.LightningModule):
     def __init__(self,
                  model: BertForRelation,
                  num_train_optimization_steps: int,
+                 tokenizer: AutoTokenizer,
                  lr: float = 1e-3,
                  correct_bias: bool = True,
                  warmup_proportion: float = 0.1,
@@ -108,6 +104,10 @@ class RelationExtractor(pl.LightningModule):
         self.lr = lr
         self.correct_bias = correct_bias
         self.warmup_proportion = warmup_proportion
+        self.tokenizer = tokenizer
+        self.test_sentences = []
+        self.test_predictions = []
+        self.test_batch_idxs = []
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=self.lr, correct_bias=self.correct_bias)
@@ -120,6 +120,12 @@ class RelationExtractor(pl.LightningModule):
             'scheduler': scheduler,
         }
 
+
+    def forward(self, inputs, pass_text = True):
+        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
+        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        return logits
+
     def training_step(self, inputs, batch_idx):
         """Training step in PyTorch Lightning.
 
@@ -131,10 +137,19 @@ class RelationExtractor(pl.LightningModule):
             Loss tensor
         """
         # outputs: TokenClassifierOutput
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
-        output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        self.log("loss", output.loss, prog_bar=False, logger=True, on_step=True, on_epoch=False)
-        return output.loss
+        _, _, _, labels, _ = inputs
+        logits = self(inputs, pass_text = True)
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+        self.log("loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+
+        predictions = torch.argmax(logits, dim=1)
+        acc = accuracy(predictions, labels)
+        f, prec, rec = f1(predictions, labels)
+        self.log("accuracy", acc, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+        self.log("precision", prec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+        self.log("recall", rec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+        self.log("f1", f, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+        return loss
 
     def validation_step(self, inputs, batch_idx):
         """Validation step in PyTorch Lightning.
@@ -147,10 +162,12 @@ class RelationExtractor(pl.LightningModule):
             Loss tensor
         """
         # outputs: TokenClassifierOutput
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
-        output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        self.log("val_loss", output.loss, prog_bar=True, logger=True, on_step=False, on_epoch=True)
-        return output.loss
+        _, _, _, labels, _ = inputs
+        logits = self(inputs, pass_text = True)
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+
+        self.log("val_loss", loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        return loss
 
     def test_step(self, inputs, batch_idx):
         """Testing step in PyTorch Lightning.
@@ -162,15 +179,19 @@ class RelationExtractor(pl.LightningModule):
         Return:
             Accuracy value (float) on the test set
         """
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
-        output = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        self.log("test_loss", output.loss, prog_bar=True, logger=True)
-        logits = output.logits
+        input_ids, _, _, labels, _ = inputs
+        logits = self(inputs, pass_text = True)
+        raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+
+        self.log("test_loss", loss, prog_bar=True, logger=True)
         predictions = torch.argmax(logits, dim=1)
+        self.test_sentences.extend(raw_text)
+        self.test_predictions.extend(predictions.tolist())
+        self.test_batch_idxs.extend([batch_idx for _ in predictions.tolist()])
         acc = accuracy(predictions, labels)
         f, prec, rec = f1(predictions, labels)
         self.log("accuracy", acc, prog_bar=True, logger=True)
         self.log("precision", prec, prog_bar=True, logger=True)
         self.log("recall", rec, prog_bar=True, logger=True)
         self.log("f1", f, prog_bar=True, logger=True)
-        return accuracy
