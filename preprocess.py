@@ -81,7 +81,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, add_no_combination_relations: bool = True) -> Document:
+def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_paragraph_context: bool = True) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
@@ -92,9 +92,13 @@ def process_doc(raw: Dict, add_no_combination_relations: bool = True) -> Documen
     Returns:
         document: Processed version of the input document.
     """
-    text = raw['paragraph']
-    sentence_start_idx = text.find(raw['sentence'])
-    assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
+    if include_paragraph_context:
+        text = raw['paragraph']
+        sentence_start_idx = text.find(raw['sentence'])
+        assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
+    else:
+        text = raw['sentence']
+        sentence_start_idx = 0
 
     # Construct DrugEntity objects.
     drug_entities = []
@@ -136,28 +140,32 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     for drug in relation_entities:
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
-        assert text[drug.span_start + position_offset - 1] == " "
+        assert text[drug.span_start + position_offset - 1] == " " or drug.span_start + position_offset == 0
         text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
         position_offset += len(ENTITY_START_MARKER + " ")
 
         # Insert "</m> " after each entity.
-        assert text[drug.span_end + position_offset] == " "
+        assert text[drug.span_end + position_offset] == " " or drug.span_end + position_offset == len(text) - 1
         text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
         position_offset += len(ENTITY_END_MARKER + " ")
     return text
 
-def create_datapoints(raw: Dict, mark_entities: bool = True):
+def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_relations=True, include_paragraph_context=True):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
         raw: Dictionary of key-value pairs representing raw annotated document.
         mark_entities: Whether or not to add special entity token markers around each drug entity (default: True).
+        add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
+        include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
 
     Returns:
         samples: List of (text, relation label) pairs representing all positive/negative relations
                  contained in the sentence.
     """
-    processed_document = process_doc(raw)
+    processed_document = process_doc(raw,
+                                     add_no_combination_relations=add_no_combination_relations,
+                                     include_paragraph_context=include_paragraph_context)
     samples = []
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.
@@ -168,7 +176,12 @@ def create_datapoints(raw: Dict, mark_entities: bool = True):
         samples.append({"text": text, "target": relation.relation_label})
     return samples
 
-def create_dataset(raw_data: List[Dict], shuffle: bool = True, sample_negatives_ratio=1.0, sample_positives_ratio=1.0) -> List[Dict]:
+def create_dataset(raw_data: List[Dict],
+                   shuffle: bool = True,
+                   sample_negatives_ratio=1.0,
+                   sample_positives_ratio=1.0,
+                   add_no_combination_relations=True,
+                   include_paragraph_context=True) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
@@ -177,13 +190,17 @@ def create_dataset(raw_data: List[Dict], shuffle: bool = True, sample_negatives_
         shuffle: Whether or not to randomly reorder the relation instances in the dataset before returning.
         sample_negatives_ratio: Ratio at which to sample negatives, to mitigate label imbalance.
         sample_positives_ratio: Ratio at which to sample positives, to mitigate label imbalance.
+        add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
+        include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
 
     Returns:
         dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
     """
     dataset = []
     for row in raw_data:
-        datapoints = create_datapoints(row)
+        datapoints = create_datapoints(row,
+                                       add_no_combination_relations=add_no_combination_relations,
+                                       include_paragraph_context=include_paragraph_context)
         dataset.extend(datapoints)
     if sample_negatives_ratio != 1.0 or sample_positives_ratio != 1.0:
         non_negatives = [d for d in dataset if d["target"] != 0]
