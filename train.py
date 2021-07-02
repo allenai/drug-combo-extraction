@@ -1,4 +1,5 @@
 import argparse
+import json
 import jsonlines
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
@@ -19,10 +20,8 @@ parser.add_argument('--dev-train-split', type=float, required=False, default=0.1
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
-parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Upsample or downsample negative training examples for training (due to label imbalance)")
-parser.add_argument('--positive-sampling-rate', default=1.0, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
-parser.add_argument('--negative-example-loss-weight', default=1.0, type=float, help="Loss weight for negative class labels in training (to help with label imbalance)")
-parser.add_argument('--positive-example-loss-weight', default=10.0, type=float, help="Loss weight for positive class labels in training (to help with label imbalance)")
+parser.add_argument('--label-sampling-ratios', default=[1.0, 1.0], type=float, help="Upsample or downsample training examples of each class for training (due to label imbalance)")
+parser.add_argument('--label-loss-weights', default=[1.0, 10.0], type=float, help="Loss weight for negative class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
@@ -35,12 +34,15 @@ if __name__ == "__main__":
     test_data = list(jsonlines.open(args.test_file))
     training_data = create_dataset(training_data,
                                    label2idx=args.label2idx,
-                                   sample_negatives_ratio=args.negative_sampling_rate,
-                                   sample_positives_ratio=args.positive_sampling_rate,
+                                   label_sampling_ratios=args.label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    include_paragraph_context=not args.ignore_paragraph_context)
-    test_data = create_dataset(test_data,
-                               label2idx=args.label2idx)
+    label_values = sorted(list(json.load(open(args.label2idx)).values()))
+    num_labels = len(label_values)
+    assert label_values == list(range(num_labels)), "Label indices should range from 0 to n-1"
+    assert len(args.label_sampling_ratios) == num_labels
+    assert len(args.label_loss_weights) == num_labels
+    test_data = create_dataset(test_data, label2idx=args.label2idx)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
@@ -69,9 +71,9 @@ if __name__ == "__main__":
 
     num_train_optimization_steps = len(dm.train_dataloader()) * float(args.num_train_epochs)
 
-    if args.negative_example_loss_weight != 1.0 or args.positive_example_loss_weight != 1.0:
-        label_loss_weighting = [args.negative_example_loss_weight, args.positive_example_loss_weight]
-        label_loss_weighting = [w / sum(label_loss_weighting) for w in label_loss_weighting]
+    if set(args.label_loss_weights) != {1.0}:
+        # Unless all labels are being weighted equally, then compute specific label weights for class-weighted loss.
+        label_loss_weighting = [w / sum(args.label_loss_weights) for w in args.label_loss_weights]
     else:
         label_loss_weighting = None
 
