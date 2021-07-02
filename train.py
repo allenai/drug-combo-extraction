@@ -8,7 +8,7 @@ from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
-from preprocess import create_dataset, LABEL2IDX
+from preprocess import create_dataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
