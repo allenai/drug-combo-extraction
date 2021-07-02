@@ -1,3 +1,4 @@
+import json
 import jsonlines
 import torch
 from typing import List, Dict, Tuple
@@ -89,3 +90,7 @@ def write_jsonl(data: List[Dict], fname: str):
     with jsonlines.Writer(open(fname, 'wb')) as writer:
         writer.write(data)
     print(f"Wrote {len(data)} json lines to {fname}")
+
+def write_json(data: Dict, fname: str):
+    json.dump(data, open(fname, 'w'), indent=4)
+    print(f"Wrote json file to {fname}")
