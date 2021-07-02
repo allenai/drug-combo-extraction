@@ -9,7 +9,7 @@ import sys
 from typing import List, Dict, Tuple
 
 sys.path.append('..')
-from utils import read_jsonl, write_jsonl
+from utils import read_jsonl, write_json, write_jsonl
 
 BASIC_PUNCTUATION = [".", "!", "?", ",", ";", ":"]
 
@@ -185,12 +185,22 @@ def convert_scierc_split(split_data: List[Dict]) -> List[Dict]:
         converted_rows.extend(convert_scierc_rows(raw_row))
     return converted_rows
 
+def accumulate_relation_labels(dataset: List[Dict]) -> List[Dict]:
+    label2idx = {}
+    for document in dataset:
+        for relation in document["rels"]:
+            relation_label = relation["class"]
+            if relation_label not in label2idx:
+                label2idx[relation_label] = len(label2idx)
+    return label2idx
+
 if __name__ == "__main__":
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
     splits = ["train", "test", "dev"]
 
     dev_train_set = []
+    full_data = []
     for split in splits:
         in_file = os.path.join(args.scierc_dir, split + ".json")
         raw_split_data = read_jsonl(in_file)
@@ -203,6 +213,10 @@ if __name__ == "__main__":
             elif split == "dev":
                 dev_train_set.extend(converted_split)
         write_jsonl(converted_split, out_file)
+        full_data.extend(converted_split)
+
+    label2idx = accumulate_relation_labels(full_data)
+    write_json(label2idx, os.path.join(args.out_dir, "label2idx.json"))
 
     if args.merge_dev_and_train:
         write_jsonl(dev_train_set, os.path.join(args.out_dir, "dev_train.jsonl"))
