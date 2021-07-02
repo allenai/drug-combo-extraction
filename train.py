@@ -8,6 +8,7 @@ from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset, LABEL2IDX
+from utils import read_jsonl
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
@@ -22,8 +23,8 @@ parser.add_argument("--num-train-epochs", default=3, type=int, help="Total numbe
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    training_data = list(jsonlines.open(args.training_file))
-    test_data = list(jsonlines.open(args.test_file))
+    training_data = read_jsonl(args.training_file)
+    test_data = read_jsonl(args.test_file)
     training_data = create_dataset(training_data)
     test_data = create_dataset(test_data)
 
