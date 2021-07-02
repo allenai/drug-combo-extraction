@@ -88,7 +88,7 @@ def read_jsonl(fname: str):
 
 def write_jsonl(data: List[Dict], fname: str):
     with jsonlines.Writer(open(fname, 'wb')) as writer:
-        writer.write(data)
+        writer.write_all(data)
     print(f"Wrote {len(data)} json lines to {fname}")
 
 def write_json(data: Dict, fname: str):
