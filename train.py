@@ -32,17 +32,18 @@ if __name__ == "__main__":
 
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
+    label2idx = json.load(open(args.label2idx))
     training_data = create_dataset(training_data,
-                                   label2idx=args.label2idx,
+                                   label2idx=label2idx,
                                    label_sampling_ratios=args.label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    include_paragraph_context=not args.ignore_paragraph_context)
-    label_values = sorted(list(json.load(open(args.label2idx)).values()))
+    label_values = sorted(list(label2idx.values()))
     num_labels = len(label_values)
     assert label_values == list(range(num_labels)), "Label indices should range from 0 to n-1"
     assert len(args.label_sampling_ratios) == num_labels
     assert len(args.label_loss_weights) == num_labels
-    test_data = create_dataset(test_data, label2idx=args.label2idx)
+    test_data = create_dataset(test_data, label2idx=label2idx)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
