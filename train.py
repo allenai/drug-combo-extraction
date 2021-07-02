@@ -38,9 +38,9 @@ if __name__ == "__main__":
                                    label_sampling_ratios=args.label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    include_paragraph_context=not args.ignore_paragraph_context)
-    label_values = sorted(list(label2idx.values()))
+    label_values = sorted(set(label2idx.values()))
     num_labels = len(label_values)
-    assert label_values == list(range(num_labels)), "Label indices should range from 0 to n-1"
+    assert label_values == list(range(num_labels)), breakpoint()
     assert len(args.label_sampling_ratios) == num_labels
     assert len(args.label_loss_weights) == num_labels
     test_data = create_dataset(test_data, label2idx=label2idx)
@@ -57,7 +57,6 @@ if __name__ == "__main__":
                                max_seq_length=args.max_seq_length)
     dm.setup()
 
-    num_labels=len(set(dm.label_to_idx.values()))
     model = BertForRelation.from_pretrained(
             args.pretrained_lm,
             cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
