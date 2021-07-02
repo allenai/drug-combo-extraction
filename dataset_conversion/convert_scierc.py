@@ -191,7 +191,7 @@ def accumulate_relation_labels(dataset: List[Dict]) -> List[Dict]:
         for relation in document["rels"]:
             relation_label = relation["class"]
             if relation_label not in label2idx:
-                label2idx[relation_label] = len(label2idx)
+                label2idx[relation_label] = len(label2idx) + 1
     return label2idx
 
 if __name__ == "__main__":
