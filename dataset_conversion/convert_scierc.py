@@ -40,18 +40,16 @@ def detokenize_sentence(tokens: List[str], token_index_offset: int, char_index_o
         token_start_idx = char_index_offset
         token_end_idx = char_index_offset + len(token)
         token_char_mapping[paragraph_idx] = (token_start_idx, token_end_idx)
-        if token in BASIC_PUNCTUATION:
+        if i == len(tokens) - 1 or tokens[i+1] in BASIC_PUNCTUATION:
             detokenized_sentence = detokenized_sentence + token
             char_index_offset += len(token)
         else:
-            detokenized_sentence = detokenized_sentence + " " + token
+            detokenized_sentence = detokenized_sentence + token + " "
             char_index_offset += len(token) + 1
-    if detokenized_sentence[0] == " ":
-        # Remove leading whitespace.
-        detokenized_sentence = detokenized_sentence[1:]
+    # TODO(Vijay): remove these asserts
     return detokenized_sentence, token_char_mapping
 
-def update_entity_indices(entities: List[List], paragraph: str, all_tokens: List[str], token_index_mapping: Dict[int, Tuple[int, int]]) -> List[Dict]:
+def update_entity_indices(entities: List[List], paragraph: str, all_tokens: List[str], token_index_mapping: Dict[int, Tuple[int, int]], entities_seen: int) -> List[Dict]:
     """Convert SciERC entity objects within a sentence into Drug Synergy Dataset entity span objects. In addition to
     converting the data format, also update all token spans in each entity to be paragraph-level character spans.
 
@@ -60,6 +58,7 @@ def update_entity_indices(entities: List[List], paragraph: str, all_tokens: List
         paragraph: String containing full text in the paragraph
         all_tokens: Tokens in the paragraph
         token_index_mapping: Mapping from the index of each token to its start and end character indices (to construct character spans)
+        entities_seen: Number of entities observed in previous sentences (for the purposes of constructing unique entity IDs)
 
     Returns:
         converted_spans: SciERC entity annotations within a sentence, converted into the Drug Synergy Dataset format
@@ -77,7 +76,7 @@ def update_entity_indices(entities: List[List], paragraph: str, all_tokens: List
             # between the token-indexed and char-indexed entities.
             assert word[0] == text
         span = {
-            "span_id": i,
+            "span_id": i + entities_seen,
             "text": text,
             "start": start_char_idx,
             "end": end_char_idx,
@@ -155,9 +154,10 @@ def convert_scierc_rows(row: Dict) -> Dict:
     paragraph = paragraph[:-1] # remove trailing space from the paragraph text.
     all_tokens = [w for s in row["sentences"] for w in s] # This is simply used for contract checking in update_entity_indices
     rows_converted = []
+    entities_seen = 0
     for i in range(len(row["sentences"])):
         sentence = sentences[i]
-        converted_entities = update_entity_indices(row["ner"][i], paragraph, all_tokens, token_index_mapping)
+        converted_entities = update_entity_indices(row["ner"][i], paragraph, all_tokens, token_index_mapping, entities_seen)
         converted_relations = update_relation_indices(row["relations"][i], converted_entities, token_index_mapping)
         converted_row = {
             "sentence": sentence,
@@ -169,6 +169,7 @@ def convert_scierc_rows(row: Dict) -> Dict:
             # Ignore sentences with no relations annotated.
             continue
         rows_converted.append(converted_row)
+        entities_seen += len(converted_entities)
     return rows_converted
 
 def convert_scierc_split(split_data: List[Dict]) -> List[Dict]:
