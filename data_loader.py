@@ -1,4 +1,5 @@
 import pytorch_lightning as pl
+from tqdm import tqdm
 import torch
 from torch.utils.data import random_split, DataLoader, TensorDataset
 from transformers import AutoTokenizer
@@ -42,7 +43,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
     # Store subwords and entity positions for each document in the first pass over the dataset.
     all_doc_subwords = []
     all_doc_entity_start_positions = []
-    for doc in data:
+    for doc in tqdm(data):
         targets.append(doc["target"])
         doc_subwords = [CLS]
         whitespace_tokens = doc["text"].split()
