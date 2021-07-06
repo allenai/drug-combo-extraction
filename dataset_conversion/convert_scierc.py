@@ -9,7 +9,7 @@ import sys
 from typing import List, Dict, Tuple
 
 sys.path.append('..')
-from utils import read_jsonl, write_json, write_jsonl
+import utils
 
 BASIC_PUNCTUATION = [".", "!", "?", ",", ";", ":"]
 
@@ -18,7 +18,7 @@ parser.add_argument('--scierc-dir', type=str, required=False, default="sciERC/pr
 parser.add_argument('--out-dir', type=str, required=False, default="sciERC/synergy_format", help="Directory to place sciERC dataset, formatted into the drug synergy format")
 parser.add_argument('--merge-dev-and-train', action="store_true", help="Whether to merge dev and train splits into a single train split")
 
-def detokenize_sentence(tokens: List[str], token_index_offset: int, char_index_offset: int) -> Tuple[str, Dict[int, Tuple[int, int]]]:
+def detokenize_sentence(tokens: List[str], token_index_offset: int) -> Tuple[str, Dict[int, Tuple[int, int]]]:
     """Converts a list of tokens into a sentence, which can be tokenized later by applications.
     To comply with this, update entity span indices to be span character indices instead of token indices.
 
@@ -35,53 +35,55 @@ def detokenize_sentence(tokens: List[str], token_index_offset: int, char_index_o
 
     detokenized_sentence = ""
     token_char_mapping = {}
+    token_start_idx = 0
     for i, token in enumerate(tokens):
         paragraph_idx = token_index_offset + i
-        token_start_idx = char_index_offset
-        token_end_idx = char_index_offset + len(token)
+        token_end_idx = token_start_idx + len(token)
         token_char_mapping[paragraph_idx] = (token_start_idx, token_end_idx)
-        if i == len(tokens) - 1 or tokens[i+1] in BASIC_PUNCTUATION:
-            detokenized_sentence = detokenized_sentence + token
-            char_index_offset += len(token)
-        else:
-            detokenized_sentence = detokenized_sentence + token + " "
-            char_index_offset += len(token) + 1
-    # TODO(Vijay): remove these asserts
+        detokenized_sentence = detokenized_sentence + token + " "
+        token_start_idx += len(token) + 1
+    detokenized_sentence = detokenized_sentence[:-1]
     return detokenized_sentence, token_char_mapping
 
-def update_entity_indices(entities: List[List], paragraph: str, all_tokens: List[str], token_index_mapping: Dict[int, Tuple[int, int]], entities_seen: int) -> List[Dict]:
+
+def update_entity_indices(entities: List[List], sentence: str, paragraph_tokens: List[str], token_index_mapping: Dict[int, Tuple[int, int]], entities_seen: int, token_offset: int) -> List[Dict]:
     """Convert SciERC entity objects within a sentence into Drug Synergy Dataset entity span objects. In addition to
     converting the data format, also update all token spans in each entity to be paragraph-level character spans.
 
     Args:
         entities: SciERC entity annotations within a single sentence
-        paragraph: String containing full text in the paragraph
-        all_tokens: Tokens in the paragraph
+        sentence: String containing full text in the detokenized sentence
+        sentence_tokens: Tokens in the sentence
         token_index_mapping: Mapping from the index of each token to its start and end character indices (to construct character spans)
         entities_seen: Number of entities observed in previous sentences (for the purposes of constructing unique entity IDs)
+        token_offset: Number of tokens observed in previous sentences
 
     Returns:
         converted_spans: SciERC entity annotations within a sentence, converted into the Drug Synergy Dataset format
     """
     converted_spans = []
+
     for i, entity in enumerate(entities):
         [start_token_idx, end_token_idx, entity_type] = entity
         start_char_idx, _ = token_index_mapping[start_token_idx]
         _, end_char_idx = token_index_mapping[end_token_idx]
-        text = paragraph[start_char_idx:end_char_idx]
+        text = sentence[start_char_idx:end_char_idx]
 
-        word = all_tokens[start_token_idx:end_token_idx+1]
+        word = paragraph_tokens[start_token_idx:end_token_idx+1]
         if len(word) == 1:
             # As a sanity check, verify that all single token entities match perfectly here
             # between the token-indexed and char-indexed entities.
-            assert word[0] == text
+            assert word[0] == text, breakpoint()
+
+        token_start_string = text.split()[0]
+        token_end_string = text.split()[-1]
         span = {
             "span_id": i + entities_seen,
             "text": text,
             "start": start_char_idx,
             "end": end_char_idx,
-            "token_start": start_token_idx,
-            "token_end": end_token_idx
+            "token_start": start_token_idx - token_offset,
+            "token_end": end_token_idx - token_offset
         }
         converted_spans.append(span)
     return converted_spans
@@ -136,28 +138,29 @@ def convert_scierc_rows(row: Dict) -> Dict:
     """
     paragraph = ""
     token_index_offset = 0
-    char_index_offset = 0
     token_index_mapping = {}
     sentences = []
 
     # In a first pass of the paragraph, convert each entity span (originally represented as a span of tokens)
     # into a span of characters, indexed over all characters in the paragraph.
+    all_tokens = []
+    token_offsets = [0]
     for i, sentence in enumerate(row["sentences"]):
-        detokenized_sentence, sentence_token_index_mapping = detokenize_sentence(sentence, token_index_offset, char_index_offset)
+        detokenized_sentence, sentence_token_index_mapping = detokenize_sentence(sentence, token_index_offset)
         sentences.append(detokenized_sentence)
         token_index_mapping.update(sentence_token_index_mapping)
         paragraph = paragraph + detokenized_sentence + " "
+        all_tokens.extend(sentence)
         token_index_offset += len(sentence)
-        char_index_offset = len(paragraph)
-        all_tokens = [w for s in row["sentences"] for w in s] # This is simply used for contract checking in update_entity_indices
+        token_offsets.append(token_index_offset)
+    token_offsets = token_offsets[:-1]
 
     paragraph = paragraph[:-1] # remove trailing space from the paragraph text.
-    all_tokens = [w for s in row["sentences"] for w in s] # This is simply used for contract checking in update_entity_indices
     rows_converted = []
     entities_seen = 0
     for i in range(len(row["sentences"])):
         sentence = sentences[i]
-        converted_entities = update_entity_indices(row["ner"][i], paragraph, all_tokens, token_index_mapping, entities_seen)
+        converted_entities = update_entity_indices(row["ner"][i], sentences[i], all_tokens, token_index_mapping, entities_seen, token_offsets[i])
         converted_relations = update_relation_indices(row["relations"][i], converted_entities, token_index_mapping)
         converted_row = {
             "sentence": sentence,
@@ -204,7 +207,7 @@ if __name__ == "__main__":
     full_data = []
     for split in splits:
         in_file = os.path.join(args.scierc_dir, split + ".json")
-        raw_split_data = read_jsonl(in_file)
+        raw_split_data = utils.read_jsonl(in_file)
         converted_split = convert_scierc_split(raw_split_data)
         out_file = os.path.join(args.out_dir, split + ".jsonl")
         if args.merge_dev_and_train:
@@ -213,11 +216,11 @@ if __name__ == "__main__":
                 dev_train_set.extend(converted_split)
             elif split == "dev":
                 dev_train_set.extend(converted_split)
-        write_jsonl(converted_split, out_file)
+        utils.write_jsonl(converted_split, out_file)
         full_data.extend(converted_split)
 
     label2idx = accumulate_relation_labels(full_data)
-    write_json(label2idx, os.path.join(args.out_dir, "label2idx.json"))
+    utils.write_json(label2idx, os.path.join(args.out_dir, "label2idx.json"))
 
     if args.merge_dev_and_train:
-        write_jsonl(dev_train_set, os.path.join(args.out_dir, "dev_train.jsonl"))
+        utils.write_jsonl(dev_train_set, os.path.join(args.out_dir, "dev_train.jsonl"))
