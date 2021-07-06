@@ -27,6 +27,8 @@ parser.add_argument('--only-include-binary-no-comb-relations', action='store_tru
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
+parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -51,7 +53,8 @@ if __name__ == "__main__":
                                    label_sampling_ratios=label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                                   include_paragraph_context=not args.ignore_paragraph_context)
+                                   include_paragraph_context=not args.ignore_paragraph_context,
+                                   context_window_size=args.context_window_size)
     label_values = sorted(set(label2idx.values()))
     num_labels = len(label_values)
     assert label_values == list(range(num_labels))
@@ -61,7 +64,8 @@ if __name__ == "__main__":
                                label2idx=label2idx,
                                add_no_combination_relations=not args.ignore_no_comb_relations,
                                only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                               include_paragraph_context=not args.ignore_paragraph_context)
+                               include_paragraph_context=not args.ignore_paragraph_context,
+                               context_window_size=args.context_window_size)
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
     dm = DrugSynergyDataModule(training_data,
