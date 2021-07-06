@@ -23,6 +23,7 @@ parser.add_argument('--num-train-epochs', default=6, type=int, help="Total numbe
 parser.add_argument('--label-sampling-ratios', default=None, type=float, help="Upsample or downsample training examples of each class for training (due to label imbalance)")
 parser.add_argument('--label-loss-weights', default=None, type=float, help="Loss weight for negative class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
+parser.add_argument('--only-include-binary-no-comb-relations', action='store_true', help="If true, and we are including no-comb relations, then only mine binary no-comb relations (ignoring n-ary no-comb relations)")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
@@ -49,6 +50,7 @@ if __name__ == "__main__":
                                    label2idx=label2idx,
                                    label_sampling_ratios=label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
+                                   only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
                                    include_paragraph_context=not args.ignore_paragraph_context)
     label_values = sorted(set(label2idx.values()))
     num_labels = len(label_values)
