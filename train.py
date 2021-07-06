@@ -33,6 +33,8 @@ if __name__ == "__main__":
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
     label2idx = json.load(open(args.label2idx))
+    label2idx["NOT-COMB"] = 0
+
     training_data = create_dataset(training_data,
                                    label2idx=label2idx,
                                    label_sampling_ratios=args.label_sampling_ratios,
