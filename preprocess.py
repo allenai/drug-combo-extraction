@@ -129,18 +129,22 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     """
 
     relation_entities: List = sorted(relation_entities, key=lambda entity: entity.span_start)
-    position_offset = 0
-    for drug in relation_entities:
+    # This list keeps track of all the indices where special entity marker tokens were inserted.
+    position_offsets = []
+    for i, drug in enumerate(relation_entities):
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
-        assert text[drug.span_start + position_offset - 1] == " " or drug.span_start + position_offset == 0
+        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
+        assert drug.span_start + position_offset == 0 or text[drug.span_start + position_offset - 1] == " ", breakpoint()
         text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
-        position_offset += len(ENTITY_START_MARKER + " ")
+        position_offsets.append((drug.span_start, len(ENTITY_START_MARKER + " ")))
 
         # Insert "</m> " after each entity.
-        assert text[drug.span_end + position_offset] == " " or drug.span_end + position_offset == len(text) - 1
+        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
+        assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
         text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
-        position_offset += len(ENTITY_END_MARKER + " ")
+        position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
+    print(f"add_entity_markers succeeded")
     return text
 
 def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, include_paragraph_context=True):
