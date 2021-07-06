@@ -144,7 +144,6 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
         text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
         position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
-    print(f"add_entity_markers succeeded")
     return text
 
 def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, include_paragraph_context=True):
