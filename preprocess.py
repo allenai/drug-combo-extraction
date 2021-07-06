@@ -1,5 +1,6 @@
 from itertools import chain, combinations
 import random
+from tqdm import tqdm
 
 from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from typing import Dict, Iterable, List, Set
@@ -196,7 +197,7 @@ def create_dataset(raw_data: List[Dict],
     """
     label_values = sorted(list(set(label2idx.values())))
     dataset = []
-    for row in raw_data:
+    for row in tqdm(raw_data):
         datapoints = create_datapoints(row,
                                        label2idx,
                                        add_no_combination_relations=add_no_combination_relations,
