@@ -57,8 +57,11 @@ if __name__ == "__main__":
     assert label_values == list(range(num_labels))
     assert len(label_sampling_ratios) == num_labels
     assert len(label_loss_weights) == num_labels
-    test_data = create_dataset(test_data, label2idx=label2idx)
-
+    test_data = create_dataset(test_data,
+                               label2idx=label2idx,
+                               add_no_combination_relations=not args.ignore_no_comb_relations,
+                               only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
+                               include_paragraph_context=not args.ignore_paragraph_context)
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
     dm = DrugSynergyDataModule(training_data,
