@@ -3,7 +3,7 @@ import random
 from tqdm import tqdm
 
 from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
-from typing import Dict, Iterable, List, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 random.seed(2021)
 
@@ -167,7 +167,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
     return text
 
-def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True):
+def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
@@ -177,6 +177,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
+        context_window_size: If set, we limit our paragraph context to this number of words
 
     Returns:
         samples: List of (text, relation label) pairs representing all positive/negative relations
@@ -194,6 +195,16 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             text = add_entity_markers(processed_document.text, relation.drug_entities)
         else:
             text = processed_document.text
+        if context_window_size is not None:
+            tokens = text.split()
+            first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
+            final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
+            entity_distance = final_entity_end_token - first_entity_start_token
+            add_left = (context_window_size - entity_distance) // 2
+            start_window_left = max(0, first_entity_start_token - add_left)
+            add_right = (context_window_size - entity_distance) - add_left
+            start_window_right = min(len(tokens), final_entity_end_token + add_right)
+            text = " ".join(tokens[start_window_left:start_window_right])
         samples.append({"text": text, "target": relation.relation_label})
     return samples
 
@@ -203,7 +214,8 @@ def create_dataset(raw_data: List[Dict],
                    label_sampling_ratios=[1.0, 1.0],
                    add_no_combination_relations=True,
                    only_include_binary_no_comb_relations: bool = False,
-                   include_paragraph_context=True) -> List[Dict]:
+                   include_paragraph_context=True,
+                   context_window_size: Optional[int] = None) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
@@ -215,6 +227,7 @@ def create_dataset(raw_data: List[Dict],
         add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
+        context_window_size: If set, we limit our paragraph context to this number of words
 
     Returns:
         dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
@@ -226,7 +239,8 @@ def create_dataset(raw_data: List[Dict],
                                        label2idx,
                                        add_no_combination_relations=add_no_combination_relations,
                                        only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
-                                       include_paragraph_context=include_paragraph_context)
+                                       include_paragraph_context=include_paragraph_context,
+                                       context_window_size=context_window_size)
         dataset.extend(datapoints)
     if set(label_sampling_ratios) != {1.0}:
         # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.

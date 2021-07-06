@@ -43,6 +43,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
     # Store subwords and entity positions for each document in the first pass over the dataset.
     all_doc_subwords = []
     all_doc_entity_start_positions = []
+
     for doc in tqdm(data):
         targets.append(doc["target"])
         doc_subwords = [CLS]
