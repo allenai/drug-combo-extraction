@@ -1,5 +1,9 @@
 import json
+<<<<<<< HEAD
 import jsonlines
+=======
+import os
+>>>>>>> Refactor code to make it easier to call one-off model inference
 import torch
 from typing import List, Dict, Tuple
 
@@ -128,3 +132,19 @@ def write_jsonl(data: List[Dict], fname: str):
 def write_json(data: Dict, fname: str):
     json.dump(data, open(fname, 'w'), indent=4)
     print(f"Wrote json file to {fname}")
+
+def save_metadata(model_name, max_seq_length, num_labels, label2idx, include_paragraph_context, checkpoint_directory):
+    metadata = {
+        "model_name": model_name,
+        "max_seq_length": max_seq_length,
+        "num_labels": num_labels,
+        "label2idx": label2idx,
+        "include_paragraph_context": include_paragraph_context
+    }
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    json.dump(metadata, open(metadata_file, 'w'))
+
+def load_metadata(checkpoint_directory):
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    metadata = json.load(open(metadata_file))
+    return metadata["model_name"], metadata["max_seq_length"], metadata["num_labels"], metadata["label2idx"], metadata["include_paragraph_context"]

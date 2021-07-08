@@ -3,7 +3,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import random_split, DataLoader, TensorDataset
 from transformers import AutoTokenizer
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from balanced_batch_sampler import BalancedBatchSampler
 from constants import CLS, ENTITY_END_MARKER, ENTITY_PAD_IDX, ENTITY_START_MARKER, SEP
@@ -28,6 +28,53 @@ def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> L
         fixed_array = array + [padding_value] * pad_length
     return fixed_array
 
+def tokenize_sentence(text: str, tokenizer: AutoTokenizer) -> Tuple[List[str], List[int]]:
+    '''Given a text sentence, run the Huggingface subword tokenizer on this sentence,
+    and return a list of subword tokens and the positions of all special entity marker
+    tokens in the text.
+
+    Args:
+        text: String to tokenize
+        tokenizer: HuggingFace tokenizer
+
+    Returns:
+        doc_subwords: List of subword strings
+        entity_start_token_idxs: Positions of all entity-start tokens in the list of subwords
+    '''
+    doc_subwords = [CLS]
+    whitespace_tokens = text.split()
+    entity_start_token_idxs = []
+
+    # Manually split up each token into subwords, to directly identify special entity tokens
+    # and store their locations.
+    for token in whitespace_tokens:
+        if token == ENTITY_START_MARKER:
+            entity_start_idx = len(doc_subwords)
+            entity_start_token_idxs.append(entity_start_idx)
+            doc_subwords.append(ENTITY_START_MARKER)
+        elif token == ENTITY_END_MARKER:
+            doc_subwords.append(ENTITY_END_MARKER)
+        else:
+            # If not a special token, then split the token into subwords.
+            for sub_token in tokenizer.tokenize(token):
+                doc_subwords.append(sub_token)
+    doc_subwords.append(SEP)
+    return doc_subwords, entity_start_token_idxs
+
+class DatasetRow:
+    def __init__(self, input_ids, attention_mask, segment_ids):
+        self.input_ids = input_ids
+        self.attention_mask = attention_mask
+        self.segment_ids = segment_ids
+
+def vectorize_subwords(tokenizer, doc_subwords: List[str], max_seq_length: int = 512):
+    doc_input_ids = tokenizer.convert_tokens_to_ids(doc_subwords)
+    input_ids = make_fixed_length(doc_input_ids, max_seq_length)
+    attention_mask = make_fixed_length([1] * len(doc_input_ids), max_seq_length)
+    # Treat entire paragraph as a single segment, without SEP tokens
+    segment_ids = make_fixed_length([0] * len(doc_input_ids), max_seq_length)
+    return DatasetRow(input_ids, attention_mask, segment_ids)
+
 def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length: int = 512) -> TensorDataset:
     """Converts raw data (in the form of text/label pairs) into a binarized, training-ready Torch TensorDataset.
 
@@ -47,43 +94,23 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
 
     for doc in tqdm(data):
         targets.append(doc["target"])
-        doc_subwords = [CLS]
-        whitespace_tokens = doc["text"].split()
-        entity_start_token_idxs = []
-
-        # Manually split up each token into subwords, to directly identify special entity tokens
-        # and store their locations.
-        for token in whitespace_tokens:
-            if token == ENTITY_START_MARKER:
-                entity_start_idx = len(doc_subwords)
-                entity_start_token_idxs.append(entity_start_idx)
-                doc_subwords.append(ENTITY_START_MARKER)
-            elif token == ENTITY_END_MARKER:
-                doc_subwords.append(ENTITY_END_MARKER)
-            else:
-                # If not a special token, then split the token into subwords.
-                for sub_token in tokenizer.tokenize(token):
-                    doc_subwords.append(sub_token)
-        doc_subwords.append(SEP)
+        doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer)
         all_doc_subwords.append(doc_subwords)
         all_doc_entity_start_positions.append(entity_start_token_idxs)
         max_entities_length = max(max_entities_length, len(entity_start_token_idxs))
 
+    all_entity_idxs = []
     all_input_ids = []
     all_token_type_ids = []
     all_attention_masks = []
-    all_entity_idxs = []
 
     for i, doc_subwords in enumerate(all_doc_subwords):
-        doc_input_ids = tokenizer.convert_tokens_to_ids(doc_subwords)
         entity_start_token_idxs = all_doc_entity_start_positions[i]
-        attention_mask = [1] * len(doc_input_ids)
-        # TODO(Vijay): figure out why this field is necessary and used in the PURE model.
-        segment_ids = [0] * len(doc_input_ids)
-        all_input_ids.append(make_fixed_length(doc_input_ids, max_seq_length))
-        all_token_type_ids.append(make_fixed_length(segment_ids, max_seq_length))
-        all_attention_masks.append(make_fixed_length(attention_mask, max_seq_length))
         all_entity_idxs.append(make_fixed_length(entity_start_token_idxs, max_entities_length, padding_value=ENTITY_PAD_IDX))
+        row = vectorize_subwords(tokenizer, doc_subwords, max_seq_length)
+        all_input_ids.append(row.input_ids)
+        all_token_type_ids.append(row.segment_ids)
+        all_attention_masks.append(row.attention_mask)
 
     all_input_ids = torch.tensor(all_input_ids, dtype=torch.long)
     all_token_type_ids = torch.tensor(all_token_type_ids, dtype=torch.long)
