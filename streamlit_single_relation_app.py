@@ -1,4 +1,3 @@
-import json
 from model import BertForRelation
 import os
 import streamlit as st
