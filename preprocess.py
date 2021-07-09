@@ -15,8 +15,9 @@ LABEL2IDX = {
 NOT_COMB = "NO_COMB"
 
 class DrugEntity:
-    def __init__(self, drug_name, span_start, span_end):
+    def __init__(self, drug_name, drug_idx, span_start, span_end):
         self.drug_name: str = drug_name
+        self.drug_idx: int = drug_idx
         self.span_start: int = span_start
         self.span_end: int = span_end
 
@@ -26,7 +27,8 @@ class DrugRelation:
         self.relation_label: int = relation_label
 
 class Document:
-    def __init__(self, relations, text):
+    def __init__(self, doc_id, relations, text):
+        self.doc_id: str = doc_id
         self.relations: List[DrugRelation] = relations
         self.text: str = text
 
@@ -102,8 +104,8 @@ def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_pa
 
     # Construct DrugEntity objects.
     drug_entities = []
-    for span in raw['spans']:
-        entity = DrugEntity(span['text'], span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
+    for idx, span in enumerate(raw['spans']):
+        entity = DrugEntity(span['text'], idx, span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
         drug_entities.append(entity)
 
 
@@ -118,7 +120,7 @@ def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_pa
         entities = [drug_entities[entity_idx] for entity_idx in relation['spans']]
         rel_label = LABEL2IDX[relation['class']]
         final_relations.append(DrugRelation(entities, rel_label))
-    document = Document(final_relations, text)
+    document = Document(raw["doc_id"], final_relations, text)
     return document
 
 def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
@@ -173,7 +175,9 @@ def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_
             text = add_entity_markers(processed_document.text, relation.drug_entities)
         else:
             text = processed_document.text
-        samples.append({"text": text, "target": relation.relation_label})
+        drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
+        row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
+        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id})
     return samples
 
 def create_dataset(raw_data: List[Dict],
