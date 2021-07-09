@@ -177,7 +177,7 @@ def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_
             text = processed_document.text
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
-        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id})
+        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
     return samples
 
 def create_dataset(raw_data: List[Dict],
