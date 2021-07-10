@@ -52,12 +52,13 @@ if __name__ == "__main__":
     else:
         label_loss_weights = json.loads(args.label_loss_weights)
 
+    include_paragraph_context = not args.ignore_paragraph_context
     training_data = create_dataset(training_data,
                                    label2idx=label2idx,
                                    label_sampling_ratios=label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                                   include_paragraph_context=not args.ignore_paragraph_context,
+                                   include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size)
     label_values = sorted(set(label2idx.values()))
     num_labels = len(label_values)
@@ -68,7 +69,7 @@ if __name__ == "__main__":
                                label2idx=label2idx,
                                add_no_combination_relations=not args.ignore_no_comb_relations,
                                only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                               include_paragraph_context=not args.ignore_paragraph_context,
+                               include_paragraph_context=include_paragraph_context,
                                context_window_size=args.context_window_size)
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
@@ -114,6 +115,6 @@ if __name__ == "__main__":
     model.save_pretrained("checkpoints")
     trainer.save_checkpoint("checkpoints/model.chkpt")
     tokenizer.save_pretrained("checkpoints/tokenizer")
-    save_metadata(args.pretrained_lm, args.max_seq_length, num_labels, label2idx, "checkpoints")
+    save_metadata(args.pretrained_lm, args.max_seq_length, num_labels, label2idx, include_paragraph_context, "checkpoints")
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
