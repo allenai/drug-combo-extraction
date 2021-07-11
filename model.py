@@ -161,7 +161,8 @@ class RelationExtractor(pl.LightningModule):
 
         predictions = torch.argmax(logits, dim=1)
         acc = accuracy(predictions, labels)
-        f, prec, rec = f1(predictions, labels)
+        metrics_dict = compute_f1(predictions, labels)
+        f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
         self.log("accuracy", acc, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         self.log("precision", prec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         self.log("recall", rec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
