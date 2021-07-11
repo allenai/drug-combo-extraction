@@ -111,7 +111,6 @@ if __name__ == "__main__":
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
-    breakpoint()
     model.save_pretrained("checkpoints")
     trainer.save_checkpoint("checkpoints/model.chkpt")
     tokenizer.save_pretrained("checkpoints/tokenizer")
