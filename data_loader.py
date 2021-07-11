@@ -4,6 +4,7 @@ from torch.utils.data import random_split, DataLoader, TensorDataset
 from transformers import AutoTokenizer
 from typing import Dict, List
 
+from balanced_batch_sampler import BalancedBatchSampler
 from constants import CLS, ENTITY_END_MARKER, ENTITY_PAD_IDX, ENTITY_START_MARKER, SEP
 
 def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> List:
@@ -96,20 +97,19 @@ class DrugSynergyDataModule(pl.LightningDataModule):
                  train_data: List[Dict],
                  test_data: List[Dict],
                  tokenizer: AutoTokenizer,
-                 label_to_idx: Dict,
                  train_batch_size: int = 32,
                  dev_batch_size: int = 32,
                  test_batch_size: int = 32,
                  dev_train_ratio: float = 0.1,
                  max_seq_length: int = 512,
-                 num_workers: int = 4):
+                 num_workers: int = 4,
+                 balance_training_batch_labels: bool = True):
         '''Construct a DataModule for convenient PyTorch Lightning training.
 
         Args:
             train_data: List of (text, label) pairs for training and validation
             test_data: List of (text, label) pairs for testing
             tokenizer: Tokenizer/subword segmenter to process raw text
-            label_to_idx: Fixed mapping of label strings to numerical values
             train_batch_size: Batch size for training
             dev_batch_size: Batch size for validation
             test_batch_size: Batch size for testing
@@ -124,13 +124,13 @@ class DrugSynergyDataModule(pl.LightningDataModule):
         self.train_data = train_data
         self.test_data = test_data
         self.tokenizer = tokenizer
-        self.label_to_idx = label_to_idx
         self.train_batch_size = train_batch_size
         self.dev_batch_size = dev_batch_size
         self.test_batch_size = test_batch_size
         self.dev_train_ratio = dev_train_ratio
         self.max_seq_length = max_seq_length
         self.num_workers = num_workers
+        self.balance_training_batch_labels = balance_training_batch_labels
 
         # self.dims is returned when you call dm.size()
         # Setting default dims here because we know them.
@@ -149,7 +149,11 @@ class DrugSynergyDataModule(pl.LightningDataModule):
         # self.dims = tuple(self.train[0][0].shape)
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.train_batch_size, num_workers=self.num_workers)
+        if self.balance_training_batch_labels:
+            train_batch_sampler = BalancedBatchSampler(dataset = self.train, batch_size = self.train_batch_size, drop_last=False)
+            return DataLoader(self.train, num_workers=self.num_workers, batch_sampler=train_batch_sampler)
+        else:
+            return DataLoader(self.train, num_workers=self.num_workers, batch_size=self.train_batch_size)
 
     def val_dataloader(self):
         return DataLoader(self.val, batch_size=self.dev_batch_size, num_workers=self.num_workers)
