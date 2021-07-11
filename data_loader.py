@@ -97,7 +97,6 @@ class DrugSynergyDataModule(pl.LightningDataModule):
                  train_data: List[Dict],
                  test_data: List[Dict],
                  tokenizer: AutoTokenizer,
-                 label_to_idx: Dict,
                  train_batch_size: int = 32,
                  dev_batch_size: int = 32,
                  test_batch_size: int = 32,
@@ -111,7 +110,6 @@ class DrugSynergyDataModule(pl.LightningDataModule):
             train_data: List of (text, label) pairs for training and validation
             test_data: List of (text, label) pairs for testing
             tokenizer: Tokenizer/subword segmenter to process raw text
-            label_to_idx: Fixed mapping of label strings to numerical values
             train_batch_size: Batch size for training
             dev_batch_size: Batch size for validation
             test_batch_size: Batch size for testing
@@ -126,7 +124,6 @@ class DrugSynergyDataModule(pl.LightningDataModule):
         self.train_data = train_data
         self.test_data = test_data
         self.tokenizer = tokenizer
-        self.label_to_idx = label_to_idx
         self.train_batch_size = train_batch_size
         self.dev_batch_size = dev_batch_size
         self.test_batch_size = test_batch_size
