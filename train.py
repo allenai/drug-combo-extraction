@@ -1,3 +1,6 @@
+# Usage
+# python train.py --balance-training-batch-labels
+
 import argparse
 import jsonlines
 import pytorch_lightning as pl
@@ -13,20 +16,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
-parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
 parser.add_argument('--batch-size', type=int, required=False, default=12) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--negative-sampling-rate', default=1.0, type=float, help="Upsample or downsample negative training examples for training (due to label imbalance)")
-parser.add_argument('--positive-sampling-rate', default=1.0, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
+parser.add_argument('--positive-sampling-rate', default=1.6, type=float, help="Upsample or downsample positive training examples for training (due to label imbalance)")
 parser.add_argument('--negative-example-loss-weight', default=1.0, type=float, help="Loss weight for negative class labels in training (to help with label imbalance)")
 parser.add_argument('--positive-example-loss-weight', default=10.0, type=float, help="Loss weight for positive class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
+parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -51,7 +54,8 @@ if __name__ == "__main__":
                                dev_batch_size=args.batch_size,
                                test_batch_size=args.batch_size,
                                dev_train_ratio=args.dev_train_split,
-                               max_seq_length=args.max_seq_length)
+                               max_seq_length=args.max_seq_length,
+                               balance_training_batch_labels=args.balance_training_batch_labels)
     dm.setup()
 
     num_labels=len(set(dm.label_to_idx.values()))
@@ -78,6 +82,7 @@ if __name__ == "__main__":
     system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer, label_weights=label_loss_weighting)
     trainer = pl.Trainer(
         gpus=1,
+        precision=16,
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
