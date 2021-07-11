@@ -1,5 +1,7 @@
+import json
+import jsonlines
 import torch
-from typing import Tuple
+from typing import List, Dict, Tuple
 
 def accuracy(predictions: torch.Tensor, labels: torch.Tensor) -> float:
     """Compute accuracy of predictions against ground truth.
@@ -80,3 +82,15 @@ def f1(predictions: torch.Tensor, labels: torch.Tensor) -> Tuple[float, float, f
     else:
         f = 2*((prec*rec)/(prec+rec))
     return f, prec, rec
+
+def read_jsonl(fname: str):
+    return list(jsonlines.open(fname))
+
+def write_jsonl(data: List[Dict], fname: str):
+    with jsonlines.Writer(open(fname, 'wb')) as writer:
+        writer.write_all(data)
+    print(f"Wrote {len(data)} json lines to {fname}")
+
+def write_json(data: Dict, fname: str):
+    json.dump(data, open(fname, 'w'), indent=4)
+    print(f"Wrote json file to {fname}")
