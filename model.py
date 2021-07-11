@@ -12,7 +12,7 @@ from typing import Callable, List, Optional
 
 from constants import ENTITY_PAD_IDX
 from optimizers import adamw_with_linear_warmup, simple_adamw
-from utils import accuracy, f1
+from utils import accuracy, compute_f1
 
 BertLayerNorm = torch.nn.LayerNorm
 
@@ -162,7 +162,8 @@ class RelationExtractor(pl.LightningModule):
 
         predictions = torch.argmax(logits, dim=1)
         acc = accuracy(predictions, labels)
-        f, prec, rec = f1(predictions, labels)
+        metrics_dict = compute_f1(predictions, labels)
+        f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
         self.log("accuracy", acc, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         self.log("precision", prec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         self.log("recall", rec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
@@ -209,7 +210,8 @@ class RelationExtractor(pl.LightningModule):
         self.test_predictions.extend(predictions.tolist())
         self.test_batch_idxs.extend([batch_idx for _ in predictions.tolist()])
         acc = accuracy(predictions, labels)
-        f, prec, rec = f1(predictions, labels)
+        metrics_dict = compute_f1(predictions, labels)
+        f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
         self.log("accuracy", acc, prog_bar=True, logger=True)
         self.log("precision", prec, prog_bar=True, logger=True)
         self.log("recall", rec, prog_bar=True, logger=True)

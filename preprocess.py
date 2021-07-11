@@ -1,18 +1,11 @@
 from itertools import chain, combinations
 import random
+from tqdm import tqdm
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
-from typing import Dict, Iterable, List, Set
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
+from typing import Dict, Iterable, List, Optional, Set
 
 random.seed(2021)
-
-LABEL2IDX = {
-    "POS": 1,
-    "COMB": 0,
-    "NEG": 0,
-    "NO_COMB": 0
-}
-NOT_COMB = "NO_COMB"
 
 class DrugEntity:
     def __init__(self, drug_name, drug_idx, span_start, span_end):
@@ -32,6 +25,21 @@ class Document:
         self.relations: List[DrugRelation] = relations
         self.text: str = text
 
+def pairset(iterable: Iterable) -> List[Set]:
+    """Return the set of pairs of an iterable.
+    Args:
+        iterable: The iterable to take the set of pairs of.
+
+    Returns:
+        pairset: A list containing the set of pairs of `iterable`.
+    """
+    pairset = []
+    for i, item_i in enumerate(iterable):
+        for j, item_j in enumerate(iterable):
+            if j > i:
+                pairset.append(set([item_i, item_j]))
+    return pairset
+
 def powerset(iterable: Iterable) -> List[Set]:
     """Return the powerset of an iterable.
     Adapted from https://docs.python.org/3/library/itertools.html#itertools-recipes.
@@ -47,8 +55,8 @@ def powerset(iterable: Iterable) -> List[Set]:
     powerset = [set(subset) for subset in powerset if len(subset) > 1]
     return powerset
 
-def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntity]) -> List[Dict]:
-    """Construct NO_COMB relations - relations that are not mentioned as being used in combination.
+def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntity], only_include_binary_no_comb_relations: bool = True) -> List[Dict]:
+    """Construct NOT-COMB relations - relations that are not mentioned as being used in combination.
     We do this by exclusion - any set of entities that are not explicitly mentioned as being combined,
     are treated as NO_COMB.
 
@@ -67,7 +75,11 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             entity_cooccurrences.append(set(span_idxs))
 
     entity_idxs = range(len(entities))
-    candidate_no_combinations = powerset(entity_idxs)
+    if only_include_binary_no_comb_relations:
+        # Under this option, construct only binary no-comb relations
+        candidate_no_combinations = pairset(entity_idxs)
+    else:
+        candidate_no_combinations = powerset(entity_idxs)
 
     no_comb_relations = []
     # Add implicit NO_COMB relations.
@@ -83,12 +95,14 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_paragraph_context: bool = True) -> Document:
+def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
         raw: Document from the Drug Synergy dataset, corresponding to one annotated sentence.
-        add_no_combination_relations: Whether to add implicit NO_COMB relations.
+        label2idx: Mapping from relation class strings to integer values.
+        add_no_combination_relations: Whether to add implicit NOT-COMB relations.
+        only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: Whether to include full-paragraph context around each drug-mention sentence
 
     Returns:
@@ -111,14 +125,14 @@ def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_pa
 
     relations = raw['rels']
     if add_no_combination_relations:
-        # Construct "NO_COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
-        relations = relations + find_no_combination_examples(relations, drug_entities)
+        # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
+        relations = relations + find_no_combination_examples(relations, drug_entities, only_include_binary_no_comb_relations=only_include_binary_no_comb_relations)
 
     # Construct DrugRelation objects, which contain full information about the document's annotations.
     final_relations = []
     for relation in relations:
         entities = [drug_entities[entity_idx] for entity_idx in relation['spans']]
-        rel_label = LABEL2IDX[relation['class']]
+        rel_label = label2idx[relation['class']]
         final_relations.append(DrugRelation(entities, rel_label))
     document = Document(raw["doc_id"], final_relations, text)
     return document
@@ -138,35 +152,43 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     """
 
     relation_entities: List = sorted(relation_entities, key=lambda entity: entity.span_start)
-    position_offset = 0
-    for drug in relation_entities:
+    # This list keeps track of all the indices where special entity marker tokens were inserted.
+    position_offsets = []
+    for i, drug in enumerate(relation_entities):
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
-        assert text[drug.span_start + position_offset - 1] == " " or drug.span_start + position_offset == 0
+        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
+        assert drug.span_start + position_offset == 0 or text[drug.span_start + position_offset - 1] == " ", breakpoint()
         text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
-        position_offset += len(ENTITY_START_MARKER + " ")
+        position_offsets.append((drug.span_start, len(ENTITY_START_MARKER + " ")))
 
         # Insert "</m> " after each entity.
-        assert text[drug.span_end + position_offset] == " " or drug.span_end + position_offset == len(text) - 1
+        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
+        assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
         text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
-        position_offset += len(ENTITY_END_MARKER + " ")
+        position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
     return text
 
-def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_relations=True, include_paragraph_context=True):
+def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
         raw: Dictionary of key-value pairs representing raw annotated document.
+        label2idx: Mapping from relation class strings to integer values.
         mark_entities: Whether or not to add special entity token markers around each drug entity (default: True).
         add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
+        only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
+        context_window_size: If set, we limit our paragraph context to this number of words
 
     Returns:
         samples: List of (text, relation label) pairs representing all positive/negative relations
                  contained in the sentence.
     """
     processed_document = process_doc(raw,
+                                     label2idx,
                                      add_no_combination_relations=add_no_combination_relations,
+                                     only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                      include_paragraph_context=include_paragraph_context)
     samples = []
     for relation in processed_document.relations:
@@ -177,41 +199,62 @@ def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_
             text = processed_document.text
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
+        if context_window_size is not None:
+            tokens = text.split()
+            first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
+            final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
+            entity_distance = final_entity_end_token - first_entity_start_token
+            add_left = (context_window_size - entity_distance) // 2
+            start_window_left = max(0, first_entity_start_token - add_left)
+            add_right = (context_window_size - entity_distance) - add_left
+            start_window_right = min(len(tokens), final_entity_end_token + add_right)
+            text = " ".join(tokens[start_window_left:start_window_right])
         samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
     return samples
 
 def create_dataset(raw_data: List[Dict],
+                   label2idx: Dict,
                    shuffle: bool = True,
-                   sample_negatives_ratio=1.0,
-                   sample_positives_ratio=1.0,
+                   label_sampling_ratios=[1.0, 1.0],
                    add_no_combination_relations=True,
-                   include_paragraph_context=True) -> List[Dict]:
+                   only_include_binary_no_comb_relations: bool = False,
+                   include_paragraph_context=True,
+                   context_window_size: Optional[int] = None) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
     Args:
         raw_data: List of documents in the dataset.
+        label2idx: Mapping from relation class strings to integer values.
         shuffle: Whether or not to randomly reorder the relation instances in the dataset before returning.
-        sample_negatives_ratio: Ratio at which to sample negatives, to mitigate label imbalance.
-        sample_positives_ratio: Ratio at which to sample positives, to mitigate label imbalance.
+        label_sampling_ratios: Ratio at which to downsample/upsample each class, to mitigate label imbalance.
         add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
+        only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
+        context_window_size: If set, we limit our paragraph context to this number of words
 
     Returns:
         dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
     """
+    label_values = sorted(list(set(label2idx.values())))
     dataset = []
-    for row in raw_data:
+    for row in tqdm(raw_data):
         datapoints = create_datapoints(row,
+                                       label2idx,
                                        add_no_combination_relations=add_no_combination_relations,
-                                       include_paragraph_context=include_paragraph_context)
+                                       only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
+                                       include_paragraph_context=include_paragraph_context,
+                                       context_window_size=context_window_size)
         dataset.extend(datapoints)
-    if sample_negatives_ratio != 1.0 or sample_positives_ratio != 1.0:
-        non_negatives = [d for d in dataset if d["target"] != 0]
-        negatives = [d for d in dataset if d["target"] == 0]
-        non_negatives = random.choices(non_negatives, k=int(len(non_negatives) * sample_positives_ratio))
-        negatives = random.choices(negatives, k=int(len(negatives) * sample_negatives_ratio))
-        dataset = non_negatives + negatives
+    if set(label_sampling_ratios) != {1.0}:
+        # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.
+        # Otherwise, sample points from each class and then accumulate them all together.
+        upsampled_dataset = []
+        for class_label in label_values:
+            matching_points = [d for d in dataset if d["target"] == class_label]
+            upsampled_points = random.choices(matching_points, k=int(len(matching_points) * label_sampling_ratios[class_label]))
+            upsampled_dataset.extend(upsampled_points)
+        dataset = upsampled_dataset
     if shuffle:
         random.shuffle(dataset)
     return dataset
