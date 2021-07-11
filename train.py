@@ -1,3 +1,6 @@
+# Usage
+# python train.py --balance-training-batch-labels
+
 import argparse
 import json
 import jsonlines
@@ -14,7 +17,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
-parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
 parser.add_argument('--batch-size', type=int, required=False, default=12) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
@@ -28,7 +30,7 @@ parser.add_argument('--ignore-paragraph-context', action='store_true', help="If 
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
-
+parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -75,7 +77,8 @@ if __name__ == "__main__":
                                dev_batch_size=args.batch_size,
                                test_batch_size=args.batch_size,
                                dev_train_ratio=args.dev_train_split,
-                               max_seq_length=args.max_seq_length)
+                               max_seq_length=args.max_seq_length,
+                               balance_training_batch_labels=args.balance_training_batch_labels)
     dm.setup()
 
     model = BertForRelation.from_pretrained(
@@ -101,6 +104,7 @@ if __name__ == "__main__":
     system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer, label_weights=label_loss_weighting)
     trainer = pl.Trainer(
         gpus=1,
+        precision=16,
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
