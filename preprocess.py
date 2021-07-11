@@ -1,18 +1,10 @@
 from itertools import chain, combinations
 import random
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from typing import Dict, Iterable, List, Set
 
 random.seed(2021)
-
-LABEL2IDX = {
-    "POS": 1,
-    "COMB": 0,
-    "NEG": 0,
-    "NOT-COMB": 0
-}
-NOT_COMB = "NOT-COMB"
 
 class DrugEntity:
     def __init__(self, drug_name, span_start, span_end):
@@ -81,11 +73,12 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_paragraph_context: bool = True) -> Document:
+def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, include_paragraph_context: bool = True) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
         raw: Document from the Drug Synergy dataset, corresponding to one annotated sentence.
+        label2idx: Mapping from relation class strings to integer values.
         add_no_combination_relations: Whether to add implicit NOT-COMB relations.
         include_paragraph_context: Whether to include full-paragraph context around each drug-mention sentence
 
@@ -116,7 +109,7 @@ def process_doc(raw: Dict, add_no_combination_relations: bool = True, include_pa
     final_relations = []
     for relation in relations:
         entities = [drug_entities[entity_idx] for entity_idx in relation['spans']]
-        rel_label = LABEL2IDX[relation['class']]
+        rel_label = label2idx[relation['class']]
         final_relations.append(DrugRelation(entities, rel_label))
     document = Document(final_relations, text)
     return document
@@ -150,11 +143,12 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         position_offset += len(ENTITY_END_MARKER + " ")
     return text
 
-def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_relations=True, include_paragraph_context=True):
+def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, include_paragraph_context=True):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
         raw: Dictionary of key-value pairs representing raw annotated document.
+        label2idx: Mapping from relation class strings to integer values.
         mark_entities: Whether or not to add special entity token markers around each drug entity (default: True).
         add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
@@ -164,6 +158,7 @@ def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_
                  contained in the sentence.
     """
     processed_document = process_doc(raw,
+                                     label2idx,
                                      add_no_combination_relations=add_no_combination_relations,
                                      include_paragraph_context=include_paragraph_context)
     samples = []
@@ -177,6 +172,7 @@ def create_datapoints(raw: Dict, mark_entities: bool = True, add_no_combination_
     return samples
 
 def create_dataset(raw_data: List[Dict],
+                   label2idx: Dict,
                    shuffle: bool = True,
                    sample_negatives_ratio=1.0,
                    sample_positives_ratio=1.0,
@@ -187,6 +183,7 @@ def create_dataset(raw_data: List[Dict],
 
     Args:
         raw_data: List of documents in the dataset.
+        label2idx: Mapping from relation class strings to integer values.
         shuffle: Whether or not to randomly reorder the relation instances in the dataset before returning.
         sample_negatives_ratio: Ratio at which to sample negatives, to mitigate label imbalance.
         sample_positives_ratio: Ratio at which to sample positives, to mitigate label imbalance.
@@ -199,6 +196,7 @@ def create_dataset(raw_data: List[Dict],
     dataset = []
     for row in raw_data:
         datapoints = create_datapoints(row,
+                                       label2idx,
                                        add_no_combination_relations=add_no_combination_relations,
                                        include_paragraph_context=include_paragraph_context)
         dataset.extend(datapoints)

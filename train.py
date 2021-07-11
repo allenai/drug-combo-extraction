@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
-parser.add_argument('--batch-size', type=int, required=False, default=20) # This number is good for training on an 11GB Tesla K80 GPU.
+parser.add_argument('--batch-size', type=int, required=False, default=12) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
@@ -37,18 +37,19 @@ if __name__ == "__main__":
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
     training_data = create_dataset(training_data,
+                                   label2idx=args.label2idx,
                                    sample_negatives_ratio=args.negative_sampling_rate,
                                    sample_positives_ratio=args.positive_sampling_rate,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    include_paragraph_context=not args.ignore_paragraph_context)
-    test_data = create_dataset(test_data)
+    test_data = create_dataset(test_data,
+                               label2idx=args.label2idx)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
     dm = DrugSynergyDataModule(training_data,
                                test_data,
                                tokenizer,
-                               LABEL2IDX,
                                train_batch_size=args.batch_size,
                                dev_batch_size=args.batch_size,
                                test_batch_size=args.batch_size,
