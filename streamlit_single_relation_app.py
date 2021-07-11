@@ -8,14 +8,9 @@ from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from data_loader import tokenize_sentence, vectorize_subwords
 from utils import load_metadata
 
-st.write("Enter marked abstract text:")
-message_text = st.text_area("Enter a message for relation extraction (entities marked with <<m>> and <</m>>)",
-                            "The impact of schedule on acute toxicity and dose-intensity of high-dose chemotherapy with epirubicin and cyclophosphamide plus colony stimulating factors in advanced breast cancer.  To increase the dose-intensity of two drugs in metastatic breast cancer , we tested the feasibility , in phase I studies , of two schedules of <<m>> epirubicin <</m>> ( E ) and <<m>> cyclophosphamide <</m>> ( C ) - sequential ( E-- > C ) and alternating ( E/C ) - with respect to the standard combination ( EC ) . Drugs were given at three planned-dose levels, plus either G-CSF or GM-CSF. Patients with metastatic (30), inoperable stage IIIb (2) or inflammatory (7) breast cancer were treated. The doses of EC, given every 21 days (4 cycles), were 75/1500, 82.5/2250, 90/3000 mg/m2. In the E/C schedule, epirubicin was given at cycles 1, 3 and 5, and cyclophosphamide at cycles 2, 4 and 6. In the E--> C schedule, three cycles of epirubicin then three cycles of cyclophosphamide were administered. In both experimental schedules, drugs were given every 14 days for 6 cycles at doses of 100, 110, 120 mg/m2 (E) and 2000, 3000, 4000 mg/m2 (C). The average relative dose-intensity was 1.2-fold and 2-fold greater with E/C and E--> C, respectively, than with EC. The third level dose was feasible with all schedules. Grade 4 leucopenia occurred in 77% of patients. Thrombocytopenia was absent in 6 cases and grade 4 in 12 (30.8%). Eighty-one percent of patients on experimental schedules required red blood cell support versus 44.4% of patients on EC. At the third level, platelet transfusions were more frequent among patients treated with EC (27. 8%). Non-haematological toxicity was mild: about 20% of patients experienced grade 3 vomiting, irrespective of schedule. Only 2 patients had grade 3 mucositis; no patient developed heart failure. Fever (61% of patients) and bone pain (55.5% of patients) were relevant in the GM-CSF treated groups and 12 patients shifted to G-CSF. The overall response rate was 84.6%: 5/39 (12.8%) complete response and 28/39 (71.8%) partial response. At 30/9/98, median survival was 29.5 months, with no difference between patients with metastatic and stage IIIb/inflammatory breast cancer. Median follow-up of surviving patients was 62 months (range 17-83). The 5-year estimated survival was 19% (95% confidence intervals = 7-31%). Rapidly alternating or sequential cycles of epirubicin and cyclophosphamide with CSF support is a feasible strategy that allows a higher increase of dose-intensity of the single drugs. Hospitalization and anemia were more frequent with the experimental schedules, and thrombocytopenia with the standard schedule. Overall, this intensified therapy was very active.",
-                            height=500)
-
 @st.cache(allow_output_mutation=True)
 def load_model(checkpoint_directory):
-    model_name, max_seq_length, num_labels, label2idx = load_metadata(checkpoint_directory)
+    model_name, max_seq_length, num_labels, label2idx, _ = load_metadata(checkpoint_directory)
     model = BertForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
@@ -40,9 +35,15 @@ def classify_message(message, model, tokenizer, max_seq_length, label2idx):
     relation_probabilities = [round(prob, 4) for prob in probabilities.tolist()]
     return {'label': label, 'relation_probabilities': relation_probabilities}
 
-if message_text != '':
-    CHECKPOINT_DIRECTORY = "checkpoints"
-    model, tokenizer, max_seq_length, label2idx, _ = load_model(CHECKPOINT_DIRECTORY)
+def app():
+    st.write("Enter marked abstract text:")
+    message_text = st.text_area("Enter a message for relation extraction (entities marked with <<m>> and <</m>>)",
+                                "Phase Ib Study of the Oral Proteasome Inhibitor <<m>> Ixazomib <</m>> ( MLN9708 ) and <<m>> Fulvestrant <</m>> in Advanced ER+ Breast Cancer Progressing on Fulvestrant . fulvestrant is a selective estrogen receptor (ER)-downregulating anti-estrogen that blocks ER transcriptional activity and is approved for ER+ breast cancer. fulvestrant also induces accumulation of insoluble ER and activates an unfolded protein response; proteasome inhibitors have been shown to enhance these effects in preclinical models. ### background fulvestrant is a selective estrogen receptor (ER)-downregulating anti-estrogen that blocks ER transcriptional activity and is approved for ER+ breast cancer. fulvestrant also induces accumulation of insoluble ER and activates an unfolded protein response; proteasome inhibitors have been shown to enhance these effects in preclinical models. ### methods This is a single-center phase Ib study with a 3+3 design of fulvestrant and the proteasome inhibitor ixazomib (MLN9708) in patients with advanced ER+ breast cancer that was progressing on fulvestrant. A dose-escalation design allowed establishment of the ixazomib maximum tolerated dose (MTD). Secondary objectives included progression-free survival, pharmacokinetics, and tumor molecular analyses. ### results Among nine evaluable subjects, treatment was well-tolerated without dose-limiting toxicities The MTD of ixazomib was 4 mg in combination with fulvestrant. Plasma concentrations of the active form of ixazomib (MLN2238) in the 4-mg dose cohort had a median (range) Cmax of 155 (122-171) ng/mL; Tmax of 1 (1-1.5) h; terminal elimination half-life of 66.6 (57.3-102.6) hr after initial dose; AUC of 5,025 (4,160-5,345) ng*h/mL. One partial response was observed, and median progression-free survival was 51 days (range 47-137). ### conclusion This drug combination has a favorable safety profile and anti-tumor activity in patients with fulvestrant-resistant advanced ER+ breast cancer that justifies future testing.",
+                                height=500)
 
-    model_output = classify_message(message_text, model, tokenizer, max_seq_length, label2idx)
-    st.write(model_output)
+    if message_text != '':
+        CHECKPOINT_DIRECTORY = "checkpoints"
+        model, tokenizer, max_seq_length, label2idx = load_model(CHECKPOINT_DIRECTORY)
+
+        model_output = classify_message(message_text, model, tokenizer, max_seq_length, label2idx)
+        st.write(model_output)

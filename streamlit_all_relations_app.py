@@ -11,16 +11,6 @@ from data_loader import make_fixed_length, tokenize_sentence, vectorize_subwords
 from preprocess import add_entity_markers, process_doc_with_unknown_relations
 from utils import load_metadata
 
-example_dataset_row = '{"sentence": "Phase Ib Study of the Oral Proteasome Inhibitor Ixazomib ( MLN9708 ) and Fulvestrant in Advanced ER+ Breast Cancer Progressing on Fulvestrant .", "spans": [{"span_id": 0, "text": "Ixazomib", "start": 48, "end": 56, "token_start": 8, "token_end": 9}, {"span_id": 1, "text": "Fulvestrant", "start": 73, "end": 84, "token_start": 13, "token_end": 14}, {"span_id": 2, "text": "Fulvestrant", "start": 130, "end": 141, "token_start": 21, "token_end": 22}], "rels": [{"class": "POS", "spans": [0, 1]}], "paragraph": "Phase Ib Study of the Oral Proteasome Inhibitor Ixazomib ( MLN9708 ) and Fulvestrant in Advanced ER+ Breast Cancer Progressing on Fulvestrant . fulvestrant is a selective estrogen receptor (ER)-downregulating anti-estrogen that blocks ER transcriptional activity and is approved for ER+ breast cancer. fulvestrant also induces accumulation of insoluble ER and activates an unfolded protein response; proteasome inhibitors have been shown to enhance these effects in preclinical models. ### background fulvestrant is a selective estrogen receptor (ER)-downregulating anti-estrogen that blocks ER transcriptional activity and is approved for ER+ breast cancer. fulvestrant also induces accumulation of insoluble ER and activates an unfolded protein response; proteasome inhibitors have been shown to enhance these effects in preclinical models. ### methods This is a single-center phase Ib study with a 3+3 design of fulvestrant and the proteasome inhibitor ixazomib (MLN9708) in patients with advanced ER+ breast cancer that was progressing on fulvestrant. A dose-escalation design allowed establishment of the ixazomib maximum tolerated dose (MTD). Secondary objectives included progression-free survival, pharmacokinetics, and tumor molecular analyses. ### results Among nine evaluable subjects, treatment was well-tolerated without dose-limiting toxicities The MTD of ixazomib was 4 mg in combination with fulvestrant. Plasma concentrations of the active form of ixazomib (MLN2238) in the 4-mg dose cohort had a median (range) Cmax of 155 (122-171) ng/mL; Tmax of 1 (1-1.5) h; terminal elimination half-life of 66.6 (57.3-102.6) hr after initial dose; AUC of 5,025 (4,160-5,345) ng*h/mL. One partial response was observed, and median progression-free survival was 51\u2009days (range 47-137). ### conclusion This drug combination has a favorable safety profile and anti-tumor activity in patients with fulvestrant-resistant advanced ER+ breast cancer that justifies future testing.", "source": "https://pubmed.ncbi.nlm.nih.gov/33641211/"}'
-
-st.write("Copy and paste a row from the Drug Synergy Dataset:")
-message_json = st.text_area("Copy-and-paste a dataset row (in JSON format)",
-                            example_dataset_row,
-                            height=500)
-message = json.loads(message_json)
-
-threshold = st.slider('Relation Threshold', min_value=0.0, max_value=1.0, value=0.3, step=0.01)
-
 @st.cache(allow_output_mutation=True)
 def load_model(checkpoint_directory):
     model_name, max_seq_length, num_labels, label2idx, include_paragraph_context = load_metadata(checkpoint_directory)
@@ -77,9 +67,19 @@ def find_all_relations(message, model, tokenizer, max_seq_length, threshold, lab
     relation_probabilities = sorted(relation_probabilities, key=lambda x: x[1], reverse=True)
     return {'relations': relation_probabilities}
 
-if threshold > 0.0:
-    CHECKPOINT_DIRECTORY = "checkpoints"
-    model, tokenizer, max_seq_length, label2idx, include_paragraph_context = load_model(CHECKPOINT_DIRECTORY)
+def app():
+    example_dataset_row = '{"sentence": "Phase Ib Study of the Oral Proteasome Inhibitor Ixazomib ( MLN9708 ) and Fulvestrant in Advanced ER+ Breast Cancer Progressing on Fulvestrant .", "spans": [{"span_id": 0, "text": "Ixazomib", "start": 48, "end": 56, "token_start": 8, "token_end": 9}, {"span_id": 1, "text": "Fulvestrant", "start": 73, "end": 84, "token_start": 13, "token_end": 14}, {"span_id": 2, "text": "Fulvestrant", "start": 130, "end": 141, "token_start": 21, "token_end": 22}], "rels": [{"class": "POS", "spans": [0, 1]}], "paragraph": "Phase Ib Study of the Oral Proteasome Inhibitor Ixazomib ( MLN9708 ) and Fulvestrant in Advanced ER+ Breast Cancer Progressing on Fulvestrant . fulvestrant is a selective estrogen receptor (ER)-downregulating anti-estrogen that blocks ER transcriptional activity and is approved for ER+ breast cancer. fulvestrant also induces accumulation of insoluble ER and activates an unfolded protein response; proteasome inhibitors have been shown to enhance these effects in preclinical models. ### background fulvestrant is a selective estrogen receptor (ER)-downregulating anti-estrogen that blocks ER transcriptional activity and is approved for ER+ breast cancer. fulvestrant also induces accumulation of insoluble ER and activates an unfolded protein response; proteasome inhibitors have been shown to enhance these effects in preclinical models. ### methods This is a single-center phase Ib study with a 3+3 design of fulvestrant and the proteasome inhibitor ixazomib (MLN9708) in patients with advanced ER+ breast cancer that was progressing on fulvestrant. A dose-escalation design allowed establishment of the ixazomib maximum tolerated dose (MTD). Secondary objectives included progression-free survival, pharmacokinetics, and tumor molecular analyses. ### results Among nine evaluable subjects, treatment was well-tolerated without dose-limiting toxicities The MTD of ixazomib was 4 mg in combination with fulvestrant. Plasma concentrations of the active form of ixazomib (MLN2238) in the 4-mg dose cohort had a median (range) Cmax of 155 (122-171) ng/mL; Tmax of 1 (1-1.5) h; terminal elimination half-life of 66.6 (57.3-102.6) hr after initial dose; AUC of 5,025 (4,160-5,345) ng*h/mL. One partial response was observed, and median progression-free survival was 51\u2009days (range 47-137). ### conclusion This drug combination has a favorable safety profile and anti-tumor activity in patients with fulvestrant-resistant advanced ER+ breast cancer that justifies future testing.", "source": "https://pubmed.ncbi.nlm.nih.gov/33641211/"}'
+    st.write("Copy and paste a row from the Drug Synergy Dataset:")
+    message_json = st.text_area("Copy-and-paste a dataset row (in JSON format)",
+                                example_dataset_row,
+                                height=500)
+    message = json.loads(message_json)
 
-    model_output = find_all_relations(message, model, tokenizer, max_seq_length, threshold, label2idx, label_of_interest=1, include_paragraph_context=include_paragraph_context)
-    st.write(model_output)
+    DEFAULT_THRESHOLD = 0.3
+    threshold = st.slider('Relation Threshold', min_value=0.0, max_value=1.0, value=DEFAULT_THRESHOLD, step=0.01)
+    if threshold > 0.0:
+        CHECKPOINT_DIRECTORY = "checkpoints"
+        model, tokenizer, max_seq_length, label2idx, include_paragraph_context = load_model(CHECKPOINT_DIRECTORY)
+
+        model_output = find_all_relations(message, model, tokenizer, max_seq_length, threshold, label2idx, label_of_interest=1, include_paragraph_context=include_paragraph_context)
+        st.write(model_output)
