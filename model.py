@@ -3,16 +3,15 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from transformers import (
-                            AdamW,
                             AutoTokenizer,
                             BertModel,
                             BertPreTrainedModel,
-                            get_linear_schedule_with_warmup,
                             PretrainedConfig
 )
-from typing import Optional
+from typing import Callable, List, Optional
 
 from constants import ENTITY_PAD_IDX
+from optimizers import adamw_with_linear_warmup, simple_adamw
 from utils import accuracy, f1
 
 BertLayerNorm = torch.nn.LayerNorm
@@ -24,16 +23,33 @@ class ModelOutput:
 
 # Adapted from https://github.com/princeton-nlp/PURE
 class BertForRelation(BertPreTrainedModel):
-    def __init__(self, config: PretrainedConfig, num_rel_labels: int):
+    def __init__(self,
+                 config: PretrainedConfig,
+                 num_rel_labels: int,
+                 unfreeze_all_bert_layers: bool = False,
+                 unfreeze_final_bert_layer: bool = False,
+                 unfreeze_bias_terms_only: bool = True):
         """Initialize simple BERT-based relation extraction model
 
         Args:
             config: Pretrained model config (loaded from model)
             num_rel_labels: Size of label set that each relation could take
+            unfreeze_all_bert_layers: Finetune all layers of BERT
+            unfreeze_final_bert_layer: Finetune only the final encoder layer of BERT
+            unfreeze_bias_terms_only: Finetune only the bias terms in BERT (aka BitFit)
         """
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.bert = BertModel(config)
+        for name, param in self.bert.named_parameters():
+            if unfreeze_final_bert_layer:
+                if "encoder.layer.11" not in name:
+                    param.requires_grad = False
+            elif unfreeze_bias_terms_only:
+                if "bias" not in name:
+                    param.requires_grad = False
+            elif not unfreeze_all_bert_layers:
+                param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
@@ -84,9 +100,11 @@ class RelationExtractor(pl.LightningModule):
                  model: BertForRelation,
                  num_train_optimization_steps: int,
                  tokenizer: AutoTokenizer,
-                 lr: float = 1e-3,
+                 lr: float = 5e-4,
                  correct_bias: bool = True,
                  warmup_proportion: float = 0.1,
+                 optimizer_strategy: Callable = simple_adamw,
+                 label_weights: Optional[List] = None,
     ):
         """PyTorch Lightning module which wraps the BERT-based model.
 
@@ -96,6 +114,7 @@ class RelationExtractor(pl.LightningModule):
             lr: Learning rate
             correct_bias: Whether to correct bias in AdamW
             warmup_proportion: How much data to reserve for linear learning rate warmup (https://paperswithcode.com/method/linear-warmup)
+            optimizer_strategy: Constructor to create an optimizer to use (e.g. AdamW with a linear warmup schedule)
         """
         # TODO(Vijay): configure these parameters via command line arguments.
         super().__init__()
@@ -108,18 +127,16 @@ class RelationExtractor(pl.LightningModule):
         self.test_sentences = []
         self.test_predictions = []
         self.test_batch_idxs = []
+        self.optimizer_strategy = optimizer_strategy
+        if label_weights is not None:
+            # This defines a class variable, but automatically moves the tensor to the
+            # device that the module trains on.
+            self.register_buffer("label_weights", torch.tensor(label_weights))
+        else:
+            self.label_weights = None
 
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=self.lr, correct_bias=self.correct_bias)
-        optimization_steps = int(self.num_train_optimization_steps * self.warmup_proportion)
-        scheduler = get_linear_schedule_with_warmup(optimizer,
-                                                    optimization_steps,
-                                                    self.num_train_optimization_steps)
-        return {
-            'optimizer': optimizer,
-            'scheduler': scheduler,
-        }
-
+        return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs = inputs
@@ -139,7 +156,7 @@ class RelationExtractor(pl.LightningModule):
         # outputs: TokenClassifierOutput
         _, _, _, labels, _ = inputs
         logits = self(inputs, pass_text = True)
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
         self.log("loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
         predictions = torch.argmax(logits, dim=1)
@@ -164,7 +181,7 @@ class RelationExtractor(pl.LightningModule):
         # outputs: TokenClassifierOutput
         _, _, _, labels, _ = inputs
         logits = self(inputs, pass_text = True)
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
         self.log("val_loss", loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         return loss
@@ -182,7 +199,7 @@ class RelationExtractor(pl.LightningModule):
         input_ids, _, _, labels, _ = inputs
         logits = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1))
+        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
         self.log("test_loss", loss, prog_bar=True, logger=True)
         predictions = torch.argmax(logits, dim=1)
