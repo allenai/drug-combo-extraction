@@ -1,9 +1,6 @@
 import json
-<<<<<<< HEAD
 import jsonlines
-=======
 import os
->>>>>>> Refactor code to make it easier to call one-off model inference
 import torch
 from typing import List, Dict, Tuple
 
