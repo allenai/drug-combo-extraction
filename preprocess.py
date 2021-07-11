@@ -174,8 +174,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
 def create_dataset(raw_data: List[Dict],
                    label2idx: Dict,
                    shuffle: bool = True,
-                   sample_negatives_ratio=1.0,
-                   sample_positives_ratio=1.0,
+                   label_sampling_ratios=[1.0, 1.0],
                    add_no_combination_relations=True,
                    include_paragraph_context=True) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
@@ -185,14 +184,14 @@ def create_dataset(raw_data: List[Dict],
         raw_data: List of documents in the dataset.
         label2idx: Mapping from relation class strings to integer values.
         shuffle: Whether or not to randomly reorder the relation instances in the dataset before returning.
-        sample_negatives_ratio: Ratio at which to sample negatives, to mitigate label imbalance.
-        sample_positives_ratio: Ratio at which to sample positives, to mitigate label imbalance.
+        label_sampling_ratios: Ratio at which to downsample/upsample each class, to mitigate label imbalance.
         add_no_combination_relations: If true, identify implicit "No-Combination" relations by negation.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
 
     Returns:
         dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
     """
+    label_values = sorted(list(set(label2idx.values())))
     dataset = []
     for row in raw_data:
         datapoints = create_datapoints(row,
@@ -200,12 +199,15 @@ def create_dataset(raw_data: List[Dict],
                                        add_no_combination_relations=add_no_combination_relations,
                                        include_paragraph_context=include_paragraph_context)
         dataset.extend(datapoints)
-    if sample_negatives_ratio != 1.0 or sample_positives_ratio != 1.0:
-        non_negatives = [d for d in dataset if d["target"] != 0]
-        negatives = [d for d in dataset if d["target"] == 0]
-        non_negatives = random.choices(non_negatives, k=int(len(non_negatives) * sample_positives_ratio))
-        negatives = random.choices(negatives, k=int(len(negatives) * sample_negatives_ratio))
-        dataset = non_negatives + negatives
+    if set(label_sampling_ratios) != {1.0}:
+        # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.
+        # Otherwise, sample points from each class and then accumulate them all together.
+        upsampled_dataset = []
+        for class_label in label_values:
+            matching_points = [d for d in dataset if d["target"] == class_label]
+            upsampled_points = random.choices(matching_points, k=int(len(matching_points) * label_sampling_ratios[class_label]))
+            upsampled_dataset.extend(upsampled_points)
+        dataset = upsampled_dataset
     if shuffle:
         random.shuffle(dataset)
     return dataset
