@@ -23,7 +23,7 @@ threshold = st.slider('Relation Threshold', min_value=0.0, max_value=1.0, value=
 
 @st.cache(allow_output_mutation=True)
 def load_model(checkpoint_directory):
-    model_name, max_seq_length, num_labels, label2idx = load_metadata(checkpoint_directory)
+    model_name, max_seq_length, num_labels, label2idx, include_paragraph_context = load_metadata(checkpoint_directory)
     model = BertForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
@@ -31,7 +31,7 @@ def load_model(checkpoint_directory):
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
-    return model, tokenizer, max_seq_length, label2idx
+    return model, tokenizer, max_seq_length, label2idx, include_paragraph_context
 
 def find_all_relations(message, model, tokenizer, max_seq_length, threshold, label2idx, label_of_interest=1, include_paragraph_context=True):
     '''TODO: docstrings and code cleanup
@@ -47,7 +47,7 @@ def find_all_relations(message, model, tokenizer, max_seq_length, threshold, lab
         # Mark drug entities with special tokens.
         marked_sentence = add_entity_markers(doc_with_unknown_relations.text, relation.drug_entities)
         marked_sentences.append(marked_sentence)
-        relations.append(tuple([drug.drug_name for drug in relation.drug_entities]))
+        relations.append(tuple([f"{drug.drug_name} ({drug.span_start} - {drug.span_end})" for drug in relation.drug_entities]))
 
     all_entity_idxs = []
     all_input_ids = []
@@ -73,8 +73,8 @@ def find_all_relations(message, model, tokenizer, max_seq_length, threshold, lab
     relation_probabilities = []
     for i, probability in enumerate(label_probabilities):
         if probability > threshold:
-            relation_probabilities.append(relations[i], probability)
-
+            relation_probabilities.append((relations[i], probability))
+    relation_probabilities = sorted(relation_probabilities, key=lambda x: x[1], reverse=True)
     return {'relations': relation_probabilities}
 
 if threshold > 0.0:
