@@ -130,7 +130,17 @@ def write_json(data: Dict, fname: str):
     json.dump(data, open(fname, 'w'), indent=4)
     print(f"Wrote json file to {fname}")
 
-def save_metadata(model_name, max_seq_length, num_labels, label2idx, include_paragraph_context, checkpoint_directory):
+def save_metadata(model_name: str, max_seq_length: int, num_labels: int, label2idx: Dict, include_paragraph_context: bool, checkpoint_directory:str):
+    '''Serialize metadata about a model and the data preprocessing that it expects, to allow easy model usage at a later time.
+
+    Args:
+        model_name: HuggingFace pretrained base model name
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+        num_labels: Number of output labels in the model to be loaded
+        label2idx: Mapping from label strings to numerical label indices
+        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
+        checkpoint_directory: Directory name in which to save the metadata file ($checkpoint_directory/metadata.json)
+    '''
     metadata = {
         "model_name": model_name,
         "max_seq_length": max_seq_length,
@@ -141,7 +151,19 @@ def save_metadata(model_name, max_seq_length, num_labels, label2idx, include_par
     metadata_file = os.path.join(checkpoint_directory, "metadata.json")
     json.dump(metadata, open(metadata_file, 'w'))
 
-def load_metadata(checkpoint_directory):
+def load_metadata(checkpoint_directory) -> Tuple[str, int, int, Dict, bool]:
+    '''Given a directory containing a model checkpoint, metadata regarding the model and data preprocessing that the model expects.
+
+    Args:
+        checkpoint_directory: Path to local directory where model is serialized
+
+    Returns:
+        model: HuggingFace pretrained base model name
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+        num_labels: Number of output labels in the model to be loaded
+        label2idx: Mapping from label strings to numerical label indices
+        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
+    '''
     metadata_file = os.path.join(checkpoint_directory, "metadata.json")
     metadata = json.load(open(metadata_file))
     return metadata["model_name"], metadata["max_seq_length"], metadata["num_labels"], metadata["label2idx"], metadata["include_paragraph_context"]
