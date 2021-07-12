@@ -4,13 +4,25 @@ import streamlit as st
 import torch
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+from typing import Dict, Tuple
 
 from data_loader import tokenize_sentence, vectorize_subwords
 from utils import load_metadata
 
 @st.cache(allow_output_mutation=True)
-def load_model(checkpoint_directory):
-    model_name, max_seq_length, num_labels, label2idx, _ = load_metadata(checkpoint_directory)
+def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int]:
+    '''Given a directory containing a model checkpoint, return the model, and other metadata regarding the data
+    preprocessing that the model expects.
+
+    Args:
+        checkpoint_directory: Path to local directory where model is serialized
+
+    Returns:
+        model: Pretrained BertForRelation model
+        tokenizer: Hugging Face tokenizer loaded from disk
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+    '''
+    model_name, max_seq_length, num_labels, _, _ = load_metadata(checkpoint_directory)
     model = BertForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
@@ -18,9 +30,23 @@ def load_model(checkpoint_directory):
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
-    return model, tokenizer, max_seq_length, label2idx
+    return model, tokenizer, max_seq_length
 
-def classify_message(message, model, tokenizer, max_seq_length, label2idx):
+def classify_message(message: str,
+                     model: BertForRelation,
+                     tokenizer: AutoTokenizer,
+                     max_seq_length: int) -> Dict:
+    '''Given a string of text from a biomedical abstract (with drug entities marked), classify whether a relation exists between these entities.
+
+    Args:
+        message: JSON row from the Drug Synergy dataset
+        model: Pretrained BertForRelation model object
+        tokenizer: Hugging Face tokenizer loaded from disk
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+
+    Returns:
+        output: Dictionary containing the top predicted relation label, and the predicted probabilities of all relations.
+    '''
     subwords, entity_start_tokens = tokenize_sentence(message, tokenizer)
     vectorized_row = vectorize_subwords(tokenizer, subwords, max_seq_length)
     input_ids = torch.tensor(vectorized_row.input_ids, dtype=torch.long).unsqueeze(0)
@@ -33,7 +59,7 @@ def classify_message(message, model, tokenizer, max_seq_length, label2idx):
     label = torch.argmax(probabilities).item()
 
     relation_probabilities = [round(prob, 4) for prob in probabilities.tolist()]
-    return {'label': label, 'relation_probabilities': relation_probabilities}
+    return {'predicted label': label, 'relation probabilities': relation_probabilities}
 
 def app():
     st.write("Enter marked abstract text:")
@@ -43,7 +69,7 @@ def app():
 
     if message_text != '':
         CHECKPOINT_DIRECTORY = "checkpoints"
-        model, tokenizer, max_seq_length, label2idx = load_model(CHECKPOINT_DIRECTORY)
+        model, tokenizer, max_seq_length = load_model(CHECKPOINT_DIRECTORY)
 
-        model_output = classify_message(message_text, model, tokenizer, max_seq_length, label2idx)
+        model_output = classify_message(message_text, model, tokenizer, max_seq_length)
         st.write(model_output)
