@@ -23,8 +23,8 @@ parser.add_argument('--dev-train-split', type=float, required=False, default=0.1
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
-parser.add_argument('--label-sampling-ratios', default=None, type=float, help="Upsample or downsample training examples of each class for training (due to label imbalance)")
-parser.add_argument('--label-loss-weights', default=None, type=float, help="Loss weight for negative class labels in training (to help with label imbalance)")
+parser.add_argument('--label-sampling-ratios', default=None, type=str, help="Upsample or downsample training examples of each class for training (due to label imbalance)")
+parser.add_argument('--label-loss-weights', default=None, type=str, help="Loss weight for negative class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
 parser.add_argument('--only-include-binary-no-comb-relations', action='store_true', help="If true, and we are including no-comb relations, then only mine binary no-comb relations (ignoring n-ary no-comb relations)")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
@@ -44,12 +44,12 @@ if __name__ == "__main__":
     if args.label_sampling_ratios is None:
         label_sampling_ratios = [1.0 for _ in label2idx]
     else:
-        label_sampling_ratios = args.label_sampling_ratios
+        label_sampling_ratios = json.loads(args.label_sampling_ratios)
 
     if args.label_loss_weights is None:
         label_loss_weights = [1.0 for _ in label2idx]
     else:
-        label_loss_weights = args.label_loss_weights
+        label_loss_weights = json.loads(args.label_loss_weights)
 
     training_data = create_dataset(training_data,
                                    label2idx=label2idx,
