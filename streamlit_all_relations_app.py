@@ -5,6 +5,7 @@ import streamlit as st
 import torch
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+from typing import Dict, Tuple
 
 from constants import ENTITY_PAD_IDX
 from data_loader import make_fixed_length, tokenize_sentence, vectorize_subwords
@@ -12,7 +13,20 @@ from preprocess import add_entity_markers, process_doc_with_unknown_relations
 from utils import load_metadata
 
 @st.cache(allow_output_mutation=True)
-def load_model(checkpoint_directory):
+def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
+    '''Given a directory containing a model checkpoint, return the model, and other metadata regarding the data
+    preprocessing that the model expects.
+
+    Args:
+        checkpoint_directory: Path to local directory where model is serialized
+
+    Returns:
+        model: Pretrained BertForRelation model
+        tokenizer: Hugging Face tokenizer loaded from disk
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+        label2idx: Mapping from label strings to numerical label indices
+        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
+    '''
     model_name, max_seq_length, num_labels, label2idx, include_paragraph_context = load_metadata(checkpoint_directory)
     model = BertForRelation.from_pretrained(
                 checkpoint_directory,
@@ -23,13 +37,25 @@ def load_model(checkpoint_directory):
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
     return model, tokenizer, max_seq_length, label2idx, include_paragraph_context
 
-def find_all_relations(message, model, tokenizer, max_seq_length, threshold, label2idx, label_of_interest=1, include_paragraph_context=True):
-    '''TODO: docstrings and code cleanup
-    '''
-    paragraph = message["paragraph"]
-    sentence = message["sentence"]
-    spans = message["spans"]
+def find_all_relations(message: Dict,
+                       model: BertForRelation,
+                       tokenizer: AutoTokenizer,
+                       max_seq_length: int,
+                       threshold: float,
+                       label2idx: Dict,
+                       label_of_interest: int = 1,
+                       include_paragraph_context: bool = True):
+    '''Given a row from the Drug Synergy dataset, find and display all relations with probability greater than some threshold.
 
+    Args:
+        message: JSON row from the Drug Synergy dataset
+        model: Pretrained BertForRelation model object
+        tokenizer: Hugging Face tokenizer loaded from disk
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+        label2idx: Mapping from label strings to numerical label indices
+        label_of_interest: Return relations that maximize the probability of this label (typically, this should be 1 for the POS label)
+        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
+    '''
     doc_with_unknown_relations = process_doc_with_unknown_relations(message, label2idx, include_paragraph_context=include_paragraph_context)
     marked_sentences = []
     relations = []
@@ -49,7 +75,7 @@ def find_all_relations(message, model, tokenizer, max_seq_length, threshold, lab
         all_input_ids.append(vectorized_row.input_ids)
         all_token_type_ids.append(vectorized_row.attention_mask)
         all_attention_masks.append(vectorized_row.segment_ids)
-        all_entity_idxs.append(make_fixed_length(entity_start_tokens, len(spans), padding_value=ENTITY_PAD_IDX))
+        all_entity_idxs.append(make_fixed_length(entity_start_tokens, len(message["spans"]), padding_value=ENTITY_PAD_IDX))
 
     all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.long)
     all_input_ids = torch.tensor(all_input_ids, dtype=torch.long)
@@ -68,6 +94,11 @@ def find_all_relations(message, model, tokenizer, max_seq_length, threshold, lab
     return {'relations': relation_probabilities}
 
 def get_ground_truth_relations(message):
+    '''Parse the document's annotation to return the ground truth relations in a human-readable format
+
+    Args:
+        message: JSON row from the Drug Synergy dataset
+    '''
     relations = message["rels"]
     formatted_relations = []
     for relation in relations:
