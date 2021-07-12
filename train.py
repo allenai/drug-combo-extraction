@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
     label2idx = json.load(open(args.label2idx))
-    label2idx[NOT_COMB] = 0
+    label2idx["NOT-COMB"] = 0
 
     if args.label_sampling_ratios is None:
         label_sampling_ratios = [1.0 for _ in label2idx]
