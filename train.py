@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
+parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
 parser.add_argument('--batch-size', type=int, required=False, default=12) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
@@ -38,7 +39,7 @@ if __name__ == "__main__":
     training_data = list(jsonlines.open(args.training_file))
     test_data = list(jsonlines.open(args.test_file))
     label2idx = json.load(open(args.label2idx))
-    label2idx["NOT-COMB"] = 0
+    label2idx[NOT_COMB] = 0
 
     if args.label_sampling_ratios is None:
         label_sampling_ratios = [1.0 for _ in label2idx]
