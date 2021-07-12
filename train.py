@@ -86,6 +86,7 @@ if __name__ == "__main__":
             args.pretrained_lm,
             cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
             num_rel_labels=num_labels,
+            max_seq_length=args.max_seq_length,
             unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
             unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
             unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
