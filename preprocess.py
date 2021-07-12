@@ -101,7 +101,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
     Args:
         raw: Document from the Drug Synergy dataset, corresponding to one annotated sentence.
         label2idx: Mapping from relation class strings to integer values.
-        add_no_combination_relations: Whether to add implicit NOT-COMB relations.
+        add_no_combination_relations: Whether to add implicit NO_COMB relations.
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: Whether to include full-paragraph context around each drug-mention sentence
 
