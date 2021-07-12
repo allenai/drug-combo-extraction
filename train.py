@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
+parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
 parser.add_argument('--batch-size', type=int, required=False, default=12) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
