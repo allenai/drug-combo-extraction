@@ -56,16 +56,16 @@ def powerset(iterable: Iterable) -> List[Set]:
 def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntity], only_include_binary_no_comb_relations: bool = True) -> List[Dict]:
     """Construct NOT-COMB relations - relations that are not mentioned as being used in combination.
     We do this by exclusion - any set of entities that are not explicitly mentioned as being combined,
-    are treated as NOT-COMB.
+    are treated as NO_COMB.
 
     Args:
         relations: list of relations (each represented as a dict), directly taken from annotated data.
         entities: list of all drugs mentioned in the sentence of interest.
 
     Returns:
-        no_comb_relations: list of relations between entities implicitly labeled as NOT-COMB (by exclusion).
+        no_comb_relations: list of relations between entities implicitly labeled as NO_COMB (by exclusion).
     """
-    # Find the set of all pairs of entities that belong in some relation (other than NOT-COMB) together in the same sentence.
+    # Find the set of all pairs of entities that belong in some relation (other than NO_COMB) together in the same sentence.
     entity_cooccurrences = []
     for relation in relations:
         if relation["class"] != NOT_COMB:
@@ -80,14 +80,14 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
         candidate_no_combinations = powerset(entity_idxs)
 
     no_comb_relations = []
-    # Add implicit NOT-COMB relations.
+    # Add implicit NO_COMB relations.
     for candidate in candidate_no_combinations:
         entity_found = False
         for c in entity_cooccurrences:
             if candidate.issubset(c):
                 entity_found = True
         # If a set of drugs is not contained in any other relation, then consider it as an implicit
-        # NOT-COMB relation.
+        # NO_COMB relation.
         if not entity_found:
             no_comb_relation = {'class': NOT_COMB, 'spans': list(candidate)}
             no_comb_relations.append(no_comb_relation)
@@ -98,8 +98,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
 
     Args:
         raw: Document from the Drug Synergy dataset, corresponding to one annotated sentence.
-        label2idx: Mapping from relation class strings to integer values.
-        add_no_combination_relations: Whether to add implicit NOT-COMB relations.
+        add_no_combination_relations: Whether to add implicit NO_COMB relations.
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: Whether to include full-paragraph context around each drug-mention sentence
 
