@@ -2,7 +2,7 @@ from itertools import chain, combinations
 import random
 from tqdm import tqdm
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
 from typing import Dict, Iterable, List, Optional, Set
 
 random.seed(2021)
@@ -136,6 +136,15 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
         final_relations.append(DrugRelation(entities, rel_label))
     document = Document(raw["doc_id"], final_relations, text)
     return document
+
+def process_doc_with_unknown_relations(raw: Dict, label2idx: Dict, include_paragraph_context: bool = True) -> Document:
+    doc_with_no_relations = raw.copy()
+    doc_with_no_relations['rels'] = []
+    document_with_unknown_relations = process_doc(raw, label2idx, add_no_combination_relations=True, include_paragraph_context=include_paragraph_context)
+    for relation in document_with_unknown_relations.relations:
+        # Set all relation labels to be UNKNOWN_RELATION, to ensure no confusion
+        relation.relation_label = RELATION_UNKNOWN
+    return document_with_unknown_relations
 
 def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     """Add special entity tokens around each drug entity in the annotated text.
