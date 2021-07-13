@@ -1,5 +1,5 @@
 # Usage
-# python train.py --balance-training-batch-labels
+# python train.py --pretrained-lm allenai/scibert_scivocab_uncased --num-train-epochs 10 --lr 2e-4 --batch-size 71 --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json
 
 import argparse
 import json
