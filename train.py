@@ -12,7 +12,7 @@ from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, write_error_analysis_file
+from utils import construct_row_id_idx_mapping, save_metadata, write_error_analysis_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
@@ -53,12 +53,13 @@ if __name__ == "__main__":
     else:
         label_loss_weights = json.loads(args.label_loss_weights)
 
+    include_paragraph_context = not args.ignore_paragraph_context
     training_data = create_dataset(training_data_raw,
                                    label2idx=label2idx,
                                    label_sampling_ratios=label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                                   include_paragraph_context=not args.ignore_paragraph_context,
+                                   include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size)
     label_values = sorted(set(label2idx.values()))
     num_labels = len(label_values)
@@ -69,7 +70,7 @@ if __name__ == "__main__":
                                label2idx=label2idx,
                                add_no_combination_relations=not args.ignore_no_comb_relations,
                                only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                               include_paragraph_context=not args.ignore_paragraph_context,
+                               include_paragraph_context=include_paragraph_context,
                                context_window_size=args.context_window_size)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
 
@@ -115,6 +116,10 @@ if __name__ == "__main__":
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
+    model.save_pretrained("checkpoints")
+    trainer.save_checkpoint("checkpoints/model.chkpt")
+    tokenizer.save_pretrained("checkpoints/tokenizer")
+    save_metadata(args.pretrained_lm, args.max_seq_length, num_labels, label2idx, include_paragraph_context, "checkpoints")
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]

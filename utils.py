@@ -2,6 +2,7 @@ import csv
 import json
 import jsonlines
 import numpy as np
+import os
 import torch
 from typing import List, Dict, Tuple
 
@@ -205,3 +206,41 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
             error_analysis_attributes = ErrorAnalysisAttributes(dataset_row, full_document, prediction)
             tsv_writer.writerow(error_analysis_attributes.get_row())
     print(f"Wrote error analysis file to {out_file}")
+
+def save_metadata(model_name: str, max_seq_length: int, num_labels: int, label2idx: Dict, include_paragraph_context: bool, checkpoint_directory:str):
+    '''Serialize metadata about a model and the data preprocessing that it expects, to allow easy model usage at a later time.
+
+    Args:
+        model_name: HuggingFace pretrained base model name
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+        num_labels: Number of output labels in the model to be loaded
+        label2idx: Mapping from label strings to numerical label indices
+        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
+        checkpoint_directory: Directory name in which to save the metadata file ($checkpoint_directory/metadata.json)
+    '''
+    metadata = {
+        "model_name": model_name,
+        "max_seq_length": max_seq_length,
+        "num_labels": num_labels,
+        "label2idx": label2idx,
+        "include_paragraph_context": include_paragraph_context
+    }
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    json.dump(metadata, open(metadata_file, 'w'))
+
+def load_metadata(checkpoint_directory) -> Tuple[str, int, int, Dict, bool]:
+    '''Given a directory containing a model checkpoint, metadata regarding the model and data preprocessing that the model expects.
+
+    Args:
+        checkpoint_directory: Path to local directory where model is serialized
+
+    Returns:
+        model: HuggingFace pretrained base model name
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+        num_labels: Number of output labels in the model to be loaded
+        label2idx: Mapping from label strings to numerical label indices
+        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
+    '''
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    metadata = json.load(open(metadata_file))
+    return metadata["model_name"], metadata["max_seq_length"], metadata["num_labels"], metadata["label2idx"], metadata["include_paragraph_context"]
