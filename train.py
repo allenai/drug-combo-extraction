@@ -119,4 +119,3 @@ if __name__ == "__main__":
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.output_file)
-    print("Done!")

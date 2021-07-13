@@ -188,3 +188,4 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
             full_document = test_data_raw[doc_id]
             error_analysis_attributes = ErrorAnalysisAttributes(dataset_row, full_document, prediction)
             tsv_writer.writerow(error_analysis_attributes.get_row())
+    print(f"Wrote error analysis file to {out_file}")
