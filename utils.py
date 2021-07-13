@@ -113,6 +113,13 @@ def write_json(data: Dict, fname: str):
 def construct_row_id_idx_mapping(dataset: List[Dict]) -> Tuple[Dict, Dict]:
     '''For a list of dataset rows, which contain string-hash row IDs, map these
     into integers (for the purposes of tensorization), and return the mapping.
+
+    Args:
+        dataset: list of JSON rows, representing individual relations in our dataset (each containing a row_id field)
+
+    Returns:
+        row_id_idx_mapping: mapping from row_id strings to integer indices
+        idx_row_id_mapping: reverse mapping from integer indices to row_id strings
     '''
     row_id_idx_mapping = {}
     idx_row_id_mapping = {}
@@ -122,7 +129,16 @@ def construct_row_id_idx_mapping(dataset: List[Dict]) -> Tuple[Dict, Dict]:
         idx_row_id_mapping[idx] = doc["row_id"]
     return row_id_idx_mapping, idx_row_id_mapping
 
-def average_pairwise_distance(spans):
+def average_pairwise_distance(spans: List[Dict]) -> float:
+    '''This function calculates the average distance between pairs of spans in a relation, which may be a useful
+    bucketing attribute for error analysis.
+
+    Args:
+        spans: List of spans (each represented as a dictionary)
+
+    Returns:
+        average pairwise distance between spans in the provided list
+    '''
     distances = []
     for i in range(len(spans)):
         for j in range(i+1, len(spans)):
