@@ -42,12 +42,12 @@ if __name__ == "__main__":
     label2idx[NOT_COMB] = 0
 
     if args.label_sampling_ratios is None:
-        label_sampling_ratios = [1.0 for _ in label2idx]
+        label_sampling_ratios = [1.0 for _ in set(label2idx.values())]
     else:
         label_sampling_ratios = json.loads(args.label_sampling_ratios)
 
     if args.label_loss_weights is None:
-        label_loss_weights = [1.0 for _ in label2idx]
+        label_loss_weights = [1.0 for _ in set(label2idx.values())]
     else:
         label_loss_weights = json.loads(args.label_loss_weights)
 
