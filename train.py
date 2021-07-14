@@ -1,5 +1,5 @@
 # Usage
-# python train.py --balance-training-batch-labels
+# python train.py --pretrained-lm allenai/scibert_scivocab_uncased --num-train-epochs 10 --lr 2e-4 --batch-size 71 --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json
 
 import argparse
 import json
@@ -16,8 +16,8 @@ from utils import construct_row_id_idx_mapping, save_metadata, write_error_analy
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
-parser.add_argument('--training-file', type=str, required=False, default="data/examples2_80.jsonl")
-parser.add_argument('--test-file', type=str, required=False, default="data/examples2_20.jsonl")
+parser.add_argument('--training-file', type=str, required=False, default="data/train_set.jsonl")
+parser.add_argument('--test-file', type=str, required=False, default="data/test_set.jsonl")
 parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
 parser.add_argument('--batch-size', type=int, required=False, default=12) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
@@ -44,12 +44,12 @@ if __name__ == "__main__":
     label2idx[NOT_COMB] = 0
 
     if args.label_sampling_ratios is None:
-        label_sampling_ratios = [1.0 for _ in label2idx]
+        label_sampling_ratios = [1.0 for _ in set(label2idx.values())]
     else:
         label_sampling_ratios = json.loads(args.label_sampling_ratios)
 
     if args.label_loss_weights is None:
-        label_loss_weights = [1.0 for _ in label2idx]
+        label_loss_weights = [1.0 for _ in set(label2idx.values())]
     else:
         label_loss_weights = json.loads(args.label_loss_weights)
 
@@ -93,6 +93,7 @@ if __name__ == "__main__":
             args.pretrained_lm,
             cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
             num_rel_labels=num_labels,
+            max_seq_length=args.max_seq_length,
             unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
             unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
             unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
