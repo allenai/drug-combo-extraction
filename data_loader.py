@@ -178,15 +178,21 @@ class DrugSynergyDataModule(pl.LightningDataModule):
 
     def setup(self):
         # Assign train/val datasets for use in dataloaders
-        full_dataset = construct_dataset(self.train_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
-        dev_size = int(self.dev_train_ratio * len(full_dataset))    
-        train_size = len(full_dataset) - dev_size
-        self.train, self.val = random_split(full_dataset, [train_size, dev_size])
+        if self.train_data is not None:
+            full_dataset = construct_dataset(self.train_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
+            dev_size = int(self.dev_train_ratio * len(full_dataset))
+            train_size = len(full_dataset) - dev_size
+            self.train, self.val = random_split(full_dataset, [train_size, dev_size])
+        else:
+            self.train, self.val = None, None
+
         self.test = construct_dataset(self.test_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
         # Optionally...
         # self.dims = tuple(self.train[0][0].shape)
 
     def train_dataloader(self):
+        if self.train is None:
+            return None
         if self.balance_training_batch_labels:
             train_batch_sampler = BalancedBatchSampler(dataset = self.train, batch_size = self.train_batch_size, drop_last=False)
             return DataLoader(self.train, num_workers=self.num_workers, batch_sampler=train_batch_sampler)
@@ -194,6 +200,8 @@ class DrugSynergyDataModule(pl.LightningDataModule):
             return DataLoader(self.train, num_workers=self.num_workers, batch_size=self.train_batch_size)
 
     def val_dataloader(self):
+        if self.val is None:
+            return None
         return DataLoader(self.val, batch_size=self.dev_batch_size, num_workers=self.num_workers)
 
     def test_dataloader(self):
