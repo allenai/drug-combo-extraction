@@ -111,6 +111,67 @@ def write_json(data: Dict, fname: str):
     json.dump(data, open(fname, 'w'), indent=4)
     print(f"Wrote json file to {fname}")
 
+class ModelMetadata:
+    def __init__(self,
+                 model_name: str,
+                 max_seq_length: int,
+                 num_labels: int,
+                 label2idx: Dict,
+                 add_no_combination_relations: bool,
+                 only_include_binary_no_comb_relations: bool,
+                 include_paragraph_context: bool,
+                 context_window_size: int):
+        self.model_name = model_name
+        self.max_seq_length = max_seq_length
+        self.num_labels = num_labels
+        self.label2idx = label2idx
+        self.add_no_combination_relations = add_no_combination_relations
+        self.only_include_binary_no_comb_relations = only_include_binary_no_comb_relations
+        self.include_paragraph_context = include_paragraph_context
+        self.context_window_size = context_window_size
+
+
+def save_metadata(metadata: ModelMetadata, checkpoint_directory: str):
+    '''Serialize metadata about a model and the data preprocessing that it expects, to allow easy model usage at a later time.
+
+    Args:
+        metadata: ModelMetadata object containing information needed to use the model after loading a checkpoint.
+        checkpoint_directory: Directory name in which to save the metadata file ($checkpoint_directory/metadata.json)
+    '''
+    metadata_dict = {
+        "model_name": metadata.model_name,
+        "max_seq_length":  metadata.max_seq_length,
+        "num_labels":  metadata.num_labels,
+        "label2idx":  metadata.label2idx,
+        "add_no_combination_relations":  metadata.add_no_combination_relations,
+        "only_include_binary_no_comb_relations":  metadata.only_include_binary_no_comb_relations,
+        "include_paragraph_context":  metadata.include_paragraph_context,
+        "context_window_size":  metadata.context_window_size
+    }
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    json.dump(metadata_dict, open(metadata_file, 'w'))
+
+def load_metadata(checkpoint_directory: str) -> ModelMetadata:
+    '''Given a directory containing a model checkpoint, metadata regarding the model and data preprocessing that the model expects.
+
+    Args:
+        checkpoint_directory: Path to local directory where model is serialized
+
+    Returns:
+        metadata: ModelMetadata object containing information needed to use the model after loading a checkpoint.
+    '''
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    metadata_dict = json.load(open(metadata_file))
+    metadata = ModelMetadata(metadata_dict["model_name"],
+                             metadata_dict["max_seq_length"],
+                             metadata_dict["num_labels"],
+                             metadata_dict["label2idx"],
+                             metadata_dict["add_no_combination_relations"],
+                             metadata_dict["only_include_binary_no_comb_relations"],
+                             metadata_dict["include_paragraph_context"],
+                             metadata_dict["context_window_size"])
+    return metadata
+
 def construct_row_id_idx_mapping(dataset: List[Dict]) -> Tuple[Dict, Dict]:
     '''For a list of dataset rows, which contain string-hash row IDs, map these
     into integers (for the purposes of tensorization), and return the mapping.
@@ -172,6 +233,7 @@ class ErrorAnalysisAttributes:
     def get_row(self):
         return [self.sentence, self.entities, self.paragraph, self.ground_truth_label, self.predicted_label, self.sentence_length, self.paragraph_length, self.num_spans_in_ground_truth_relation, self.avg_span_distance_in_ground_truth_relation]
 
+
 def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], test_row_ids: List[str], test_predictions: List[int], fname: str):
     '''Write out all test set rows and their predictions to a TSV file, which will let us connect easily with ExplainaBoard.
 
@@ -206,41 +268,3 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
             error_analysis_attributes = ErrorAnalysisAttributes(dataset_row, full_document, prediction)
             tsv_writer.writerow(error_analysis_attributes.get_row())
     print(f"Wrote error analysis file to {fname}")
-
-def save_metadata(model_name: str, max_seq_length: int, num_labels: int, label2idx: Dict, include_paragraph_context: bool, checkpoint_directory:str):
-    '''Serialize metadata about a model and the data preprocessing that it expects, to allow easy model usage at a later time.
-
-    Args:
-        model_name: HuggingFace pretrained base model name
-        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
-        num_labels: Number of output labels in the model to be loaded
-        label2idx: Mapping from label strings to numerical label indices
-        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
-        checkpoint_directory: Directory name in which to save the metadata file ($checkpoint_directory/metadata.json)
-    '''
-    metadata = {
-        "model_name": model_name,
-        "max_seq_length": max_seq_length,
-        "num_labels": num_labels,
-        "label2idx": label2idx,
-        "include_paragraph_context": include_paragraph_context
-    }
-    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
-    json.dump(metadata, open(metadata_file, 'w'))
-
-def load_metadata(checkpoint_directory) -> Tuple[str, int, int, Dict, bool]:
-    '''Given a directory containing a model checkpoint, metadata regarding the model and data preprocessing that the model expects.
-
-    Args:
-        checkpoint_directory: Path to local directory where model is serialized
-
-    Returns:
-        model: HuggingFace pretrained base model name
-        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
-        num_labels: Number of output labels in the model to be loaded
-        label2idx: Mapping from label strings to numerical label indices
-        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
-    '''
-    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
-    metadata = json.load(open(metadata_file))
-    return metadata["model_name"], metadata["max_seq_length"], metadata["num_labels"], metadata["label2idx"], metadata["include_paragraph_context"]
