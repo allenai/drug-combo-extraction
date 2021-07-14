@@ -27,15 +27,15 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
         label2idx: Mapping from label strings to numerical label indices
         include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
     '''
-    model_name, max_seq_length, num_labels, label2idx, include_paragraph_context = load_metadata(checkpoint_directory)
+    metadata = load_metadata(checkpoint_directory)
     model = BertForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
-                num_rel_labels=num_labels
+                num_rel_labels=metadata.num_labels
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, do_lower_case=True)
+    tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
-    return model, tokenizer, max_seq_length, label2idx, include_paragraph_context
+    return model, tokenizer, metadata
 
 def find_all_relations(message: Dict,
                        model: BertForRelation,
@@ -126,9 +126,9 @@ def app():
     threshold = st.slider('Relation Threshold', min_value=0.0, max_value=1.0, value=DEFAULT_THRESHOLD, step=0.01)
     if threshold > 0.0:
         CHECKPOINT_DIRECTORY = "checkpoints"
-        model, tokenizer, max_seq_length, label2idx, include_paragraph_context = load_model(CHECKPOINT_DIRECTORY)
+        model, tokenizer, metadata = load_model(CHECKPOINT_DIRECTORY)
 
-        model_output = find_all_relations(message, model, tokenizer, max_seq_length, threshold, label2idx, label_of_interest=1, include_paragraph_context=include_paragraph_context)
+        model_output = find_all_relations(message, model, tokenizer, metadata.max_seq_length, threshold, metadata.label2idx, label_of_interest=1, include_paragraph_context=metadata.include_paragraph_context)
         st.write("Predicted Relations:")
         st.write(model_output)
 

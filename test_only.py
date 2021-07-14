@@ -23,27 +23,27 @@ parser.add_argument('--output-file', type=str, required=False, help="Output file
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    model, tokenizer, max_seq_length, label2idx, include_paragraph_context = load_model(args.checkpoint_path)
+    model, tokenizer, metadata = load_model(args.checkpoint_path)
 
     test_data_raw = list(jsonlines.open(args.test_file))
     # TODO(Vijay): add `add_no_combination_relations`, `only_include_binary_no_comb_relations`, `include_paragraph_context`,
     # `context_window_size` to the model's metadata
     test_data = create_dataset(test_data_raw,
-                               label2idx=label2idx,
-                               add_no_combination_relations=True,
-                               only_include_binary_no_comb_relations=False,
-                               include_paragraph_context=True,
-                               context_window_size=160)
+                               label2idx=metadata.label2idx,
+                               add_no_combination_relations=metadata.add_no_combination_relations,
+                               only_include_binary_no_comb_relations=metadata.only_include_binary_no_comb_relations,
+                               include_paragraph_context=metadata.include_paragraph_context,
+                               context_window_size=metadata.context_window_size)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(test_data)
     dm = DrugSynergyDataModule(None,
                                test_data,
                                tokenizer,
-                               label2idx,
+                               metadata.label2idx,
                                row_id_idx_mapping,
                                train_batch_size=args.batch_size,
                                dev_batch_size=args.batch_size,
                                test_batch_size=args.batch_size,
-                               max_seq_length=max_seq_length,
+                               max_seq_length=metadata.max_seq_length,
                                balance_training_batch_labels=False)
     dm.setup()
 

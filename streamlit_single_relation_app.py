@@ -22,15 +22,15 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
         tokenizer: Hugging Face tokenizer loaded from disk
         max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
     '''
-    model_name, max_seq_length, num_labels, _, _ = load_metadata(checkpoint_directory)
+    metadata = load_metadata(checkpoint_directory)
     model = BertForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
-                num_rel_labels=num_labels
+                num_rel_labels=metadata.num_labels
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, do_lower_case=True)
+    tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
-    return model, tokenizer, max_seq_length
+    return model, tokenizer, metadata
 
 def classify_message(message: str,
                      model: BertForRelation,
@@ -69,7 +69,7 @@ def app():
 
     if message_text != '':
         CHECKPOINT_DIRECTORY = "checkpoints"
-        model, tokenizer, max_seq_length = load_model(CHECKPOINT_DIRECTORY)
+        model, tokenizer, metadata = load_model(CHECKPOINT_DIRECTORY)
 
-        model_output = classify_message(message_text, model, tokenizer, max_seq_length)
+        model_output = classify_message(message_text, model, tokenizer, metadata.max_seq_length)
         st.write(model_output)
