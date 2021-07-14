@@ -12,7 +12,7 @@ from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
-from utils import save_metadata
+from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, write_error_analysis_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
@@ -115,6 +115,14 @@ if __name__ == "__main__":
     model.save_pretrained("checkpoints")
     trainer.save_checkpoint("checkpoints/model.chkpt")
     tokenizer.save_pretrained("checkpoints/tokenizer")
-    save_metadata(args.pretrained_lm, args.max_seq_length, num_labels, label2idx, include_paragraph_context, "checkpoints")
+    metadata = ModelMetadata(args.pretrained_lm,
+                             args.max_seq_length,
+                             num_labels,
+                             label2idx,
+                             not args.ignore_no_comb_relations,
+                             args.only_include_binary_no_comb_relations,
+                             include_paragraph_context,
+                             args.context_window_size)
+    save_metadata(metadata, "checkpoints")
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
