@@ -205,7 +205,7 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
             full_document = test_data_raw[doc_id]
             error_analysis_attributes = ErrorAnalysisAttributes(dataset_row, full_document, prediction)
             tsv_writer.writerow(error_analysis_attributes.get_row())
-    print(f"Wrote error analysis file to {out_file}")
+    print(f"Wrote error analysis file to {fname}")
 
 def save_metadata(model_name: str, max_seq_length: int, num_labels: int, label2idx: Dict, include_paragraph_context: bool, checkpoint_directory:str):
     '''Serialize metadata about a model and the data preprocessing that it expects, to allow easy model usage at a later time.
