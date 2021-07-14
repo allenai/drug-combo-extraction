@@ -1,6 +1,6 @@
 '''
 Usage:
-python add_document_ids_to_dataset.py examples2_20.jsonl
+python add_document_ids_to_dataset.py train_set.jsonl
 '''
 
 import argparse
