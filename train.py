@@ -1,9 +1,14 @@
-# Usage
-# python train.py --pretrained-lm allenai/scibert_scivocab_uncased --num-train-epochs 10 --lr 2e-4 --batch-size 71 --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json
+'''
+Usage
+python train.py --pretrained-lm allenai/scibert_scivocab_uncased --num-train-epochs 10 --lr 2e-4 \
+--batch-size 71 --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json \
+--model-name baseline_model
+'''
 
 import argparse
 import json
 import jsonlines
+import os
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -33,7 +38,7 @@ parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
-parser.add_argument('--output-file', type=str, required=False, default="test_output.tsv")
+parser.add_argument('--model-name', type=str, required=True)
 parser.add_argument('--random-seed', type=int, required=False, default=2021)
 
 if __name__ == "__main__":
@@ -120,9 +125,10 @@ if __name__ == "__main__":
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
-    model.save_pretrained("checkpoints")
-    trainer.save_checkpoint("checkpoints/model.chkpt")
-    tokenizer.save_pretrained("checkpoints/tokenizer")
+    model_dir = "checkpoints_" + args.model_name
+    model.save_pretrained(model_dir)
+    trainer.save_checkpoint(os.path.join(model_dir, "model.chkpt"))
+    tokenizer.save_pretrained(os.path.join(model_dir, "tokenizer"))
     metadata = ModelMetadata(args.pretrained_lm,
                              args.max_seq_length,
                              num_labels,
@@ -131,8 +137,9 @@ if __name__ == "__main__":
                              args.only_include_binary_no_comb_relations,
                              include_paragraph_context,
                              args.context_window_size)
-    save_metadata(metadata, "checkpoints")
+    save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
-    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.output_file)
+    os.makedirs("outputs", exist_ok=True)
+    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))
