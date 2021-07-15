@@ -216,6 +216,7 @@ def average_pairwise_distance(spans: List[Dict]) -> float:
 
 class ErrorAnalysisAttributes:
     def __init__(self, dataset_row: Dict, full_document: Dict, prediction: int):
+        self.row_id = dataset_row["row_id"]
         self.sentence = full_document["sentence"]
         self.paragraph = full_document["paragraph"]
         self.sentence_length = len(full_document["sentence"].split())
@@ -231,7 +232,7 @@ class ErrorAnalysisAttributes:
         self.predicted_label = prediction
 
     def get_row(self):
-        return [self.sentence, self.entities, self.paragraph, self.ground_truth_label, self.predicted_label, self.sentence_length, self.paragraph_length, self.num_spans_in_ground_truth_relation, self.avg_span_distance_in_ground_truth_relation]
+        return [self.row_id, self.sentence, self.entities, self.paragraph, self.ground_truth_label, self.predicted_label, self.sentence_length, self.paragraph_length, self.num_spans_in_ground_truth_relation, self.avg_span_distance_in_ground_truth_relation]
 
 
 def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], test_row_ids: List[str], test_predictions: List[int], fname: str):
@@ -247,6 +248,7 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
     row_predictions = dict(zip(test_row_ids, test_predictions))
 
     header = [
+                "Row ID",
                 "Sentence",
                 "Entities",
                 "Paragraph",
