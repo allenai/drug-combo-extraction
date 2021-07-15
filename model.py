@@ -242,13 +242,13 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
         label2idx: Mapping from label strings to numerical label indices
         include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
     '''
-    model_name, max_seq_length, num_labels, label2idx, include_paragraph_context = load_metadata(checkpoint_directory)
+    metadata = load_metadata(checkpoint_directory)
     model = BertForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
-                num_rel_labels=num_labels,
-                max_seq_length=max_seq_length
+                num_rel_labels=metadata.num_labels,
+                max_seq_length=metadata.max_seq_length
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, do_lower_case=True)
+    tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
-    return model, tokenizer, max_seq_length, label2idx, include_paragraph_context
+    return model, tokenizer, metadata
