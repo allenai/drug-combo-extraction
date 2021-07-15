@@ -3,15 +3,12 @@
 #                     --output-file /tmp/error_analysis.csv
 
 import argparse
-import json
 import jsonlines
 import os
 import pytorch_lightning as pl
-from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
-from data_loader import construct_dataset, DrugSynergyDataModule
-from model import BertForRelation, RelationExtractor, load_model
+from data_loader import  DrugSynergyDataModule
+from model import RelationExtractor, load_model
 from preprocess import create_dataset
 from utils import construct_row_id_idx_mapping, write_error_analysis_file
 
