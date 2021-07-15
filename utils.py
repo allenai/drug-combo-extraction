@@ -3,6 +3,7 @@ import json
 import jsonlines
 import numpy as np
 import os
+import random
 import torch
 from typing import List, Dict, Tuple
 
@@ -270,3 +271,13 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
             error_analysis_attributes = ErrorAnalysisAttributes(dataset_row, full_document, prediction)
             tsv_writer.writerow(error_analysis_attributes.get_row())
     print(f"Wrote error analysis file to {fname}")
+
+def set_seed(seed):
+    # set seed for all possible avenues of stochasticity
+    np.random.seed(seed=seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
