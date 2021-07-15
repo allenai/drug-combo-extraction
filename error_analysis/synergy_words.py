@@ -73,8 +73,8 @@ if __name__ == "__main__":
     pointwise_mutual_informations = sorted(pointwise_mutual_informations, key=lambda x: x[1], reverse=True)
     top_words = pointwise_mutual_informations[:20]
     bottom_words = pointwise_mutual_informations[-20:]
-    print(f"Words with greatest mutual information with drug synergy")
+    print(f"Subwords with greatest mutual information with drug synergy")
     display_top_words(top_words)
     print()
-    print(f"Words with least mutual information with drug synergy")
+    print(f"Subwords with least mutual information with drug synergy")
     display_top_words(bottom_words)
