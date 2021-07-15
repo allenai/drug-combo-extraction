@@ -4,6 +4,7 @@
 import argparse
 import json
 import jsonlines
+import os
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -33,6 +34,7 @@ parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
+parser.add_argument('--model-name', type=str, required=True)
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -112,9 +114,10 @@ if __name__ == "__main__":
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
-    model.save_pretrained("checkpoints")
-    trainer.save_checkpoint("checkpoints/model.chkpt")
-    tokenizer.save_pretrained("checkpoints/tokenizer")
+    model_dir = "checkpoints_" + args.model_name
+    model.save_pretrained(model_dir)
+    trainer.save_checkpoint(os.path.join(model_dir, "model.chkpt"))
+    tokenizer.save_pretrained(os.path.join(model_dir, "tokenizer"))
     metadata = ModelMetadata(args.pretrained_lm,
                              args.max_seq_length,
                              num_labels,
@@ -123,6 +126,6 @@ if __name__ == "__main__":
                              args.only_include_binary_no_comb_relations,
                              include_paragraph_context,
                              args.context_window_size)
-    save_metadata(metadata, "checkpoints")
+    save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
