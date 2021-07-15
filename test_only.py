@@ -10,16 +10,18 @@ import pytorch_lightning as pl
 from data_loader import  DrugSynergyDataModule
 from model import RelationExtractor, load_model
 from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, write_error_analysis_file
+from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--test-file', type=str, required=False, default="data/dev_set_error_analysis.jsonl")
 parser.add_argument('--batch-size', type=int, default=32, help="Batch size for testing (larger batch -> faster evaluation)")
 parser.add_argument('--output-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
+parser.add_argument('--random-seed', type=int, required=False, default=2021)
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    set_seed(args.random_seed)
     model, tokenizer, metadata = load_model(args.checkpoint_path)
 
     test_data_raw = list(jsonlines.open(args.test_file))
