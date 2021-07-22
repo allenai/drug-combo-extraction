@@ -17,7 +17,7 @@ from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, write_error_analysis_file
+from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
@@ -39,9 +39,12 @@ parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-be
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 parser.add_argument('--model-name', type=str, required=True)
+parser.add_argument('--seed', type=int, required=False, default=2021)
 
 if __name__ == "__main__":
     args = parser.parse_args()
+
+    set_seed(args.seed)
 
     training_data_raw = list(jsonlines.open(args.training_file))
     test_data_raw = list(jsonlines.open(args.test_file))
