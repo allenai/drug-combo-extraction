@@ -12,7 +12,7 @@ from typing import Callable, List, Optional
 
 from constants import ENTITY_PAD_IDX
 from optimizers import adamw_with_linear_warmup, simple_adamw
-from utils import accuracy, f1
+from utils import accuracy, compute_f1, f1
 
 BertLayerNorm = torch.nn.LayerNorm
 
@@ -26,6 +26,7 @@ class BertForRelation(BertPreTrainedModel):
     def __init__(self,
                  config: PretrainedConfig,
                  num_rel_labels: int,
+                 max_seq_length: int,
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
                  unfreeze_bias_terms_only: bool = True):
@@ -40,6 +41,7 @@ class BertForRelation(BertPreTrainedModel):
         """
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
+        self.max_seq_length = max_seq_length
         self.bert = BertModel(config)
         for name, param in self.bert.named_parameters():
             if unfreeze_final_bert_layer:
@@ -87,6 +89,7 @@ class BertForRelation(BertPreTrainedModel):
         for a, entity_idxs in zip(sequence_output, all_entity_idxs):
             # We store the entity-of-interest indices as a fixed-dimension matrix with padding indices.
             # Ignore padding indices when computing the average entity representation.
+            assert torch.max(entity_idxs).item() < self.max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
             entity_idxs = entity_idxs[torch.where(entity_idxs != ENTITY_PAD_IDX)]
             entity_vectors.append(torch.mean(a[entity_idxs], dim=0).unsqueeze(0))
         mean_entity_embs = torch.cat(entity_vectors, dim=0)
@@ -161,7 +164,8 @@ class RelationExtractor(pl.LightningModule):
 
         predictions = torch.argmax(logits, dim=1)
         acc = accuracy(predictions, labels)
-        f, prec, rec = f1(predictions, labels)
+        metrics_dict = compute_f1(predictions, labels)
+        f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
         self.log("accuracy", acc, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         self.log("precision", prec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         self.log("recall", rec, prog_bar=True, logger=True, on_step=True, on_epoch=True)
@@ -207,7 +211,8 @@ class RelationExtractor(pl.LightningModule):
         self.test_predictions.extend(predictions.tolist())
         self.test_batch_idxs.extend([batch_idx for _ in predictions.tolist()])
         acc = accuracy(predictions, labels)
-        f, prec, rec = f1(predictions, labels)
+        metrics_dict = compute_f1(predictions, labels)
+        f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
         self.log("accuracy", acc, prog_bar=True, logger=True)
         self.log("precision", prec, prog_bar=True, logger=True)
         self.log("recall", rec, prog_bar=True, logger=True)
