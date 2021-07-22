@@ -1,5 +1,6 @@
 import json
 import jsonlines
+import os
 import torch
 from typing import List, Dict, Tuple
 
@@ -128,3 +129,64 @@ def write_jsonl(data: List[Dict], fname: str):
 def write_json(data: Dict, fname: str):
     json.dump(data, open(fname, 'w'), indent=4)
     print(f"Wrote json file to {fname}")
+
+class ModelMetadata:
+    def __init__(self,
+                 model_name: str,
+                 max_seq_length: int,
+                 num_labels: int,
+                 label2idx: Dict,
+                 add_no_combination_relations: bool,
+                 only_include_binary_no_comb_relations: bool,
+                 include_paragraph_context: bool,
+                 context_window_size: int):
+        self.model_name = model_name
+        self.max_seq_length = max_seq_length
+        self.num_labels = num_labels
+        self.label2idx = label2idx
+        self.add_no_combination_relations = add_no_combination_relations
+        self.only_include_binary_no_comb_relations = only_include_binary_no_comb_relations
+        self.include_paragraph_context = include_paragraph_context
+        self.context_window_size = context_window_size
+
+
+def save_metadata(metadata: ModelMetadata, checkpoint_directory: str):
+    '''Serialize metadata about a model and the data preprocessing that it expects, to allow easy model usage at a later time.
+
+    Args:
+        metadata: ModelMetadata object containing information needed to use the model after loading a checkpoint.
+        checkpoint_directory: Directory name in which to save the metadata file ($checkpoint_directory/metadata.json)
+    '''
+    metadata_dict = {
+        "model_name": metadata.model_name,
+        "max_seq_length":  metadata.max_seq_length,
+        "num_labels":  metadata.num_labels,
+        "label2idx":  metadata.label2idx,
+        "add_no_combination_relations":  metadata.add_no_combination_relations,
+        "only_include_binary_no_comb_relations":  metadata.only_include_binary_no_comb_relations,
+        "include_paragraph_context":  metadata.include_paragraph_context,
+        "context_window_size":  metadata.context_window_size
+    }
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    json.dump(metadata_dict, open(metadata_file, 'w'))
+
+def load_metadata(checkpoint_directory: str) -> ModelMetadata:
+    '''Given a directory containing a model checkpoint, metadata regarding the model and data preprocessing that the model expects.
+
+    Args:
+        checkpoint_directory: Path to local directory where model is serialized
+
+    Returns:
+        metadata: ModelMetadata object containing information needed to use the model after loading a checkpoint.
+    '''
+    metadata_file = os.path.join(checkpoint_directory, "metadata.json")
+    metadata_dict = json.load(open(metadata_file))
+    metadata = ModelMetadata(metadata_dict["model_name"],
+                             metadata_dict["max_seq_length"],
+                             metadata_dict["num_labels"],
+                             metadata_dict["label2idx"],
+                             metadata_dict["add_no_combination_relations"],
+                             metadata_dict["only_include_binary_no_comb_relations"],
+                             metadata_dict["include_paragraph_context"],
+                             metadata_dict["context_window_size"])
+    return metadata

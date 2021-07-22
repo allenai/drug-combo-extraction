@@ -4,6 +4,7 @@
 import argparse
 import json
 import jsonlines
+import os
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -12,6 +13,7 @@ from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
+from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, write_error_analysis_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
@@ -23,8 +25,8 @@ parser.add_argument('--dev-train-split', type=float, required=False, default=0.1
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
-parser.add_argument('--label-sampling-ratios', default=None, type=str, help="Upsample or downsample training examples of each class for training (due to label imbalance)")
-parser.add_argument('--label-loss-weights', default=None, type=str, help="Loss weight for negative class labels in training (to help with label imbalance)")
+parser.add_argument('--label-sampling-ratios', default=None, type=str, help="Loss weights (json list) for up/downsampling training examples of each class for training (due to label imbalance)")
+parser.add_argument('--label-loss-weights', default=None, type=str, help="Loss weights (json list) for negative class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
 parser.add_argument('--only-include-binary-no-comb-relations', action='store_true', help="If true, and we are including no-comb relations, then only mine binary no-comb relations (ignoring n-ary no-comb relations)")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
@@ -32,6 +34,7 @@ parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
+parser.add_argument('--model-name', type=str, required=True)
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -51,12 +54,13 @@ if __name__ == "__main__":
     else:
         label_loss_weights = json.loads(args.label_loss_weights)
 
+    include_paragraph_context = not args.ignore_paragraph_context
     training_data = create_dataset(training_data,
                                    label2idx=label2idx,
                                    label_sampling_ratios=label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
                                    only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                                   include_paragraph_context=not args.ignore_paragraph_context,
+                                   include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size)
     label_values = sorted(set(label2idx.values()))
     num_labels = len(label_values)
@@ -67,7 +71,7 @@ if __name__ == "__main__":
                                label2idx=label2idx,
                                add_no_combination_relations=not args.ignore_no_comb_relations,
                                only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
-                               include_paragraph_context=not args.ignore_paragraph_context,
+                               include_paragraph_context=include_paragraph_context,
                                context_window_size=args.context_window_size)
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
@@ -110,5 +114,18 @@ if __name__ == "__main__":
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
+    model_dir = "checkpoints_" + args.model_name
+    model.save_pretrained(model_dir)
+    trainer.save_checkpoint(os.path.join(model_dir, "model.chkpt"))
+    tokenizer.save_pretrained(os.path.join(model_dir, "tokenizer"))
+    metadata = ModelMetadata(args.pretrained_lm,
+                             args.max_seq_length,
+                             num_labels,
+                             label2idx,
+                             not args.ignore_no_comb_relations,
+                             args.only_include_binary_no_comb_relations,
+                             include_paragraph_context,
+                             args.context_window_size)
+    save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
