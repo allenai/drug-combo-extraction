@@ -206,8 +206,6 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             text = add_entity_markers(processed_document.text, relation.drug_entities)
         else:
             text = processed_document.text
-        drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
-        row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
         if context_window_size is not None:
             tokens = text.split()
             first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
@@ -218,6 +216,8 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             add_right = (context_window_size - entity_distance) - add_left
             start_window_right = min(len(tokens), final_entity_end_token + add_right)
             text = " ".join(tokens[start_window_left:start_window_right])
+        drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
+        row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
         samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
     return samples
 
