@@ -75,12 +75,13 @@ def vectorize_subwords(tokenizer, doc_subwords: List[str], max_seq_length: int =
     segment_ids = make_fixed_length([0] * len(doc_input_ids), max_seq_length)
     return DatasetRow(input_ids, attention_mask, segment_ids)
 
-def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length: int = 512) -> TensorDataset:
+def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mapping: Dict, max_seq_length: int = 512) -> TensorDataset:
     """Converts raw data (in the form of text/label pairs) into a binarized, training-ready Torch TensorDataset.
 
     Args:
         data: List of dictionaries, each containing a string of entity-marked text and a discrete label
         tokenizer: Huggingface tokenizer, to perform word segmentation
+        row_idx_mapping: Maps each unique row identifier to an integer.
         max_seq_length: Fixed length (in subwords) to use for representing all documents
 
     Returns:
@@ -91,13 +92,14 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
     # Store subwords and entity positions for each document in the first pass over the dataset.
     all_doc_subwords = []
     all_doc_entity_start_positions = []
-
+    all_row_ids = []
     for doc in tqdm(data):
         targets.append(doc["target"])
         doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer)
         all_doc_subwords.append(doc_subwords)
         all_doc_entity_start_positions.append(entity_start_token_idxs)
         max_entities_length = max(max_entities_length, len(entity_start_token_idxs))
+        all_row_ids.append(row_idx_mapping[doc["row_id"]])
 
     all_entity_idxs = []
     all_input_ids = []
@@ -117,8 +119,9 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, max_seq_length
     all_attention_masks = torch.tensor(all_attention_masks, dtype=torch.long)
     targets = torch.tensor(targets, dtype=torch.long)
     all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.long)
+    all_row_ids = torch.tensor(all_row_ids, dtype=torch.long)
 
-    dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idxs)
+    dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idxs, all_row_ids)
     return dataset
 
 class DrugSynergyDataModule(pl.LightningDataModule):
@@ -126,6 +129,8 @@ class DrugSynergyDataModule(pl.LightningDataModule):
                  train_data: List[Dict],
                  test_data: List[Dict],
                  tokenizer: AutoTokenizer,
+                 label_to_idx: Dict,
+                 row_idx_mapping: Dict,
                  train_batch_size: int = 32,
                  dev_batch_size: int = 32,
                  test_batch_size: int = 32,
@@ -139,6 +144,8 @@ class DrugSynergyDataModule(pl.LightningDataModule):
             train_data: List of (text, label) pairs for training and validation
             test_data: List of (text, label) pairs for testing
             tokenizer: Tokenizer/subword segmenter to process raw text
+            label_to_idx: Fixed mapping of label strings to numerical values
+            row_idx_mapping: Maps each unique row identifier to an integer.
             train_batch_size: Batch size for training
             dev_batch_size: Batch size for validation
             test_batch_size: Batch size for testing
@@ -153,6 +160,8 @@ class DrugSynergyDataModule(pl.LightningDataModule):
         self.train_data = train_data
         self.test_data = test_data
         self.tokenizer = tokenizer
+        self.label_to_idx = label_to_idx
+        self.row_idx_mapping = row_idx_mapping
         self.train_batch_size = train_batch_size
         self.dev_batch_size = dev_batch_size
         self.test_batch_size = test_batch_size
@@ -169,11 +178,11 @@ class DrugSynergyDataModule(pl.LightningDataModule):
 
     def setup(self):
         # Assign train/val datasets for use in dataloaders
-        full_dataset = construct_dataset(self.train_data, self.tokenizer, max_seq_length=self.max_seq_length)
+        full_dataset = construct_dataset(self.train_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
         dev_size = int(self.dev_train_ratio * len(full_dataset))    
         train_size = len(full_dataset) - dev_size
         self.train, self.val = random_split(full_dataset, [train_size, dev_size])
-        self.test = construct_dataset(self.test_data, self.tokenizer, max_seq_length=self.max_seq_length)
+        self.test = construct_dataset(self.test_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
         # Optionally...
         # self.dims = tuple(self.train[0][0].shape)
 

@@ -100,6 +100,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
 
     Args:
         raw: Document from the Drug Synergy dataset, corresponding to one annotated sentence.
+        label2idx: Mapping from relation class strings to integer values.
         add_no_combination_relations: Whether to add implicit NO_COMB relations.
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: Whether to include full-paragraph context around each drug-mention sentence
@@ -217,7 +218,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             text = " ".join(tokens[start_window_left:start_window_right])
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
-        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id})
+        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
     return samples
 
 def create_dataset(raw_data: List[Dict],
