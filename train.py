@@ -39,12 +39,12 @@ parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-be
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 parser.add_argument('--model-name', type=str, required=True)
-parser.add_argument('--random-seed', type=int, required=False, default=2021)
+parser.add_argument('--seed', type=int, required=False, default=2021)
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    set_seed(args.random_seed)
+    set_seed(args.seed)
 
     training_data_raw = list(jsonlines.open(args.training_file))
     test_data_raw = list(jsonlines.open(args.test_file))

@@ -17,11 +17,11 @@ parser.add_argument('--checkpoint-path', type=str, required=False, default="chec
 parser.add_argument('--test-file', type=str, required=False, default="data/dev_set_error_analysis.jsonl")
 parser.add_argument('--batch-size', type=int, default=32, help="Batch size for testing (larger batch -> faster evaluation)")
 parser.add_argument('--output-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
-parser.add_argument('--random-seed', type=int, required=False, default=2021)
+parser.add_argument('--seed', type=int, required=False, default=2021)
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    set_seed(args.random_seed)
+    set_seed(args.seed)
     model, tokenizer, metadata = load_model(args.checkpoint_path)
 
     test_data_raw = list(jsonlines.open(args.test_file))
