@@ -1,5 +1,9 @@
-# Usage
-# python train.py --pretrained-lm allenai/scibert_scivocab_uncased --num-train-epochs 10 --lr 2e-4 --batch-size 71 --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json
+'''
+Usage
+python train.py --pretrained-lm allenai/scibert_scivocab_uncased --num-train-epochs 10 --lr 2e-4 \
+--batch-size 71 --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json \
+--model-name baseline_model
+'''
 
 import argparse
 import json
@@ -27,7 +31,7 @@ parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--label-sampling-ratios', default=None, type=str, help="Loss weights (json list) for up/downsampling training examples of each class for training (due to label imbalance)")
 parser.add_argument('--label-loss-weights', default=None, type=str, help="Loss weights (json list) for negative class labels in training (to help with label imbalance)")
-parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NOT-COMB negative relations from the relation annotations.")
+parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NO_COMB negative relations from the relation annotations.")
 parser.add_argument('--only-include-binary-no-comb-relations', action='store_true', help="If true, and we are including no-comb relations, then only mine binary no-comb relations (ignoring n-ary no-comb relations)")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
@@ -39,8 +43,8 @@ parser.add_argument('--model-name', type=str, required=True)
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    training_data = list(jsonlines.open(args.training_file))
-    test_data = list(jsonlines.open(args.test_file))
+    training_data_raw = list(jsonlines.open(args.training_file))
+    test_data_raw = list(jsonlines.open(args.test_file))
     label2idx = json.load(open(args.label2idx))
     label2idx[NOT_COMB] = 0
 
@@ -55,7 +59,7 @@ if __name__ == "__main__":
         label_loss_weights = json.loads(args.label_loss_weights)
 
     include_paragraph_context = not args.ignore_paragraph_context
-    training_data = create_dataset(training_data,
+    training_data = create_dataset(training_data_raw,
                                    label2idx=label2idx,
                                    label_sampling_ratios=label_sampling_ratios,
                                    add_no_combination_relations=not args.ignore_no_comb_relations,
@@ -67,17 +71,21 @@ if __name__ == "__main__":
     assert label_values == list(range(num_labels))
     assert len(label_sampling_ratios) == num_labels
     assert len(label_loss_weights) == num_labels
-    test_data = create_dataset(test_data,
+    test_data = create_dataset(test_data_raw,
                                label2idx=label2idx,
                                add_no_combination_relations=not args.ignore_no_comb_relations,
                                only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
                                include_paragraph_context=include_paragraph_context,
                                context_window_size=args.context_window_size)
+    row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
+
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
     dm = DrugSynergyDataModule(training_data,
                                test_data,
                                tokenizer,
+                               label2idx,
+                               row_id_idx_mapping,
                                train_batch_size=args.batch_size,
                                dev_batch_size=args.batch_size,
                                test_batch_size=args.batch_size,
@@ -129,3 +137,6 @@ if __name__ == "__main__":
     save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
+    test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
+    os.makedirs("outputs", exist_ok=True)
+    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))
