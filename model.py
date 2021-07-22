@@ -1,3 +1,4 @@
+import os
 import pytorch_lightning as pl
 import torch
 from torch import nn
@@ -8,11 +9,12 @@ from transformers import (
                             BertPreTrainedModel,
                             PretrainedConfig
 )
-from typing import Callable, List, Optional
+from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+from typing import Callable, Dict, List, Optional, Tuple
 
 from constants import ENTITY_PAD_IDX
 from optimizers import adamw_with_linear_warmup, simple_adamw
-from utils import accuracy, compute_f1
+from utils import accuracy, compute_f1, load_metadata
 
 BertLayerNorm = torch.nn.LayerNorm
 
@@ -97,6 +99,12 @@ class BertForRelation(BertPreTrainedModel):
         rep = self.dropout(rep)
         logits = self.classifier(rep)
         return logits
+
+    def make_predictions(self, inputs):
+        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
+        logits = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        predictions = torch.argmax(logits, dim=1)
+        return predictions
 
 class RelationExtractor(pl.LightningModule):
     def __init__(self,
@@ -219,3 +227,28 @@ class RelationExtractor(pl.LightningModule):
         self.log("precision", prec, prog_bar=True, logger=True)
         self.log("recall", rec, prog_bar=True, logger=True)
         self.log("f1", f, prog_bar=True, logger=True)
+
+def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
+    '''Given a directory containing a model checkpoint, return the model, and other metadata regarding the data
+    preprocessing that the model expects.
+
+    Args:
+        checkpoint_directory: Path to local directory where model is serialized
+
+    Returns:
+        model: Pretrained BertForRelation model
+        tokenizer: Hugging Face tokenizer loaded from disk
+        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
+        label2idx: Mapping from label strings to numerical label indices
+        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
+    '''
+    metadata = load_metadata(checkpoint_directory)
+    model = BertForRelation.from_pretrained(
+                checkpoint_directory,
+                cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
+                num_rel_labels=metadata.num_labels,
+                max_seq_length=metadata.max_seq_length
+    )
+    tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
+    tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
+    return model, tokenizer, metadata
