@@ -59,7 +59,6 @@ class BertForRelation(BertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
         self.init_weights()
 
-
     def forward(self,
                 input_ids: torch.Tensor,
                 token_type_ids: Optional[torch.Tensor] = None,
@@ -83,9 +82,9 @@ class BertForRelation(BertPreTrainedModel):
                             token_type_ids=token_type_ids,
                             attention_mask=attention_mask,
                             output_hidden_states=False,
-                            output_attentions=False,
                             position_ids=input_position)
         sequence_output = outputs[0]
+        attention = None if len(outputs) < 3 else outputs[2]
 
         entity_vectors = []
         for a, entity_idxs in zip(sequence_output, all_entity_idxs):
@@ -98,7 +97,7 @@ class BertForRelation(BertPreTrainedModel):
         rep = self.layer_norm(mean_entity_embs)
         rep = self.dropout(rep)
         logits = self.classifier(rep)
-        return logits
+        return logits, attention
 
     def make_predictions(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
@@ -152,7 +151,7 @@ class RelationExtractor(pl.LightningModule):
 
     def forward(self, inputs, pass_text = True):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        logits, _ = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
         return logits
 
     def training_step(self, inputs, batch_idx):
@@ -228,7 +227,7 @@ class RelationExtractor(pl.LightningModule):
         self.log("recall", rec, prog_bar=True, logger=True)
         self.log("f1", f, prog_bar=True, logger=True)
 
-def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
+def load_model(checkpoint_directory: str, output_attentions: bool = False) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
     '''Given a directory containing a model checkpoint, return the model, and other metadata regarding the data
     preprocessing that the model expects.
 
@@ -247,7 +246,8 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
                 num_rel_labels=metadata.num_labels,
-                max_seq_length=metadata.max_seq_length
+                max_seq_length=metadata.max_seq_length,
+                output_attentions=output_attentions
     )
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))

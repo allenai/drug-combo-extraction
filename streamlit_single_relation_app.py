@@ -54,12 +54,12 @@ def classify_message(message: str,
     segment_ids = torch.tensor(vectorized_row.segment_ids, dtype=torch.long).unsqueeze(0)
     entity_start_tokens = torch.tensor(entity_start_tokens, dtype=torch.long).unsqueeze(0)
 
-    logits = model(input_ids, token_type_ids=segment_ids, attention_mask=attention_mask, all_entity_idxs=entity_start_tokens)
+    logits, attention = model(input_ids, token_type_ids=segment_ids, attention_mask=attention_mask, all_entity_idxs=entity_start_tokens)
     probabilities = torch.nn.functional.softmax(logits)[0]
     label = torch.argmax(probabilities).item()
 
     relation_probabilities = [round(prob, 4) for prob in probabilities.tolist()]
-    return {'predicted label': label, 'relation probabilities': relation_probabilities}
+    return {'predicted label': label, 'relation probabilities': relation_probabilities}, attention
 
 def app():
     st.write("Enter marked abstract text:")
