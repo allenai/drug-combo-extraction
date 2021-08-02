@@ -82,11 +82,21 @@ if __name__ == "__main__":
                                context_window_size=args.context_window_size)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
 
+
+    full_set = training_data + test_data
+    longest_rel = max([len(d["drug_names"]) for d in full_set])
+
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
 
+    drug_marker_tokens = [f"<drug{i}>" for i in range(longest_rel)]
+    tokenizer.add_tokens(drug_marker_tokens)
+    print(f"drug marker token indices: {tokenizer.convert_tokens_to_ids(drug_marker_tokens)}")
+
     drugs = open("drugs.txt").read().lower().split()
     tokenizer.add_tokens(drugs)
+    drug_indices = tokenizer.convert_tokens_to_ids(drugs)
+    print(f"drug index range: {min(drug_indices)} to {max(drug_indices)}.")
 
     dm = DrugSynergyDataModule(training_data,
                                test_data,

@@ -111,7 +111,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
     if include_paragraph_context:
         text = raw['paragraph']
         sentence_start_idx = text.find(raw['sentence'])
-        assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
+        assert sentence_start_idx != -1, breakpoint()
     else:
         text = raw['sentence']
         sentence_start_idx = 0
@@ -176,7 +176,22 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
         text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
         position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
-    return text
+
+    text = text.lower()
+    drug_set = list(set([drug.drug_name.lower() for drug in relation_entities]))
+    drug_names = []
+    for i, drug_name in enumerate(drug_set):
+        drug_names.append(drug_name)
+        text = text.replace(drug_name, f"<drug{i}>")
+
+    original_text = text
+    unique_drugs = []
+    for i, drug_name in reversed(list(enumerate(drug_names))):
+        if f"{drug_name}" not in text[:-len(original_text)]:
+            text = f"<drug{i}> {drug_name} " + text
+            unique_drugs.append(drug_name)
+
+    return text, unique_drugs
 
 def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
@@ -203,7 +218,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.
         if mark_entities:
-            text = add_entity_markers(processed_document.text, relation.drug_entities)
+            text, drug_names = add_entity_markers(processed_document.text, relation.drug_entities)
         else:
             text = processed_document.text
         if context_window_size is not None:
@@ -218,7 +233,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             text = " ".join(tokens[start_window_left:start_window_right])
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
-        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
+        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs, "drug_names": drug_names})
     return samples
 
 def create_dataset(raw_data: List[Dict],

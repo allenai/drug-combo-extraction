@@ -72,7 +72,7 @@ def vectorize_subwords(tokenizer, doc_subwords: List[str], max_seq_length: int =
     input_ids = make_fixed_length(doc_input_ids, max_seq_length)
     attention_mask = make_fixed_length([1] * len(doc_input_ids), max_seq_length)
     # Treat entire paragraph as a single segment, without SEP tokens
-    segment_ids = make_fixed_length([0] * len(doc_input_ids), max_seq_length)
+    segment_ids = make_fixed_length([1] * len(doc_input_ids), max_seq_length, padding_value=1)
     return DatasetRow(input_ids, attention_mask, segment_ids)
 
 def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mapping: Dict, max_seq_length: int = 512) -> TensorDataset:
@@ -93,6 +93,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_doc_subwords = []
     all_doc_entity_start_positions = []
     all_row_ids = []
+    all_doc_drug_names = []
     for doc in tqdm(data):
         targets.append(doc["target"])
         doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer)
@@ -100,6 +101,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
         all_doc_entity_start_positions.append(entity_start_token_idxs)
         max_entities_length = max(max_entities_length, len(entity_start_token_idxs))
         all_row_ids.append(row_idx_mapping[doc["row_id"]])
+        all_doc_drug_names.append(doc["drug_names"])
 
     all_entity_idxs = []
     all_input_ids = []
@@ -111,6 +113,9 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
         all_entity_idxs.append(make_fixed_length(entity_start_token_idxs, max_entities_length, padding_value=ENTITY_PAD_IDX))
         row = vectorize_subwords(tokenizer, doc_subwords, max_seq_length)
         all_input_ids.append(row.input_ids)
+        relation_arity = len(all_doc_drug_names[i])
+        for j in range(relation_arity * 2 + 1):
+            row.segment_ids[j] = 0
         all_token_type_ids.append(row.segment_ids)
         all_attention_masks.append(row.attention_mask)
 

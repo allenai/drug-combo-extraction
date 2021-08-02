@@ -12,6 +12,8 @@ from model import RelationExtractor, load_model
 from preprocess import create_dataset
 from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file
 
+from constants import ENTITY_START_MARKER, ENTITY_END_MARKER
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--test-file', type=str, required=False, default="data/dev_set_error_analysis.jsonl")
@@ -23,6 +25,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_seed(args.seed)
     model, tokenizer, metadata = load_model(args.checkpoint_path)
+    tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
 
     test_data_raw = list(jsonlines.open(args.test_file))
     # TODO(Vijay): add `add_no_combination_relations`, `only_include_binary_no_comb_relations`, `include_paragraph_context`,

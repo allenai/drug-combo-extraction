@@ -66,7 +66,7 @@ def recall(predictions: torch.Tensor, labels: torch.Tensor) -> float:
         return 0.0
     return true_pos/gt_pos
 
-def compute_f1(preds: torch.Tensor, labels: torch.Tensor):
+def compute_f1(preds: torch.Tensor, labels: torch.Tensor, binarize_predictions = False):
     """Compute the F1 score of predictions against ground truth. Return as a dictionary including precision
     and recall, since these must be computed to calculate F1.
     Exact f1 calculation was copied almost verbatim from
@@ -81,7 +81,15 @@ def compute_f1(preds: torch.Tensor, labels: torch.Tensor):
         prec: Precision of predictions
         rec: Recall of predictions
     """
+    preds = preds.clone()
+    labels = labels.clone()
     n_gold = n_pred = n_correct = 0
+    if binarize_predictions:
+        preds[torch.where(preds != 3)] = 0
+        preds[torch.where(preds == 3)] = 1
+        labels[torch.where(labels != 3)] = 0
+        labels[torch.where(labels == 3)] = 1
+
     for pred, label in zip(preds, labels):
         if pred != 0:
             n_pred += 1
