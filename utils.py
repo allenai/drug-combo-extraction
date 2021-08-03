@@ -7,6 +7,8 @@ import random
 import torch
 from typing import List, Dict, Tuple
 
+from constants import COREF_PAD_IDX
+
 def accuracy(predictions: torch.Tensor, labels: torch.Tensor) -> float:
     """Compute accuracy of predictions against ground truth.
 
@@ -281,3 +283,33 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
+def tuple_max(tuple_1, tuple_2):
+    if tuple_1 is None and tuple_2 is not None:
+        return tuple_2
+    elif tuple_2 is None and tuple_1 is not None:
+        return tuple_1
+    max_tuple = []
+    assert len(tuple_1) == len(tuple_2)
+    for i in range(len(tuple_1)):
+        max_value = max(tuple_1[i], tuple_2[i])
+        max_tuple.append(max_value)
+    return max_tuple
+
+def tuple_difference(tuple_1, tuple_2):
+    diff_tuple = []
+    assert len(tuple_1) == len(tuple_2)
+    for i in range(len(tuple_1)):
+        assert tuple_2[i] >= tuple_1[i]
+        diff_tuple.append(tuple_2[i] - tuple_1[i])
+    return diff_tuple
+
+def pad_lower_right(array: np.array, desired_shape: Tuple, pad_value: int = -1) -> np.array:
+    '''
+    Pads a matrix below and to the right, to bring the matrix to the desired shape.
+    '''
+    right_pad_lengths = tuple_difference(array.shape, desired_shape)
+    pad_widths = [(0, l) for l in right_pad_lengths]
+    padded_array = np.pad(array, pad_widths, constant_values = pad_value)
+    assert padded_array.shape == desired_shape
+    return padded_array
