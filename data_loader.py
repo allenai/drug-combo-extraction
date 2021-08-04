@@ -76,7 +76,10 @@ def tokenize_sentence(text: str, tokenizer: AutoTokenizer, ner_spans: List[List]
     token_indexed_ner_span_indices = []
     for span_start_idx, span_end_idx in ner_spans:
         span_start_token_idx = start_char_token_idx_mapping[span_start_idx]
-        span_end_token_idx = end_char_token_idx_mapping[span_end_idx]
+        try:
+            span_end_token_idx = end_char_token_idx_mapping[span_end_idx-1]
+        except:
+            breakpoint()
         token_indexed_ner_span_indices.append([span_start_token_idx, span_end_token_idx])
 
     token_indexed_coreference_clusters = []
