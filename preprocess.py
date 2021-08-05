@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
 from typing import Dict, Iterable, List, Optional, Set
+from utils import separate_tokens_from_whitespace, rejoin_tokens_and_whitespaces
 
 random.seed(2021)
 
@@ -182,9 +183,9 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
 def build_entity_spans(text, key_entities):
     text_lower = text.lower()
     entity_spans = []
-    for entity in key_entities:
-        entity_lower = entity.lower()
-        for entity_mention in re.finditer(re.escape(entity_lower), text_lower):
+    unique_entities = set([entity.lower() for entity in key_entities])
+    for entity in sorted(unique_entities):
+        for entity_mention in re.finditer(re.escape(entity), text_lower):
             mention_start = entity_mention.start()
             mention_end = mention_start + len(entity)
             entity_spans.append((mention_start, mention_end))
@@ -194,10 +195,11 @@ def build_entity_spans(text, key_entities):
 def build_coreference_clusters(text, key_entities):
     text_lower = text.lower()
     coreference_clusters = []
-    for entity in key_entities:
+    unique_entities = set([entity.lower() for entity in key_entities])
+    for entity in sorted(unique_entities):
         corefererent_indices = []
         entity_lower = entity.lower()
-        for entity_mention in re.finditer(re.escape(entity_lower), text_lower):
+        for entity_mention in re.finditer(re.escape(entity), text_lower):
             mention_start = entity_mention.start()
             mention_end = mention_start + len(entity)
             corefererent_indices.append((mention_start, mention_end))
@@ -221,37 +223,17 @@ def update_coreference_indices_with_marker_offsets(coreference_clusters, positio
         coreference_clusters[i] = update_span_indices_with_marker_offsets(cluster_indices, position_offsets, text, key_entities)
 
 def truncate_span_indices(span_indices, min_index, max_index, text, key_entities):
-    span_indices = []
+    updated_indices = []
     for start_index, end_index in span_indices:
-        if not (start_index <= min_index and end_index > max_index):
+        if not (start_index >= min_index and end_index < max_index):
             continue
         assert text[start_index - min_index: end_index - min_index].lower() in key_entities, "All updated span indices should still contain entity surface forms"
-        span_indices.append((start_index - min_index, end_index - min_index))
-    return span_indices
+        updated_indices.append((start_index - min_index, end_index - min_index))
+    return updated_indices
 
 def truncate_coreference_cluster_indices(coreference_clusters, min_index, max_index, text, key_entities):
     for i, cluster_indices in enumerate(coreference_clusters):
         coreference_clusters[i] = truncate_span_indices(cluster_indices, min_index, max_index, text, key_entities)
-
-def separate_tokens_from_whitespace(text):
-    tokens_and_whitespaces = re.split(r'(\s+)', text)
-    tokens = []
-    whitespaces = []
-    for t in tokens_and_whitespaces:
-        if len(t.split()) > 0:
-            tokens.append(t)
-        else:
-            whitespaces.append(t)
-    return tokens, whitespaces
-
-def rejoin_tokens_and_whitespaces(tokens, whitespaces):
-    assert len(whitespaces) == len(tokens) - 1, breakpoint()
-    tokens_and_whitespaces = []
-    for i in range(len(whitespaces)):
-        tokens_and_whitespaces.append(tokens[i])
-        tokens_and_whitespaces.append(whitespaces[i])
-    tokens_and_whitespaces.append(tokens[-1])
-    return "".join(tokens_and_whitespaces)
 
 def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
@@ -284,10 +266,12 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         # Mark drug entities with special tokens.
         if mark_entities:
             text, position_offsets = add_entity_markers(processed_document.text, relation.drug_entities)
-            update_span_indices_with_marker_offsets(entity_spans, position_offsets, text, key_entities)
+
+            entity_spans = update_span_indices_with_marker_offsets(entity_spans, position_offsets, text, key_entities)
             update_coreference_indices_with_marker_offsets(coreference_clusters, position_offsets, text, key_entities)
         else:
             text = processed_document.text
+
         if context_window_size is not None:
             tokens, whitespaces = separate_tokens_from_whitespace(text)
             first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
@@ -297,13 +281,18 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             start_window_left = max(0, first_entity_start_token - add_left)
             add_right = (context_window_size - entity_distance) - add_left
             start_window_right = min(len(tokens), final_entity_end_token + add_right)
-            reconstructed_text = rejoin_tokens_and_whitespaces(tokens[start_window_left:start_window_right], whitespaces[start_window_left:start_window_right-1])
+            reconstructed_text = rejoin_tokens_and_whitespaces(tokens[start_window_left:start_window_right], whitespaces[start_window_left:start_window_right], keep_trailing_whitespace=False)
             assert reconstructed_text in text, "If truncated text is not a substring of original text, it throws off our coreference indices"
             text = reconstructed_text
-            truncate_span_indices(entity_spans, start_window_left, start_window_right, text, key_entities)
-            truncate_coreference_cluster_indices(coreference_clusters, start_window_left, start_window_right, text, key_entities)
+            truncated_prefix = rejoin_tokens_and_whitespaces(tokens[:start_window_left], whitespaces[:start_window_left], keep_trailing_whitespace=True)
+            start_window_left_char_idx = len(truncated_prefix)
+            start_window_right_char_idx = start_window_left_char_idx + len(reconstructed_text)
+            entity_spans = truncate_span_indices(entity_spans, start_window_left_char_idx, start_window_right_char_idx, text, key_entities)
+            truncate_coreference_cluster_indices(coreference_clusters, start_window_left_char_idx, start_window_right_char_idx, text, key_entities)
+
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
+
         samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs, "ner_spans": entity_spans, "coreference_clusters": coreference_clusters})
     return samples
 

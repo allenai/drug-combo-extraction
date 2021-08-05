@@ -4,6 +4,7 @@ import jsonlines
 import numpy as np
 import os
 import random
+import re
 import torch
 from typing import List, Dict, Tuple
 
@@ -284,6 +285,14 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
+def tuple_difference(tuple_1, tuple_2):
+    diff_tuple = []
+    assert len(tuple_1) == len(tuple_2)
+    for i in range(len(tuple_1)):
+        assert tuple_2[i] >= tuple_1[i]
+        diff_tuple.append(tuple_2[i] - tuple_1[i])
+    return tuple(diff_tuple)
+
 def tuple_max(tuple_1, tuple_2):
     if tuple_1 is None and tuple_2 is not None:
         return tuple_2
@@ -294,15 +303,7 @@ def tuple_max(tuple_1, tuple_2):
     for i in range(len(tuple_1)):
         max_value = max(tuple_1[i], tuple_2[i])
         max_tuple.append(max_value)
-    return max_tuple
-
-def tuple_difference(tuple_1, tuple_2):
-    diff_tuple = []
-    assert len(tuple_1) == len(tuple_2)
-    for i in range(len(tuple_1)):
-        assert tuple_2[i] >= tuple_1[i]
-        diff_tuple.append(tuple_2[i] - tuple_1[i])
-    return diff_tuple
+    return tuple(max_tuple)
 
 def pad_lower_right(array: np.array, desired_shape: Tuple, pad_value: int = -1) -> np.array:
     '''
@@ -311,5 +312,25 @@ def pad_lower_right(array: np.array, desired_shape: Tuple, pad_value: int = -1) 
     right_pad_lengths = tuple_difference(array.shape, desired_shape)
     pad_widths = [(0, l) for l in right_pad_lengths]
     padded_array = np.pad(array, pad_widths, constant_values = pad_value)
-    assert padded_array.shape == desired_shape
+    assert padded_array.shape == desired_shape, breakpoint()
     return padded_array
+
+def separate_tokens_from_whitespace(text):
+    tokens_and_whitespaces = re.split(r'(\s+)', text)
+    tokens = []
+    whitespaces = []
+    for t in tokens_and_whitespaces:
+        if len(t.split()) > 0:
+            tokens.append(t)
+        else:
+            whitespaces.append(t)
+    return tokens, whitespaces
+
+def rejoin_tokens_and_whitespaces(tokens, whitespaces, keep_trailing_whitespace=False):
+    assert len(whitespaces) == len(tokens) or len(whitespaces) + 1 == len(tokens), breakpoint()
+    tokens_and_whitespaces = []
+    for i in range(len(tokens)):
+        tokens_and_whitespaces.append(tokens[i])
+        if i < len(tokens) - 1 or keep_trailing_whitespace:
+            tokens_and_whitespaces.append(whitespaces[i])
+    return "".join(tokens_and_whitespaces)

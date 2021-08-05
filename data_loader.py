@@ -5,11 +5,11 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import random_split, DataLoader, TensorDataset
 from transformers import AutoTokenizer
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from balanced_batch_sampler import BalancedBatchSampler
 from constants import CLS, COREF_PAD_IDX, ENTITY_END_MARKER, ENTITY_PAD_IDX, ENTITY_START_MARKER, SEP
-from utils import pad_lower_right, tuple_max
+from utils import pad_lower_right, tuple_max, separate_tokens_from_whitespace, rejoin_tokens_and_whitespaces
 
 def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> List:
     """Helper function to make a variable-length array into a fixed-length one.
@@ -31,6 +31,17 @@ def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> L
         fixed_array = array + [padding_value] * pad_length
     return fixed_array
 
+def match_index_to_range_dict(index: int, range_dict: Dict) -> Any:
+    '''
+    Args:
+        index: value to look up in the range dict
+        range_dict: dictionary where each key points to a range of values
+    '''
+    for (range_start, range_end), value in range_dict.items():
+        if index >= range_start and index < range_end:
+            return value
+    raise ValueError("Index not matched to any range")
+
 def tokenize_sentence(text: str, tokenizer: AutoTokenizer, ner_spans: List[List], coreference_clusters: List[List]) -> Tuple[List[str], List[int]]:
     '''Given a text sentence, run the Huggingface subword tokenizer on this sentence,
     and return a list of subword tokens and the positions of all special entity marker
@@ -46,48 +57,48 @@ def tokenize_sentence(text: str, tokenizer: AutoTokenizer, ner_spans: List[List]
         entity_start_token_idxs: Positions of all entity-start tokens in the list of subwords
     '''
     doc_subwords = [CLS]
-    whitespace_tokens = text.split()
+    tokens, whitespaces = separate_tokens_from_whitespace(text)
     entity_start_token_idxs = []
     entity_end_token_idxs = []
 
     # Manually split up each token into subwords, to directly identify special entity tokens
     # and store their locations.
-    start_char_token_idx_mapping = {}
-    end_char_token_idx_mapping = {}
+    char_subword_idx_mapping = {}
     cur_char_idx = 0
-    for token_idx, token in enumerate(whitespace_tokens):
-        start_char_token_idx_mapping[cur_char_idx] = token_idx
-        end_char_token_idx_mapping[cur_char_idx + len(token) - 1] = token_idx
-        cur_subword_idx = len(doc_subwords)
-
-        if token == ENTITY_START_MARKER:
-            entity_start_token_idxs.append(cur_subword_idx)
-            doc_subwords.append(ENTITY_START_MARKER)
-        elif token == ENTITY_END_MARKER:
-            entity_end_token_idxs.append(cur_subword_idx)
-            doc_subwords.append(ENTITY_END_MARKER)
+    for token_idx, token in enumerate(tokens):
+        if token == ENTITY_START_MARKER or token == ENTITY_END_MARKER:
+            char_subword_idx_mapping[(cur_char_idx, cur_char_idx + len(token))] = (len(doc_subwords), len(doc_subwords) + 1)
+            if token == ENTITY_START_MARKER:
+                entity_start_token_idxs.append(len(doc_subwords))
+            else:
+                entity_end_token_idxs.append(len(doc_subwords))
+            doc_subwords.append(token)
         else:
-            # If not a special token, then split the token into subwords.
-            for sub_token in tokenizer.tokenize(token):
+            token_subwords = tokenizer.tokenize(token)
+            char_subword_idx_mapping[(cur_char_idx, cur_char_idx + len(token))] = (len(doc_subwords), len(doc_subwords) + len(token_subwords))
+            for sub_token in token_subwords:
                 doc_subwords.append(sub_token)
-        cur_char_idx += len(token) + 1
+        num_trailing_whitespaces = 0 if token_idx >= len(whitespaces) else len(whitespaces[token_idx])
+        cur_char_idx += len(token) + num_trailing_whitespaces
     doc_subwords.append(SEP)
 
     token_indexed_ner_span_indices = []
     for span_start_idx, span_end_idx in ner_spans:
-        span_start_token_idx = start_char_token_idx_mapping[span_start_idx]
-        try:
-            span_end_token_idx = end_char_token_idx_mapping[span_end_idx-1]
-        except:
-            breakpoint()
-        token_indexed_ner_span_indices.append([span_start_token_idx, span_end_token_idx])
+        span_start_token_idx, _ = match_index_to_range_dict(span_start_idx, char_subword_idx_mapping)
+        _, span_end_token_idx = match_index_to_range_dict(span_end_idx-1, char_subword_idx_mapping)
+        matched = False
+        for t in token_indexed_ner_span_indices:
+            if t == [span_start_token_idx, span_end_token_idx]:
+                matched = True
+        if not matched:
+            token_indexed_ner_span_indices.append([span_start_token_idx, span_end_token_idx])
 
     token_indexed_coreference_clusters = []
     for cluster_coreference_indices in coreference_clusters:
         token_indexed_cluster_coreference_indices = []
         for span_start_idx, span_end_idx in cluster_coreference_indices:
-            span_start_token_idx = start_char_token_idx_mapping[span_start_idx]
-            span_end_token_idx = end_char_token_idx_mapping[span_end_idx]
+            span_start_token_idx, _ = match_index_to_range_dict(span_start_idx, char_subword_idx_mapping)
+            _, span_end_token_idx = match_index_to_range_dict(span_end_idx-1, char_subword_idx_mapping)
             token_indexed_cluster_coreference_indices.append([span_start_token_idx, span_end_token_idx])
         token_indexed_coreference_clusters.append(token_indexed_cluster_coreference_indices)
 
@@ -110,15 +121,15 @@ def vectorize_subwords(tokenizer, doc_subwords: List[str], max_seq_length: int =
 def generate_coreference_matrix(span_indices: List[List], span_coreferences: List[List[List]]) -> np.array:
     span_index_lookup = {}
     for i, span in enumerate(span_indices):
-        assert tuple(span) not in span_index_lookup
+        assert tuple(span) not in span_index_lookup, breakpoint()
         span_index_lookup[tuple(span)] = i
     coreference_matrix = np.zeros((len(span_index_lookup), len(span_index_lookup)))
     for coreference_cluster in span_coreferences:
         for span_1 in coreference_cluster:
             assert tuple(span_1) in span_index_lookup
-            span_1_index = span_index_lookup[span_1]
+            span_1_index = span_index_lookup[tuple(span_1)]
             for span_2 in coreference_cluster:
-                span_2_index = span_index_lookup[span_2]
+                span_2_index = span_index_lookup[tuple(span_2)]
                 coreference_matrix[span_1_index][span_2_index] = 1.0
     return coreference_matrix
 
@@ -144,13 +155,12 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_doc_entity_start_positions = []
     all_doc_entity_end_positions = []
     all_row_ids = []
-    span_positions = []
     all_span_indices = []
     all_coref_matrices = []
 
     max_dimensions_span_indices = None
     max_dimensions_coref_matrices = None
-    for doc in tqdm(data):
+    for i, doc in enumerate(tqdm(data)):
         targets.append(doc["target"])
         doc_subwords, entity_start_token_idxs, entity_end_token_idxs, span_indices, span_coreferences = tokenize_sentence(doc["text"], tokenizer, doc["ner_spans"], doc["coreference_clusters"])
         all_doc_subwords.append(doc_subwords)
