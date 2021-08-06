@@ -3,7 +3,7 @@ import random
 import re
 from tqdm import tqdm
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN, SpanType
 from typing import Dict, Iterable, List, Optional, Set
 from utils import separate_tokens_from_whitespace, rejoin_tokens_and_whitespaces
 
@@ -164,21 +164,25 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
 
     relation_entities: List = sorted(relation_entities, key=lambda entity: entity.span_start)
     # This list keeps track of all the indices where special entity marker tokens were inserted.
+    marker_pair_spans = []
     position_offsets = []
-    for i, drug in enumerate(relation_entities):
+    for drug in relation_entities:
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
-        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
+        position_offset = sum([offset for idx, offset, _ in position_offsets if idx <= drug.span_start])
         assert drug.span_start + position_offset == 0 or text[drug.span_start + position_offset - 1] == " ", breakpoint()
         text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
-        position_offsets.append((drug.span_start, len(ENTITY_START_MARKER + " ")))
+        position_offsets.append((drug.span_start, len(ENTITY_START_MARKER + " "), ENTITY_START_MARKER))
 
         # Insert "</m> " after each entity.
-        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
+        position_offset = sum([offset for idx, offset, _ in position_offsets if idx <= drug.span_end])
         assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
         text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
-        position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
-    return text, position_offsets
+        position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " "), ENTITY_END_MARKER))
+
+        associated_text_span = (drug.span_start, drug.span_end)
+        marker_pair_spans.append((drug.span_start, drug.span_end, associated_text_span))
+    return text, position_offsets, marker_pair_spans
 
 def build_entity_spans(text, key_entities):
     text_lower = text.lower()
@@ -188,7 +192,7 @@ def build_entity_spans(text, key_entities):
         for entity_mention in re.finditer(re.escape(entity), text_lower):
             mention_start = entity_mention.start()
             mention_end = mention_start + len(entity)
-            entity_spans.append((mention_start, mention_end))
+            entity_spans.append((mention_start, mention_end, SpanType.TEXT))
     entity_spans = sorted(entity_spans, key=lambda span_idxs: span_idxs[0])
     return entity_spans
 
@@ -199,23 +203,34 @@ def build_coreference_clusters(text, key_entities):
     for entity in sorted(unique_entities):
         corefererent_indices = []
         entity_lower = entity.lower()
-        for entity_mention in re.finditer(re.escape(entity), text_lower):
+        for entity_mention in re.finditer(re.escape(entity_lower), text_lower):
             mention_start = entity_mention.start()
-            mention_end = mention_start + len(entity)
-            corefererent_indices.append((mention_start, mention_end))
+            mention_end = mention_start + len(entity_lower)
+            corefererent_indices.append((mention_start, mention_end, SpanType.TEXT))
         assert len(corefererent_indices) >= 1, "Every entity must be observed at least once, necessarily"
         coreference_clusters.append(corefererent_indices)
     return coreference_clusters
 
 def update_span_indices_with_marker_offsets(span_indices, position_offsets, text, key_entities):
     updated_indices = []
-    for start_index, end_index in span_indices:
-        position_offset = sum([offset for idx, offset in position_offsets if idx <= start_index])
+    for start_index, end_index, span_type in span_indices:
+        if span_type == SpanType.MARKERS:
+            position_offset = sum([offset for idx, offset, _ in position_offsets if idx < start_index])
+        else:
+            position_offset = sum([offset for idx, offset, _ in position_offsets if idx <= start_index])
         start_index = start_index + position_offset
-        position_offset = sum([offset for idx, offset in position_offsets if idx < end_index])
+        if span_type == SpanType.MARKERS:
+            position_offset = sum([offset for idx, offset, _ in position_offsets if idx <= end_index])
+        else:
+            position_offset = sum([offset for idx, offset, _ in position_offsets if idx < end_index])
         end_index = end_index + position_offset
-        updated_indices.append((start_index, end_index))
-        assert text[start_index:end_index].lower() in key_entities, "All updated span indices should still contain entity surface forms"
+        updated_indices.append((start_index, end_index, span_type))
+        span_text = text[start_index:end_index].lower()
+        if "<<m>>" in span_text and "<</m>>" in span_text:
+            # If this span is the special "entity marker span" span, then verify that the text bookended by
+            # entity markers contains an entity name
+            span_text = span_text[6:-7]
+        assert span_text in key_entities, breakpoint()
     return updated_indices
 
 def update_coreference_indices_with_marker_offsets(coreference_clusters, position_offsets, text, key_entities):
@@ -224,11 +239,17 @@ def update_coreference_indices_with_marker_offsets(coreference_clusters, positio
 
 def truncate_span_indices(span_indices, min_index, max_index, text, key_entities):
     updated_indices = []
-    for start_index, end_index in span_indices:
+    for start_index, end_index, span_type in span_indices:
         if not (start_index >= min_index and end_index < max_index):
+            assert span_type != SpanType.MARKERS, "Never omit marker spans"
             continue
-        assert text[start_index - min_index: end_index - min_index].lower() in key_entities, "All updated span indices should still contain entity surface forms"
-        updated_indices.append((start_index - min_index, end_index - min_index))
+        span_text = text[start_index - min_index: end_index - min_index].lower()
+        if "<<m>>" in span_text and "<</m>>" in span_text:
+            # If this span is the special "entity marker span" span, then verify that the text bookended by
+            # entity markers contains an entity name
+            span_text = span_text[6:-7]
+        assert span_text in key_entities, breakpoint()
+        updated_indices.append((start_index - min_index, end_index - min_index, span_type.value))
     return updated_indices
 
 def truncate_coreference_cluster_indices(coreference_clusters, min_index, max_index, text, key_entities):
@@ -265,7 +286,22 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
 
         # Mark drug entities with special tokens.
         if mark_entities:
-            text, position_offsets = add_entity_markers(processed_document.text, relation.drug_entities)
+            text, position_offsets, marker_pair_spans = add_entity_markers(processed_document.text, relation.drug_entities)
+            for (marker_start, marker_end, associated_text_span) in marker_pair_spans:
+                marker_span = (marker_start, marker_end, SpanType.MARKERS)
+                entity_spans.append(marker_span)
+                matching_coref_cluster_idx = -1
+                for i, cluster in enumerate(coreference_clusters):
+                    matched_cluster = False
+                    for cluster_mention_start, cluster_mention_end, mention_type in cluster:
+                        if mention_type == SpanType.TEXT and associated_text_span[0] == cluster_mention_start and associated_text_span[1] == cluster_mention_end:
+                            matched_cluster = True
+                            break
+                    if matched_cluster:
+                        matching_coref_cluster_idx = i
+                        break
+                assert matching_coref_cluster_idx != -1, breakpoint()
+                coreference_clusters[matching_coref_cluster_idx].append(marker_span)
 
             entity_spans = update_span_indices_with_marker_offsets(entity_spans, position_offsets, text, key_entities)
             update_coreference_indices_with_marker_offsets(coreference_clusters, position_offsets, text, key_entities)

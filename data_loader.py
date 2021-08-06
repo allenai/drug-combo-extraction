@@ -83,23 +83,24 @@ def tokenize_sentence(text: str, tokenizer: AutoTokenizer, ner_spans: List[List]
     doc_subwords.append(SEP)
 
     token_indexed_ner_span_indices = []
-    for span_start_idx, span_end_idx in ner_spans:
+    for span_start_idx, span_end_idx, span_type in ner_spans:
         span_start_token_idx, _ = match_index_to_range_dict(span_start_idx, char_subword_idx_mapping)
         _, span_end_token_idx = match_index_to_range_dict(span_end_idx-1, char_subword_idx_mapping)
+        # Avoid adding duplicate spans to the list of unique mentions
         matched = False
         for t in token_indexed_ner_span_indices:
-            if t == [span_start_token_idx, span_end_token_idx]:
+            if t[0] == span_start_token_idx and t[1] == span_end_token_idx:
                 matched = True
         if not matched:
-            token_indexed_ner_span_indices.append([span_start_token_idx, span_end_token_idx])
+            token_indexed_ner_span_indices.append([span_start_token_idx, span_end_token_idx, span_type])
 
     token_indexed_coreference_clusters = []
     for cluster_coreference_indices in coreference_clusters:
         token_indexed_cluster_coreference_indices = []
-        for span_start_idx, span_end_idx in cluster_coreference_indices:
+        for span_start_idx, span_end_idx, span_type in cluster_coreference_indices:
             span_start_token_idx, _ = match_index_to_range_dict(span_start_idx, char_subword_idx_mapping)
             _, span_end_token_idx = match_index_to_range_dict(span_end_idx-1, char_subword_idx_mapping)
-            token_indexed_cluster_coreference_indices.append([span_start_token_idx, span_end_token_idx])
+            token_indexed_cluster_coreference_indices.append([span_start_token_idx, span_end_token_idx, span_type])
         token_indexed_coreference_clusters.append(token_indexed_cluster_coreference_indices)
 
     return doc_subwords, entity_start_token_idxs, entity_end_token_idxs, token_indexed_ner_span_indices, token_indexed_coreference_clusters
@@ -208,7 +209,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     entity_start_idxs = torch.tensor(entity_start_idxs, dtype=torch.long)
     all_row_ids = torch.tensor(all_row_ids, dtype=torch.long)
     all_span_indices_padded = torch.tensor(all_span_indices_padded, dtype=torch.long)
-    all_coref_matrices_padded = torch.tensor(all_coref_matrices_padded, dtype=torch.long)
+    all_coref_matrices_padded = torch.tensor(all_coref_matrices_padded, dtype=torch.float32)
 
     dataset = TensorDataset(all_input_ids,
                             all_token_type_ids,

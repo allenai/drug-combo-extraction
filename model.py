@@ -61,14 +61,16 @@ class BertForRelation(BertPreTrainedModel):
 
     @staticmethod
     def compute_span_embeddings(bert_embeddings: torch.Tensor, ner_spans: torch.Tensor) -> torch.Tensor:
-        breakpoint()
+        span_indices = ner_spans[torch.where(ner_spans[:, 2] != -1)][:, :2]
+        span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]]], dim=1)
+        #span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]], bert_embeddings[span_indices[:, 1]]], dim=1)
+        return span_indices, span_embeddings
 
     @staticmethod
-    def propagate_representations_on_graph(bert_embeddings: torch.Tensor,
-                                           coreferring_entity_positions: torch.Tensor,
-                                           entity_start_idxs: torch.Tensor,
-                                           entity_end_idxs: torch.Tensor) -> torch.Tensor:
-        return coreferring_entity_positions
+    def propagate_representations_on_graph(span_embeddings: torch.Tensor,
+                                           coref_matrix: torch.Tensor,
+                                           num_layers: int) -> torch.Tensor:
+        return torch.matmul(torch.matrix_power(coref_matrix.T, num_layers), span_embeddings)
 
     def forward(self,
                 input_ids: torch.Tensor,
@@ -101,21 +103,21 @@ class BertForRelation(BertPreTrainedModel):
                             position_ids=input_position)
         sequence_output = outputs[0]
 
-        span_embeddings = [torch.zeros((len(ner_spans[i]), len(ner_spans[i])), device=sequence_output[0].device) for i in range(len(sequence_output))]
+        entity_vectors  = []
 
         if ner_spans is not None and coref_matrix is not None:
-            for batch_idx in enumerate(sequence_output):
-                span_embeddings[batch_idx] = self.compute_span_embeddings(sequence_output[batch_idx], ner_spans[batch_idx])
-                sequence_output[batch_idx] = self.propagate_representations_on_graph(sequence_output[batch_idx], ner_spans[batch_idx], coref_matrix[batch_idx])
+            for batch_idx in range(len(sequence_output)):
+                span_indices, single_span_embeddings  = self.compute_span_embeddings(sequence_output[batch_idx], ner_spans[batch_idx])
+                single_coref_matrix = coref_matrix[batch_idx][torch.where(coref_matrix[batch_idx] != -1)].reshape(len(span_indices), len(span_indices))
+                updated_span_embeddings = self.propagate_representations_on_graph(single_span_embeddings, single_coref_matrix, num_layers = 0)
+                entity_marker_indices = torch.where(ner_spans[batch_idx][:, 2] == 2)
+                entity_marker_embeddings = updated_span_embeddings[entity_marker_indices]
+                entity_vectors.append(torch.mean(entity_marker_embeddings, dim=0).unsqueeze(0))
 
-        entity_vectors = []
-        for a, entity_idxs in zip(sequence_output, entity_start_idxs):
-            # We store the entity-of-interest indices as a fixed-dimension matrix with padding indices.
-            # Ignore padding indices when computing the average entity representation.
-            assert torch.max(entity_idxs).item() < self.max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
-            entity_idxs = entity_idxs[torch.where(entity_idxs != ENTITY_PAD_IDX)]
-            entity_vectors.append(torch.mean(a[entity_idxs], dim=0).unsqueeze(0))
-        mean_entity_embs = torch.cat(entity_vectors, dim=0)
+        try:
+            mean_entity_embs = torch.cat(entity_vectors, dim=0)
+        except:
+            breakpoint()
         rep = self.layer_norm(mean_entity_embs)
         rep = self.dropout(rep)
         logits = self.classifier(rep)
