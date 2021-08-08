@@ -46,8 +46,8 @@ if __name__ == "__main__":
 
     set_seed(args.seed)
 
-    training_data_raw = list(jsonlines.open(args.training_file))[:100]
-    test_data_raw = list(jsonlines.open(args.test_file))[:10]
+    training_data_raw = list(jsonlines.open(args.training_file))
+    test_data_raw = list(jsonlines.open(args.test_file))
     label2idx = json.load(open(args.label2idx))
     label2idx[NOT_COMB] = 0
 

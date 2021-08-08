@@ -55,15 +55,15 @@ class BertForRelation(BertPreTrainedModel):
             elif not unfreeze_all_bert_layers:
                 param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.layer_norm = BertLayerNorm(config.hidden_size)
-        self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
+        self.layer_norm = BertLayerNorm(config.hidden_size*2)
+        self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
         self.init_weights()
 
     @staticmethod
     def compute_span_embeddings(bert_embeddings: torch.Tensor, ner_spans: torch.Tensor) -> torch.Tensor:
         span_indices = ner_spans[torch.where(ner_spans[:, 2] != -1)][:, :2]
-        span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]]], dim=1)
-        #span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]], bert_embeddings[span_indices[:, 1]]], dim=1)
+        # span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]]], dim=1)
+        span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]], bert_embeddings[span_indices[:, 1]]], dim=1)
         return span_indices, span_embeddings
 
     @staticmethod
@@ -80,7 +80,8 @@ class BertForRelation(BertPreTrainedModel):
                 entity_start_idxs: Optional[torch.Tensor] = None,
                 input_position: Optional[torch.Tensor] = None,
                 ner_spans: Optional[torch.Tensor] = None,
-                coref_matrix: Optional[torch.Tensor] = None) -> ModelOutput:
+                coref_matrix: Optional[torch.Tensor] = None,
+                row_ids: Optional[torch.Tensor] = None) -> ModelOutput:
         """BertForRelation model, forward pass.
 
         Args:
@@ -109,7 +110,7 @@ class BertForRelation(BertPreTrainedModel):
             for batch_idx in range(len(sequence_output)):
                 span_indices, single_span_embeddings  = self.compute_span_embeddings(sequence_output[batch_idx], ner_spans[batch_idx])
                 single_coref_matrix = coref_matrix[batch_idx][torch.where(coref_matrix[batch_idx] != -1)].reshape(len(span_indices), len(span_indices))
-                updated_span_embeddings = self.propagate_representations_on_graph(single_span_embeddings, single_coref_matrix, num_layers = 0)
+                updated_span_embeddings = self.propagate_representations_on_graph(single_span_embeddings, single_coref_matrix, num_layers = 1)
                 entity_marker_indices = torch.where(ner_spans[batch_idx][:, 2] == 2)
                 entity_marker_embeddings = updated_span_embeddings[entity_marker_indices]
                 entity_vectors.append(torch.mean(entity_marker_embeddings, dim=0).unsqueeze(0))
@@ -174,8 +175,8 @@ class RelationExtractor(pl.LightningModule):
         return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
-        input_ids, token_type_ids, attention_mask, labels, entity_start_idxs, _, ner_spans, coref_matrix = inputs
-        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, entity_start_idxs=entity_start_idxs, ner_spans=ner_spans, coref_matrix=coref_matrix)
+        input_ids, token_type_ids, attention_mask, labels, entity_start_idxs, row_ids, ner_spans, coref_matrix = inputs
+        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, entity_start_idxs=entity_start_idxs, ner_spans=ner_spans, coref_matrix=coref_matrix, row_ids=row_ids)
         return logits
 
     def training_step(self, inputs, batch_idx):
