@@ -62,7 +62,6 @@ class BertForRelation(BertPreTrainedModel):
     @staticmethod
     def compute_span_embeddings(bert_embeddings: torch.Tensor, ner_spans: torch.Tensor) -> torch.Tensor:
         span_indices = ner_spans[torch.where(ner_spans[:, 2] != -1)][:, :2]
-        # span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]]], dim=1)
         span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]], bert_embeddings[span_indices[:, 1]]], dim=1)
         return span_indices, span_embeddings
 
@@ -115,10 +114,7 @@ class BertForRelation(BertPreTrainedModel):
                 entity_marker_embeddings = updated_span_embeddings[entity_marker_indices]
                 entity_vectors.append(torch.mean(entity_marker_embeddings, dim=0).unsqueeze(0))
 
-        try:
-            mean_entity_embs = torch.cat(entity_vectors, dim=0)
-        except:
-            breakpoint()
+        mean_entity_embs = torch.cat(entity_vectors, dim=0)
         rep = self.layer_norm(mean_entity_embs)
         rep = self.dropout(rep)
         logits = self.classifier(rep)
