@@ -129,9 +129,15 @@ def generate_coreference_matrix(span_indices: List[List], span_coreferences: Lis
         for span_1 in coreference_cluster:
             assert tuple(span_1) in span_index_lookup
             span_1_index = span_index_lookup[tuple(span_1)]
+            matching_coreferents = len(coreference_cluster) - 1
+            self_weight = 0.5 if matching_coreferents > 0 else 1.0
+            coreferent_weight = 0.5/matching_coreferents if matching_coreferents > 0 else 0.0
             for span_2 in coreference_cluster:
                 span_2_index = span_index_lookup[tuple(span_2)]
-                coreference_matrix[span_1_index][span_2_index] = 1.0
+                if span_1_index == span_2_index:
+                    coreference_matrix[span_1_index][span_2_index] = self_weight
+                else:
+                    coreference_matrix[span_1_index][span_2_index] = coreferent_weight
     return coreference_matrix
 
 def construct_span_pair_relation_matrix(span_coreferences: List) -> List[List]:
