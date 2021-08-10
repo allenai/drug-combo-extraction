@@ -31,7 +31,8 @@ class BertForRelation(BertPreTrainedModel):
                  max_seq_length: int,
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
-                 unfreeze_bias_terms_only: bool = True):
+                 unfreeze_bias_terms_only: bool = True,
+                 run_graph_propagation: bool = True):
         """Initialize simple BERT-based relation extraction model
 
         Args:
@@ -55,18 +56,40 @@ class BertForRelation(BertPreTrainedModel):
             elif not unfreeze_all_bert_layers:
                 param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.layer_norm = BertLayerNorm(config.hidden_size)
-        self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
+        if not run_graph_propagation:
+            self.run_graph_propagation = False
+            self.layer_norm = BertLayerNorm(config.hidden_size)
+            self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
+        else:
+            self.run_graph_propagation = True
+            # In our graph propagation architecture, we use span embeddings, consisting of the concatenation
+            # of an entity's first token embedding and final token embedding.
+            self.layer_norm = BertLayerNorm(config.hidden_size*2)
+            self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
         self.init_weights()
 
+    @staticmethod
+    def compute_span_embeddings(bert_embeddings: torch.Tensor, ner_spans: torch.Tensor) -> torch.Tensor:
+        span_indices = ner_spans[torch.where(ner_spans[:, 2] != -1)][:, :2]
+        span_embeddings = torch.cat([bert_embeddings[span_indices[:, 0]], bert_embeddings[span_indices[:, 1]]], dim=1)
+        return span_indices, span_embeddings
+
+    @staticmethod
+    def propagate_representations_on_graph(span_embeddings: torch.Tensor,
+                                           coref_matrix: torch.Tensor,
+                                           num_layers: int) -> torch.Tensor:
+        return torch.matmul(torch.matrix_power(coref_matrix.T, num_layers), span_embeddings)
 
     def forward(self,
                 input_ids: torch.Tensor,
                 token_type_ids: Optional[torch.Tensor] = None,
                 attention_mask: Optional[torch.Tensor] = None,
                 labels: Optional[torch.Tensor] = None,
-                all_entity_idxs: Optional[torch.Tensor] = None,
-                input_position: Optional[torch.Tensor] = None) -> ModelOutput:
+                entity_start_idxs: Optional[torch.Tensor] = None,
+                input_position: Optional[torch.Tensor] = None,
+                ner_spans: Optional[torch.Tensor] = None,
+                coref_matrix: Optional[torch.Tensor] = None,
+                row_ids: Optional[torch.Tensor] = None) -> ModelOutput:
         """BertForRelation model, forward pass.
 
         Args:
@@ -74,8 +97,10 @@ class BertForRelation(BertPreTrainedModel):
             token_type_ids: Sequence segment IDs (currently set to all 0's) - TODO(Vijay): update this
             attention_mask: Mask which describes which tokens should be ignored (i.e. padding tokens)
             labels: Tensor of numerical labels
-            all_entity_idxs: Tensor of indices of each drug entity's special start token in each document
+            entity_start_idxs: Tensor of indices of each drug entity's special start token in each document
             input_position: Just here to satisfy the interface (TODO(Vijay): remove this if possible)
+            ner_spans: Token indices of named entity spans in the document
+            coref_matrix: Matrix of span-span coreferences in the document
         """
         # TODO(Vijay): delete input_positions, since it's seemingly not used
         # TODO(Vijay): analyze the output with the `output_attentions` flag, to help interpret the model's predictions.
@@ -87,13 +112,27 @@ class BertForRelation(BertPreTrainedModel):
                             position_ids=input_position)
         sequence_output = outputs[0]
 
-        entity_vectors = []
-        for a, entity_idxs in zip(sequence_output, all_entity_idxs):
-            # We store the entity-of-interest indices as a fixed-dimension matrix with padding indices.
-            # Ignore padding indices when computing the average entity representation.
-            assert torch.max(entity_idxs).item() < self.max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
-            entity_idxs = entity_idxs[torch.where(entity_idxs != ENTITY_PAD_IDX)]
-            entity_vectors.append(torch.mean(a[entity_idxs], dim=0).unsqueeze(0))
+        entity_vectors  = []
+        for batch_idx in range(len(sequence_output)):
+            bert_embeddings = sequence_output[batch_idx]
+            if self.run_graph_propagation and ner_spans is not None and coref_matrix is not None:
+                # If NER and Coreference information has been provided, then we can run graph propagation
+                # before computing the average entity embedding.
+                span_indices, single_span_embeddings  = self.compute_span_embeddings(bert_embeddings, ner_spans[batch_idx])
+                single_coref_matrix = coref_matrix[batch_idx][torch.where(coref_matrix[batch_idx] != -1)].reshape(len(span_indices), len(span_indices))
+                updated_span_embeddings = self.propagate_representations_on_graph(single_span_embeddings, single_coref_matrix, num_layers = 1)
+                entity_marker_indices = torch.where(ner_spans[batch_idx][:, 2] == 2)
+                entity_marker_embeddings = updated_span_embeddings[entity_marker_indices]
+                entity_vectors.append(torch.mean(entity_marker_embeddings, dim=0).unsqueeze(0))
+            else:
+                # If not using graph propagation, then simply look up the positions of entity start token markers.
+                entity_idxs = entity_start_idxs[batch_idx]
+                # We store the entity-of-interest indices as a fixed-dimension matrix with padding indices.
+                # Ignore padding indices when computing the average entity representation.
+                assert torch.max(entity_idxs).item() < self.max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
+                entity_idxs = entity_idxs[torch.where(entity_idxs != ENTITY_PAD_IDX)]
+                entity_vectors.append(torch.mean(bert_embeddings[entity_idxs], dim=0).unsqueeze(0))
+
         mean_entity_embs = torch.cat(entity_vectors, dim=0)
         rep = self.layer_norm(mean_entity_embs)
         rep = self.dropout(rep)
@@ -101,8 +140,8 @@ class BertForRelation(BertPreTrainedModel):
         return logits
 
     def make_predictions(self, inputs):
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        input_ids, token_type_ids, attention_mask, labels, entity_start_idxs, _, ner_spans, coref_matrix = inputs
+        logits = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, entity_start_idxs=entity_start_idxs, ner_spans=ner_spans, coref_matrix=coref_matrix)
         predictions = torch.argmax(logits, dim=1)
         return predictions
 
@@ -151,8 +190,8 @@ class RelationExtractor(pl.LightningModule):
         return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        input_ids, token_type_ids, attention_mask, labels, entity_start_idxs, row_ids, ner_spans, coref_matrix = inputs
+        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, entity_start_idxs=entity_start_idxs, ner_spans=ner_spans, coref_matrix=coref_matrix, row_ids=row_ids)
         return logits
 
     def training_step(self, inputs, batch_idx):
@@ -166,7 +205,7 @@ class RelationExtractor(pl.LightningModule):
             Loss tensor
         """
         # outputs: TokenClassifierOutput
-        _, _, _, labels, _, _ = inputs
+        _, _, _, labels, _, _, _, _ = inputs
         logits = self(inputs, pass_text = True)
         loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
         self.log("loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
@@ -192,7 +231,7 @@ class RelationExtractor(pl.LightningModule):
             Loss tensor
         """
         # outputs: TokenClassifierOutput
-        _, _, _, labels, _, _ = inputs
+        _, _, _, labels, _, _, _, _ = inputs
         logits = self(inputs, pass_text = True)
         loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
@@ -209,7 +248,7 @@ class RelationExtractor(pl.LightningModule):
         Return:
             Accuracy value (float) on the test set
         """
-        input_ids, _, _, labels, _, row_ids = inputs
+        input_ids, _, _, labels, _, row_ids, _, _ = inputs
         logits = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
         loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
