@@ -31,7 +31,8 @@ class BertForRelation(BertPreTrainedModel):
                  max_seq_length: int,
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
-                 unfreeze_bias_terms_only: bool = True):
+                 unfreeze_bias_terms_only: bool = True,
+                 run_graph_propagation: bool = True):
         """Initialize simple BERT-based relation extraction model
 
         Args:
@@ -55,8 +56,16 @@ class BertForRelation(BertPreTrainedModel):
             elif not unfreeze_all_bert_layers:
                 param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.layer_norm = BertLayerNorm(config.hidden_size*2)
-        self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
+        if not run_graph_propagation:
+            self.run_graph_propagation = False
+            self.layer_norm = BertLayerNorm(config.hidden_size)
+            self.classifier = nn.Linear(config.hidden_size, self.num_rel_labels)
+        else:
+            self.run_graph_propagation = True
+            # In our graph propagation architecture, we use span embeddings, consisting of the concatenation
+            # of an entity's first token embedding and final token embedding.
+            self.layer_norm = BertLayerNorm(config.hidden_size*2)
+            self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
         self.init_weights()
 
     @staticmethod
@@ -104,15 +113,25 @@ class BertForRelation(BertPreTrainedModel):
         sequence_output = outputs[0]
 
         entity_vectors  = []
-
-        if ner_spans is not None and coref_matrix is not None:
-            for batch_idx in range(len(sequence_output)):
-                span_indices, single_span_embeddings  = self.compute_span_embeddings(sequence_output[batch_idx], ner_spans[batch_idx])
+        for batch_idx in range(len(sequence_output)):
+            bert_embeddings = sequence_output[batch_idx]
+            if self.run_graph_propagation and ner_spans is not None and coref_matrix is not None:
+                # If NER and Coreference information has been provided, then we can run graph propagation
+                # before computing the average entity embedding.
+                span_indices, single_span_embeddings  = self.compute_span_embeddings(bert_embeddings, ner_spans[batch_idx])
                 single_coref_matrix = coref_matrix[batch_idx][torch.where(coref_matrix[batch_idx] != -1)].reshape(len(span_indices), len(span_indices))
                 updated_span_embeddings = self.propagate_representations_on_graph(single_span_embeddings, single_coref_matrix, num_layers = 1)
                 entity_marker_indices = torch.where(ner_spans[batch_idx][:, 2] == 2)
                 entity_marker_embeddings = updated_span_embeddings[entity_marker_indices]
                 entity_vectors.append(torch.mean(entity_marker_embeddings, dim=0).unsqueeze(0))
+            else:
+                # If not using graph propagation, then simply look up the positions of entity start token markers.
+                entity_idxs = entity_start_idxs[batch_idx]
+                # We store the entity-of-interest indices as a fixed-dimension matrix with padding indices.
+                # Ignore padding indices when computing the average entity representation.
+                assert torch.max(entity_idxs).item() < self.max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
+                entity_idxs = entity_idxs[torch.where(entity_idxs != ENTITY_PAD_IDX)]
+                entity_vectors.append(torch.mean(bert_embeddings[entity_idxs], dim=0).unsqueeze(0))
 
         mean_entity_embs = torch.cat(entity_vectors, dim=0)
         rep = self.layer_norm(mean_entity_embs)

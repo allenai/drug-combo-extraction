@@ -82,26 +82,32 @@ def tokenize_sentence(text: str, tokenizer: AutoTokenizer, ner_spans: List[List]
         cur_char_idx += len(token) + num_trailing_whitespaces
     doc_subwords.append(SEP)
 
-    token_indexed_ner_span_indices = []
-    for span_start_idx, span_end_idx, span_type in ner_spans:
-        span_start_token_idx, _ = match_index_to_range_dict(span_start_idx, char_subword_idx_mapping)
-        _, span_end_token_idx = match_index_to_range_dict(span_end_idx-1, char_subword_idx_mapping)
-        # Avoid adding duplicate spans to the list of unique mentions
-        matched = False
-        for t in token_indexed_ner_span_indices:
-            if t[0] == span_start_token_idx and t[1] == span_end_token_idx:
-                matched = True
-        if not matched:
-            token_indexed_ner_span_indices.append([span_start_token_idx, span_end_token_idx, span_type])
-
-    token_indexed_coreference_clusters = []
-    for cluster_coreference_indices in coreference_clusters:
-        token_indexed_cluster_coreference_indices = []
-        for span_start_idx, span_end_idx, span_type in cluster_coreference_indices:
+    if ner_spans is None:
+        token_indexed_ner_span_indices = [[-1, -1]]
+    else:
+        token_indexed_ner_span_indices = []
+        for span_start_idx, span_end_idx, span_type in ner_spans:
             span_start_token_idx, _ = match_index_to_range_dict(span_start_idx, char_subword_idx_mapping)
             _, span_end_token_idx = match_index_to_range_dict(span_end_idx-1, char_subword_idx_mapping)
-            token_indexed_cluster_coreference_indices.append([span_start_token_idx, span_end_token_idx, span_type])
-        token_indexed_coreference_clusters.append(token_indexed_cluster_coreference_indices)
+            # Avoid adding duplicate spans to the list of unique mentions
+            matched = False
+            for t in token_indexed_ner_span_indices:
+                if t[0] == span_start_token_idx and t[1] == span_end_token_idx:
+                    matched = True
+            if not matched:
+                token_indexed_ner_span_indices.append([span_start_token_idx, span_end_token_idx, span_type])
+
+    if coreference_clusters is None:
+        token_indexed_coreference_clusters = [[[-1, -1]]]
+    else:
+        token_indexed_coreference_clusters = []
+        for cluster_coreference_indices in coreference_clusters:
+            token_indexed_cluster_coreference_indices = []
+            for span_start_idx, span_end_idx, span_type in cluster_coreference_indices:
+                span_start_token_idx, _ = match_index_to_range_dict(span_start_idx, char_subword_idx_mapping)
+                _, span_end_token_idx = match_index_to_range_dict(span_end_idx-1, char_subword_idx_mapping)
+                token_indexed_cluster_coreference_indices.append([span_start_token_idx, span_end_token_idx, span_type])
+            token_indexed_coreference_clusters.append(token_indexed_cluster_coreference_indices)
 
     return doc_subwords, entity_start_token_idxs, entity_end_token_idxs, token_indexed_ner_span_indices, token_indexed_coreference_clusters
 
@@ -169,7 +175,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     max_dimensions_coref_matrices = None
     for i, doc in enumerate(tqdm(data)):
         targets.append(doc["target"])
-        doc_subwords, entity_start_token_idxs, entity_end_token_idxs, span_indices, span_coreferences = tokenize_sentence(doc["text"], tokenizer, doc["ner_spans"], doc["coreference_clusters"])
+        doc_subwords, entity_start_token_idxs, entity_end_token_idxs, span_indices, span_coreferences = tokenize_sentence(doc["text"], tokenizer, doc.get("ner_spans", None), doc.get("coreference_clusters", None))
         all_doc_subwords.append(doc_subwords)
         all_doc_entity_start_positions.append(entity_start_token_idxs)
         all_doc_entity_end_positions.append(entity_end_token_idxs)
@@ -178,7 +184,13 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
         span_indices_matrix = np.array(span_indices)
         all_span_indices.append(span_indices_matrix)
         max_dimensions_span_indices = tuple_max(max_dimensions_span_indices, span_indices_matrix.shape)
-        coref_matrix = generate_coreference_matrix(span_indices, span_coreferences)
+
+        if -1 in np.array(span_coreferences):
+            # This means that coreference data has not been provided.
+            # Fill the coreference matrix with -1's to pass this fact into the dataloader.
+            coref_matrix = np.ones((len(span_indices), len(span_indices))) * -1
+        else:
+            coref_matrix = generate_coreference_matrix(span_indices, span_coreferences)
         all_coref_matrices.append(coref_matrix)
         max_dimensions_coref_matrices = tuple_max(max_dimensions_coref_matrices, coref_matrix.shape)
 
