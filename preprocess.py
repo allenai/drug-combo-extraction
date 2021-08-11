@@ -1,4 +1,5 @@
 from itertools import chain, combinations
+import json
 import random
 from tqdm import tqdm
 
@@ -217,7 +218,8 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             start_window_right = min(len(tokens), final_entity_end_token + add_right)
             text = " ".join(tokens[start_window_left:start_window_right])
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
-        row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
+        row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
+        row_id = json.dumps(row_metadata)
         samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
     return samples
 
