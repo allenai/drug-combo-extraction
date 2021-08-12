@@ -281,3 +281,17 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
+def is_sublist(list_a, list_b):
+    if len(list_a) == 0:
+        return True
+    for i in range(len(list_b) - len(list_a)+1):
+        if list_b[i] == list_a[0]:
+            matched = True
+            for j in range(1, len(list_a)):
+                if list_a[j] != list_b[i+j]:
+                    matched = False
+                    break
+            if matched:
+                return True
+    return False
