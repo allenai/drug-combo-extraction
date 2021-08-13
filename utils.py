@@ -266,7 +266,7 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
         tsv_writer.writerow(header)
         for dataset_row in dataset:
             prediction = row_predictions[dataset_row["row_id"]]
-            doc_id = dataset_row["row_id"].split("_rels_")[0]
+            doc_id = json.loads(dataset_row["row_id"])["doc_id"]
             full_document = test_data_raw[doc_id]
             error_analysis_attributes = ErrorAnalysisAttributes(dataset_row, full_document, prediction)
             tsv_writer.writerow(error_analysis_attributes.get_row())
