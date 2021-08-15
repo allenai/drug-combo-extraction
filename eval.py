@@ -81,10 +81,16 @@ def adjust_data(gold, test):
 
 def filter_overloaded_predictions(fixed_test):
     def do_filtering(d):
+        out = d[0]
         for j, e in d:
             if e["relation_label"] != Label.NO_COMB.value:
-                return [(j, e)]
-        return [d[0]]
+                out = (j, e)
+                break
+        send_to_further = []
+        for j, e in d:
+            if len(set(out[1]["drug_idxs"]).intersection(set(e["drug_idxs"]))) == 0:
+                send_to_further.append((j, e))
+        return [out] + (do_filtering(send_to_further) if send_to_further else [])
 
     final_test = []
     sorted_test = sorted(enumerate(fixed_test), key=lambda x: (x[1]["doc_id"], len(x[1]["drug_idxs"]), str(x[1]["drug_idxs"])), reverse=True)
