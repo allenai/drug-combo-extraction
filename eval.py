@@ -103,10 +103,14 @@ def filter_overloaded_predictions(fixed_test):
     return [x[1] for x in sorted(final_test, key=lambda x: x[0])]
 
 
-def f_score(gold, test, unify_negs=False, exact_match=False):
+def f_score_our_model(gold, test, unify_negs=False, exact_match=False):
     fixed_gold, fixed_test = adjust_data(gold, test)
     fixed_test = filter_overloaded_predictions(fixed_test)
-    gs, ts = create_vectors(fixed_gold, fixed_test, unify_negs, exact_match)
+    return f_score(fixed_gold, fixed_test, unify_negs, exact_match)
+
+
+def f_score(gold, test, unify_negs=False, exact_match=False):
+    gs, ts = create_vectors(gold, test, unify_negs, exact_match)
     f, p, r = f_from_p_r(gs, ts)
     f_labeled, p_l, r_l = f_from_p_r(gs, ts, labeled=True)
     print(f"F1/P/R score: unlabeled = {f, p, r}, labeled = {f_labeled, p_l, r_l}")
