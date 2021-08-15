@@ -11,7 +11,7 @@ class Label(Enum):
     NEG_AND_COMB = 4
 
 
-labels = {3: Label.POS.value, 2: Label.COMB.value, 1: Label.NEG.value, 0: Label.NO_COMB.value}
+labels = {3: Label.POS.value, 1: Label.COMB.value, 2: Label.NEG.value, 0: Label.NO_COMB.value}
 labels2 = {3: Label.POS.value, 1: Label.NEG_AND_COMB.value, 2: Label.NEG_AND_COMB.value, 0: Label.NO_COMB.value}
 labels3 = {1: Label.POS.value, 0: Label.NO_COMB.value}
 
