@@ -1,6 +1,12 @@
+import argparse
 import json
 from enum import Enum
 from collections import defaultdict
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--gold-file', type=str, required=True, default="data/unittest_gold.jsonl", help="Path to the gold file")
+parser.add_argument('--pred-file', type=str, required=True, default="data/unittest_pred.jsonl", help="Path to the predictions file")
 
 
 class Label(Enum):
@@ -114,4 +120,13 @@ def f_score(gold, test, unify_negs=False, exact_match=False):
     f, p, r = f_from_p_r(gs, ts)
     f_labeled, p_l, r_l = f_from_p_r(gs, ts, labeled=True)
     print(f"F1/P/R score: unlabeled = {f, p, r}, labeled = {f_labeled, p_l, r_l}")
-    return f, f_labeled
+    return f, p, r, f_labeled, p_l, r_l
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    with open(args.pred_file) as f:
+        pred = [json.loads(l) for l in f.readlines()]
+    with open(args.gold_file) as f:
+        gold = [json.loads(l) for l in f.readlines()]
+    ret = f_score(gold, pred)
