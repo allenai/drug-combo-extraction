@@ -130,3 +130,5 @@ if __name__ == "__main__":
     with open(args.gold_file) as f:
         gold = [json.loads(l) for l in f.readlines()]
     ret = f_score(gold, pred)
+    if args.pred_file == "data/unittest_pred.jsonl":
+        assert ret == (0.5950540958268934, 0.6481481481481481, 0.55, 0.3760886777513856, 0.4629629629629629, 0.31666666666666665)
