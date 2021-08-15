@@ -18,7 +18,7 @@ from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
 from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file
-from eval import f_score
+from eval import f_score_our_model
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="allenai/scibert_scivocab_uncased", help="Path to pretrained Huggingface Transformers model")
@@ -142,6 +142,6 @@ if __name__ == "__main__":
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
-    _ = f_score(test_row_ids, test_predictions, unify_negs=True)
+    _ = f_score_our_model(test_row_ids, test_predictions, unify_negs=True)
     os.makedirs("outputs", exist_ok=True)
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))

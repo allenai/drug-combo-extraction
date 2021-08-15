@@ -11,7 +11,7 @@ from data_loader import  DrugSynergyDataModule
 from model import RelationExtractor, load_model
 from preprocess import create_dataset
 from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file
-from eval import f_score
+from eval import f_score_our_model
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
@@ -59,5 +59,5 @@ if __name__ == "__main__":
 
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
-    _ = f_score(test_row_ids, test_predictions)
+    _ = f_score_our_model(test_row_ids, test_predictions)
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.output_file)
