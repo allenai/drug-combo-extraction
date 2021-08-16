@@ -39,7 +39,7 @@ def create_vectors(gold, test, unify_negs, exact_match):
             if rel1['doc_id'] != rel2['doc_id']:
                 continue
             # count matching entity-spans
-            spans_intersecting = len(rel1['drug_idxs'].intersection(set(rel2['drug_idxs'])))
+            spans_intersecting = len(set(rel1['drug_idxs']).intersection(set(rel2['drug_idxs'])))
             score = spans_intersecting / len(set(rel1['drug_idxs'] + rel2['drug_idxs']))
             # if we have partial matching (when allowed) or exact matching (when required) add the aligned relations
             if ((spans_intersecting >= 2) and (not exact_match)) or (score == 1):
@@ -66,7 +66,7 @@ def f_from_p_r(gs, ts, labeled=False):
         for (_, _, label), matched in v.items():
             if label != Label.NO_COMB.value:
                 interesting += 1
-                score += max([s if ((not labeled and other != Label.NO_COMB.value) or (other == label)) else 0 for other, s, _ in matched])
+                score += max([s if ((not labeled and other != Label.NO_COMB.value) or (other == label)) else 0 for other, s in matched])
         return score / interesting
     p = get_max_sum_score(ts)
     r = get_max_sum_score(gs)
@@ -119,7 +119,7 @@ def filter_overloaded_predictions(preds):
         return [out] + (do_filtering(send_to_further) if send_to_further else [])
 
     # we sort here so it would be easier to group by sentence,
-    #   and to have the high-drug-count exampels first for the filtering process
+    #   and to have the high-drug-count examples first for the filtering process
     sorted_test = sorted(enumerate(preds), key=lambda x: (x[1]["doc_id"], len(x[1]["drug_idxs"]), str(x[1]["drug_idxs"])), reverse=True)
 
     # aggregate predictions by the sentence and filter each prediction group
