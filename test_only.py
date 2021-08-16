@@ -1,6 +1,6 @@
 # Usage
 # python test_only.py --checkpoint-path checkpoints/ --test-file data/dev_set_error_analysis.jsonl \
-#                     --output-file /tmp/error_analysis.csv
+#                     --outputs-directory /tmp/outputs/ --error-analysis-file /tmp/error_analysis.csv
 
 import argparse
 import jsonlines
@@ -10,14 +10,15 @@ import pytorch_lightning as pl
 from data_loader import  DrugSynergyDataModule
 from model import RelationExtractor, load_model
 from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file
-from eval import f_score_our_model
+from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl
+from eval import adjust_data, filter_overloaded_predictions, f_score
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--test-file', type=str, required=False, default="data/dev_set_error_analysis.jsonl")
 parser.add_argument('--batch-size', type=int, default=32, help="Batch size for testing (larger batch -> faster evaluation)")
-parser.add_argument('--output-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
+parser.add_argument('--outputs-directory', type=str, required=False, help="Output directory where we write predictions, for offline evaluation", default="/tmp/outputs/.tsv")
+parser.add_argument('--error-analysis-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
 parser.add_argument('--seed', type=int, required=False, default=2021)
 parser.add_argument('--produce_all_subsets', action='store_true', help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
 
@@ -59,5 +60,19 @@ if __name__ == "__main__":
 
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
-    _ = f_score_our_model(test_row_ids, test_predictions)
-    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.output_file)
+
+    fixed_gold, fixed_test = adjust_data(test_row_ids, test_predictions)
+    fixed_test = filter_overloaded_predictions(fixed_test)
+
+
+
+    fixed_gold, fixed_test = adjust_data(test_row_ids, test_predictions)
+    fixed_test = filter_overloaded_predictions(fixed_test)
+    os.makedirs(args.outputs_directory, exist_ok=True)
+    gold_output = os.path.join(args.outputs_directory, "gold.jsonl")
+    test_output = os.path.join(args.outputs_directory, "test.jsonl")
+
+    write_jsonl(fixed_gold, gold_output)
+    write_jsonl(fixed_test, test_output)
+    _ = f_score(fixed_gold, fixed_test, False, False)
+    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)
