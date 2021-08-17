@@ -6,6 +6,7 @@ from collections import defaultdict
 parser = argparse.ArgumentParser()
 parser.add_argument('--gold-file', type=str, required=True, default="data/unittest_gold.jsonl", help="Path to the gold file")
 parser.add_argument('--pred-file', type=str, required=True, default="data/unittest_pred.jsonl", help="Path to the predictions file")
+parser.add_argument('--exact-match', action='store_true', help="whether to preform an exact match (bo partials)")
 
 
 class Label(Enum):
@@ -90,9 +91,11 @@ if __name__ == "__main__":
         pred = [json.loads(l) for l in f.readlines()]
     with open(args.gold_file) as f:
         gold = [json.loads(l) for l in f.readlines()]
-    ret = f_score(gold, pred)
+    ret = f_score(gold, pred, exact_match=args.exact_match)
     # TODO (Aryeh): make this a "real" unit test at some point
     if args.pred_file == "data/unittest_pred.jsonl":
-        assert ret == (0.5950540958268934, 0.6481481481481481, 0.55, 0.3760886777513856, 0.4629629629629629, 0.31666666666666665)
-        ret = f_score(gold, pred, exact_match=True)
-        assert ret == (0.3157894736842105, 0.3333333333333333, 0.3, 0.2105263157894737, 0.2222222222222222, 0.2)
+        ret2 = f_score(gold, pred, exact_match=not args.exact_match)
+        scores = {False: (0.5950540958268934, 0.6481481481481481, 0.55, 0.3760886777513856, 0.4629629629629629, 0.31666666666666665),
+                  True: (0.3157894736842105, 0.3333333333333333, 0.3, 0.2105263157894737, 0.2222222222222222, 0.2)}
+        assert ret == scores[args.exact_match]
+        assert ret2 == scores[not args.exact_match]
