@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     fixed_test = filter_overloaded_predictions(adjust_data(test_row_ids, test_predictions))
     os.makedirs(args.outputs_directory, exist_ok=True)
-    test_output = os.path.join(args.outputs_directory, "test.jsonl")
+    test_output = os.path.join(args.outputs_directory, "predictions.jsonl")
 
     write_jsonl(fixed_test, test_output)
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)
