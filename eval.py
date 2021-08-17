@@ -94,3 +94,5 @@ if __name__ == "__main__":
     # TODO (Aryeh): make this a "real" unit test at some point
     if args.pred_file == "data/unittest_pred.jsonl":
         assert ret == (0.5950540958268934, 0.6481481481481481, 0.55, 0.3760886777513856, 0.4629629629629629, 0.31666666666666665)
+        ret = f_score(gold, pred, exact_match=True)
+        assert ret == (0.3157894736842105, 0.3333333333333333, 0.3, 0.2105263157894737, 0.2222222222222222, 0.2)
