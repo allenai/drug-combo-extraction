@@ -104,8 +104,11 @@ def read_jsonl(fname: str):
     return list(jsonlines.open(fname))
 
 def write_jsonl(data: List[Dict], fname: str):
-    with jsonlines.Writer(open(fname, 'wb')) as writer:
+    with open(fname, 'wb') as fp:
+        writer = jsonlines.Writer(fp)
         writer.write_all(data)
+    writer.close()
+    fp.close()
     print(f"Wrote {len(data)} json lines to {fname}")
 
 def write_json(data: Dict, fname: str):
