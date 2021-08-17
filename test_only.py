@@ -10,8 +10,7 @@ import pytorch_lightning as pl
 from data_loader import  DrugSynergyDataModule
 from model import RelationExtractor, load_model
 from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl
-from eval import adjust_data, filter_overloaded_predictions, f_score
+from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
@@ -61,13 +60,9 @@ if __name__ == "__main__":
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
 
-    fixed_gold, fixed_test = adjust_data(test_row_ids, test_predictions)
-    fixed_test = filter_overloaded_predictions(fixed_test)
+    fixed_test = filter_overloaded_predictions(adjust_data(test_row_ids, test_predictions))
     os.makedirs(args.outputs_directory, exist_ok=True)
-    gold_output = os.path.join(args.outputs_directory, "gold.jsonl")
     test_output = os.path.join(args.outputs_directory, "test.jsonl")
 
-    write_jsonl(fixed_gold, gold_output)
     write_jsonl(fixed_test, test_output)
-    _ = f_score(fixed_gold, fixed_test, False, False)
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)
