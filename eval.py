@@ -19,10 +19,14 @@ class Label(Enum):
 labels = {3: Label.POS.value, 1: Label.COMB.value, 2: Label.NEG.value, 0: Label.NO_COMB.value}
 labels2 = {3: Label.POS.value, 1: Label.NEG_AND_COMB.value, 2: Label.NEG_AND_COMB.value, 0: Label.NO_COMB.value}
 labels3 = {1: Label.POS.value, 0: Label.NO_COMB.value}
+str_label2idx = {"POS": 3, "NEG": 2, "COMB": 1, "NO_COMB": 0}
 
 
 def get_label(rel, unify_negs):
-    return labels[rel['relation_label']] if not unify_negs else labels3[rel['relation_label']]
+    idx_label = rel['relation_label']
+    if type(rel['relation_label']) == str:
+        idx_label = str_label2idx[rel['relation_label']]
+    return labels[idx_label] if not unify_negs else labels3[idx_label]
 
 
 def create_vectors(gold, test, unify_negs, exact_match):
