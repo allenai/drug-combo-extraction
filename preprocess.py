@@ -124,11 +124,13 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
         entity = DrugEntity(span['text'], idx, span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
         drug_entities.append(entity)
 
-
-    relations = raw['rels']
-    if add_no_combination_relations:
-        # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
-        relations = relations + find_no_combination_examples(relations, drug_entities, only_include_binary_no_comb_relations=only_include_binary_no_comb_relations, produce_all_subsets=produce_all_subsets)
+    if produce_all_subsets:
+        relations = [{'class': NOT_COMB, 'spans': list(candidate)} for candidate in powerset(range(len(drug_entities)))]
+    else:
+        relations = raw['rels']
+        if add_no_combination_relations:
+            # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
+            relations = relations + find_no_combination_examples(relations, drug_entities, only_include_binary_no_comb_relations=only_include_binary_no_comb_relations, produce_all_subsets=produce_all_subsets)
 
     # Construct DrugRelation objects, which contain full information about the document's annotations.
     final_relations = []
