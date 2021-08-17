@@ -147,7 +147,7 @@ if __name__ == "__main__":
     fixed_test = filter_overloaded_predictions(fixed_test)
     os.makedirs("outputs", exist_ok=True)
     gold_output = os.path.join("outputs", "gold.jsonl")
-    test_output = os.path.join("outputs", args.model_name + "_test.jsonl")
+    test_output = os.path.join("outputs", args.model_name + "_predictions.jsonl")
     write_jsonl(fixed_gold, gold_output)
     write_jsonl(fixed_test, test_output)
     _ = f_score(fixed_gold, fixed_test, False, False)

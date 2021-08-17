@@ -63,11 +63,6 @@ if __name__ == "__main__":
 
     fixed_gold, fixed_test = adjust_data(test_row_ids, test_predictions)
     fixed_test = filter_overloaded_predictions(fixed_test)
-
-
-
-    fixed_gold, fixed_test = adjust_data(test_row_ids, test_predictions)
-    fixed_test = filter_overloaded_predictions(fixed_test)
     os.makedirs(args.outputs_directory, exist_ok=True)
     gold_output = os.path.join(args.outputs_directory, "gold.jsonl")
     test_output = os.path.join(args.outputs_directory, "test.jsonl")
