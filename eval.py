@@ -2,6 +2,7 @@ import argparse
 import json
 from enum import Enum
 from collections import defaultdict
+from typing import List, Dict, Any, Tuple
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--gold-file', type=str, required=True, default="data/unittest_gold.jsonl", help="Path to the gold file")
@@ -30,9 +31,32 @@ def get_label(rel, unify_negs):
     return labels[idx_label] if not unify_negs else labels3[idx_label]
 
 
-def create_vectors(gold, test, unify_negs, exact_match):
+def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], unify_negs: bool, exact_match: bool) \
+        -> Tuple[Dict[Tuple[str, str, int], List[Tuple[int, float]]],
+                 Dict[Tuple[str, str, int], List[Tuple[int, float]]]]:
     """This function constructs the gold and predicted vectors such that each gold/prediction,
         would be mapped to a list of its aligned counterparts. this alignment is needed for later metrics.
+
+    Args:
+        gold: a list of gold dictionaries each of which stands for a relation.
+            each has a doc_id to identify which doc did it came from, drug_idxs to pinpoint the drugs participating in this relation,
+            and a relation_label to state the gold labels.
+        test: the same as gold but having the predicted labels instead.
+        unify_negs: if True, unifies the NEG and COMB relations to a single class. default is False.
+        exact_match: if True, restricts the matching criteria to be have the same spans in both relations.
+            default is False, which gives the partial matching behavior in which we require at least two spans in common
+
+    Example:
+        gold: [{'doc_id': 1, 'drug_idxs': [1, 2], 'relation_label': 3}, {'doc_id': 2, 'drug_idxs': [0, 1], 'relation_label': 1}]
+        test: [{'doc_id': 1, 'drug_idxs': [0, 1, 2], 'relation_label': 3}, {'doc_id': 2, 'drug_idxs': [0, 1], 'relation_label': 0}]
+        unify negs: False
+        exact match: False
+        =>
+        g_out: {(1, '[1, 2]', 3): [(3, 0.666)], (2, '[0, 1]', 1): [(0, 0)]}
+        t_out: {(1, '[0, 1, 2]', 3): [(3, 0.666)]}
+
+    Returns:
+        gold and test dictionaries that map from each relation to its (partial/exact) matched labels and their scores
     """
     g_out = defaultdict(list)
     t_out = defaultdict(list)
