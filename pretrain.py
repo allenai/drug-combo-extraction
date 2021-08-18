@@ -1,9 +1,9 @@
 '''
 Usage
 python pretrain.py --pretrained-lm allenai/scibert_scivocab_uncased \
---training-file /Users/vijay/Downloads/distant_supervision_pretraining_data/train_dev.jsonl \
---test-file /Users/vijay/Downloads/distant_supervision_pretraining_data/test.jsonl \
---relation-counts /Users/vijay/Downloads/distant_supervision_pretraining_data/relation_counts.json \
+--training-file data/pretraining_data_small/train_dev.jsonl \
+--test-file data/pretraining_data_small/test.jsonl \
+--relation-counts data/pretraining_data_small/relation_counts.json \
 --minimum-relation-frequency 5 \
 --batch-size 71 \
 --num-train-epochs 10 --lr 2e-4 \
