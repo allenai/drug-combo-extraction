@@ -19,7 +19,6 @@ parser.add_argument('--batch-size', type=int, default=32, help="Batch size for t
 parser.add_argument('--outputs-directory', type=str, required=False, help="Output directory where we write predictions, for offline evaluation", default="/tmp/outputs/.tsv")
 parser.add_argument('--error-analysis-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
 parser.add_argument('--seed', type=int, required=False, default=2021)
-parser.add_argument('--produce_all_subsets', action='store_true', help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -35,7 +34,8 @@ if __name__ == "__main__":
                                only_include_binary_no_comb_relations=metadata.only_include_binary_no_comb_relations,
                                include_paragraph_context=metadata.include_paragraph_context,
                                context_window_size=metadata.context_window_size,
-                               produce_all_subsets=args.produce_all_subsets)
+                               produce_all_subsets=True,
+                               hide_labels=True)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(test_data)
     dm = DrugSynergyDataModule(None,
                                test_data,
@@ -46,7 +46,8 @@ if __name__ == "__main__":
                                dev_batch_size=args.batch_size,
                                test_batch_size=args.batch_size,
                                max_seq_length=metadata.max_seq_length,
-                               balance_training_batch_labels=False)
+                               balance_training_batch_labels=False,
+                               hide_test_labels=True)
     dm.setup()
 
     system = RelationExtractor(model, 0, tokenizer=tokenizer)
