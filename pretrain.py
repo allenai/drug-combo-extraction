@@ -5,10 +5,12 @@ python pretrain.py --pretrained-lm allenai/scibert_scivocab_uncased \
 --test-file data/pretraining_data_small/test.jsonl \
 --relation-counts data/pretraining_data_small/relation_counts.json \
 --minimum-relation-frequency 5 \
---batch-size 71 \
---num-train-epochs 10 --lr 2e-4 \
---context-window-size 400 --max-seq-length 512 \
---model-name baseline_model
+--batch-size 18 \
+--num-train-epochs 10 --lr 1e-3 \
+--context-window-size 300 \
+--max-seq-length 512 \
+--unfreezing-strategy all \
+--model-name pretraining_small
 '''
 
 import argparse
@@ -38,8 +40,8 @@ parser.add_argument('--num-train-epochs', default=6, type=int, help="Total numbe
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--minimum-relation-frequency', type=int, default=1, help="Only train on documents with relations up to a certain frequency")
 parser.add_argument('--relation-counts', type=str, required=True, help="File generated from pretraining data preprocessing that describes the number of times each relation was observed in the pretraining data.")
-parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
-parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
+parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
+parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="all", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
 parser.add_argument('--model-name', type=str, required=True)
 parser.add_argument('--seed', type=int, required=False, default=2021)
@@ -49,8 +51,8 @@ if __name__ == "__main__":
 
     set_seed(args.seed)
 
-    training_data_raw = list(jsonlines.open(args.training_file))[:100]
-    test_data_raw = list(jsonlines.open(args.test_file))[:100]
+    training_data_raw = list(jsonlines.open(args.training_file))
+    test_data_raw = list(jsonlines.open(args.test_file))
 
     include_paragraph_context = not args.ignore_paragraph_context
 
@@ -109,9 +111,8 @@ if __name__ == "__main__":
 
     system = Pretrainer(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
     trainer = pl.Trainer(
-        # gpus=1,
-        # precision=16,
-        gpus=0,
+        gpus=1,
+        precision=16,
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
@@ -138,4 +139,6 @@ if __name__ == "__main__":
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
     os.makedirs("outputs", exist_ok=True)
+    breakpoint()
+    ground_truths = [data['target'] for data in test_data]
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))

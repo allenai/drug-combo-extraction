@@ -62,7 +62,8 @@ class PretrainForRelation(BertPreTrainedModel):
 
         self.relation2idx = relation2idx
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
-        self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size).float(), requires_grad=True)
+        self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
+        # self.register_buffer("relation_embeddings", Variable(torch.randn(len(self.relation2idx), config.hidden_size).float(), requires_grad=True))
 
         ''' 
         self.embeddings_by_arity = {}
@@ -109,9 +110,11 @@ class PretrainForRelation(BertPreTrainedModel):
                             output_attentions=False,
                             position_ids=input_position)
         sequence_output = outputs[0]
+        batch_size = len(sequence_output)
 
         entity_vectors = []
-        for batch_idx, bert_embeddings in enumerate(sequence_output):
+        for batch_idx in range(batch_size):
+            bert_embeddings = sequence_output[batch_idx]
             entity_idxs = all_entity_idxs[batch_idx]
             # TODO(Vijay): replace this with a single matrix multiple over a supersized, 0-padded entity index matrix.
             #
@@ -122,10 +125,14 @@ class PretrainForRelation(BertPreTrainedModel):
             entity_vector = torch.mean(bert_embeddings[entity_idxs], dim=0).unsqueeze(0)
             entity_vectors.append(entity_vector)
         batch_entity_vectors = torch.cat(entity_vectors, dim=0)
-        rep = self.layer_norm(batch_entity_vectors)
+        text_rep = self.layer_norm(batch_entity_vectors)
         # rep = self.dropout(rep)
-        batch_relation_scores = torch.matmul(rep, self.relation_embeddings.T)
-        softmaxed_scores = torch.nn.functional.softmax(batch_relation_scores)
+
+        text_rep_repeated = torch.unsqueeze(text_rep, dim=2).repeat(1, 1, len(self.relation_embeddings))
+        relation_rep_repeated = torch.unsqueeze(self.relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
+        consine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_rep_repeated)
+        # consine_similarities = torch.matmul(text_rep, self.relation_embeddings.T)
+        softmaxed_scores = torch.nn.functional.softmax(consine_similarities)
         return softmaxed_scores
 
     def make_predictions(self, inputs):
