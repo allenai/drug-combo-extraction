@@ -123,7 +123,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_row_ids = torch.tensor(all_row_ids, dtype=torch.long)
 
     if hide_test_labels:
-        pass
+        dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, all_entity_idxs, all_row_ids)
     else:
         dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idxs, all_row_ids)
     return dataset
@@ -192,7 +192,7 @@ class DrugSynergyDataModule(pl.LightningDataModule):
         else:
             self.train, self.val = None, None
 
-        self.test = construct_dataset(self.test_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
+        self.test = construct_dataset(self.test_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length, hide_test_labels=self.hide_test_labels)
         # Optionally...
         # self.dims = tuple(self.train[0][0].shape)
 

@@ -153,8 +153,11 @@ class RelationExtractor(pl.LightningModule):
         return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        if not self.test_labels_hidden:
+            input_ids, token_type_ids, attention_mask, _, all_entity_idxs, _ = inputs
+        else:
+            input_ids, token_type_ids, attention_mask, all_entity_idxs, _ = inputs
+        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, all_entity_idxs=all_entity_idxs)
         return logits
 
     def training_step(self, inputs, batch_idx):
@@ -217,9 +220,7 @@ class RelationExtractor(pl.LightningModule):
             input_ids, _, _, _, row_ids = inputs
         logits = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
-        self.log("test_loss", loss, prog_bar=True, logger=True)
         predictions = torch.argmax(logits, dim=1)
         self.test_sentences.extend(raw_text)
         self.test_row_idxs.extend(row_ids.tolist())
@@ -227,6 +228,8 @@ class RelationExtractor(pl.LightningModule):
         self.test_batch_idxs.extend([batch_idx for _ in predictions.tolist()])
 
         if not self.test_labels_hidden:
+            loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
+            self.log("test_loss", loss, prog_bar=True, logger=True)
             acc = accuracy(predictions, labels)
             metrics_dict = compute_f1(predictions, labels)
             f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
