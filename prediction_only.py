@@ -1,5 +1,7 @@
+# Similar to test_only.py, but only generates prediction outputs without comparing against ground truth.
+#
 # Usage
-# python test_only.py --checkpoint-path checkpoints/ --test-file data/dev_set_error_analysis.jsonl \
+# python prediction_only.py --checkpoint-path checkpoints/ --test-file data/dev_set_error_analysis.jsonl \
 #                     --outputs-directory /tmp/outputs/ --error-analysis-file /tmp/error_analysis.csv
 
 import argparse
