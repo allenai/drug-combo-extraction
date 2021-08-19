@@ -244,7 +244,7 @@ class ErrorAnalysisAttributes:
         return row
 
 
-def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], test_row_ids: List[str], test_predictions: List[int], fname: str, hide_labels: bool):
+def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], test_row_ids: List[str], test_predictions: List[int], fname: str, hide_labels: bool = False):
     '''Write out all test set rows and their predictions to a TSV file, which will let us connect easily with ExplainaBoard.
 
     Args:

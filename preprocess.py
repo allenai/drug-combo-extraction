@@ -232,9 +232,10 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         if not hide_labels:
             row_metadata["relation_label"] = relation.relation_label
         row_id = json.dumps(row_metadata)
-        samples.append({"text": text, "row_id": row_id, "drug_indices": drug_idxs})
+        new_sample = {"text": text, "row_id": row_id, "drug_indices": drug_idxs}
         if not hide_labels:
-            samples["target"] = relation.relation_label
+            new_sample["target"] = relation.relation_label
+        samples.append(new_sample)
     return samples
 
 def create_dataset(raw_data: List[Dict],
