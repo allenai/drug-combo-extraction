@@ -3,7 +3,7 @@ import json
 import random
 from tqdm import tqdm
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN, RELATION_UNKNOWN_IDX
 from typing import Dict, Iterable, List, Optional, Set
 
 random.seed(2021)
@@ -96,7 +96,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True, produce_all_subsets: bool = False) -> Document:
+def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True, produce_all_subsets: bool = False, hide_labels: bool = False) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
@@ -127,6 +127,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
     if produce_all_subsets:
         relations = [{'class': NOT_COMB, 'spans': list(candidate)} for candidate in powerset(range(len(drug_entities)))]
     else:
+        assert hide_labels is False, "This setting should only be used in training, not testing"
         relations = raw['rels']
         if add_no_combination_relations:
             # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
@@ -136,7 +137,10 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
     final_relations = []
     for relation in relations:
         entities = [drug_entities[entity_idx] for entity_idx in relation['spans']]
-        rel_label = label2idx[relation['class']]
+        if not hide_labels:
+            rel_label = label2idx[relation['class']]
+        else:
+            rel_label = RELATION_UNKNOWN_IDX
         final_relations.append(DrugRelation(entities, rel_label))
     document = Document(raw["doc_id"], final_relations, text)
     return document
@@ -182,7 +186,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
     return text
 
-def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False):
+def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False, hide_labels: bool = False):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
@@ -204,7 +208,8 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
                                      add_no_combination_relations=add_no_combination_relations,
                                      only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                      include_paragraph_context=include_paragraph_context,
-                                     produce_all_subsets=produce_all_subsets)
+                                     produce_all_subsets=produce_all_subsets,
+                                     hide_labels=hide_labels)
     samples = []
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.
@@ -223,9 +228,13 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             start_window_right = min(len(tokens), final_entity_end_token + add_right)
             text = " ".join(tokens[start_window_left:start_window_right])
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
-        row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
+        row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs}
+        if not hide_labels:
+            row_metadata["relation_label"] = relation.relation_label
         row_id = json.dumps(row_metadata)
-        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
+        samples.append({"text": text, "row_id": row_id, "drug_indices": drug_idxs})
+        if not hide_labels:
+            samples["target"] = relation.relation_label
     return samples
 
 def create_dataset(raw_data: List[Dict],
@@ -236,7 +245,8 @@ def create_dataset(raw_data: List[Dict],
                    only_include_binary_no_comb_relations: bool = False,
                    include_paragraph_context=True,
                    context_window_size: Optional[int] = None,
-                   produce_all_subsets: bool = False) -> List[Dict]:
+                   produce_all_subsets: bool = False,
+                   hide_labels: bool = False) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
@@ -263,9 +273,10 @@ def create_dataset(raw_data: List[Dict],
                                        only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                        include_paragraph_context=include_paragraph_context,
                                        context_window_size=context_window_size,
-                                       produce_all_subsets=produce_all_subsets)
+                                       produce_all_subsets=produce_all_subsets,
+                                       hide_labels=hide_labels)
         dataset.extend(datapoints)
-    if set(label_sampling_ratios) != {1.0}:
+    if not hide_labels and set(label_sampling_ratios) != {1.0}:
         # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.
         # Otherwise, sample points from each class and then accumulate them all together.
         upsampled_dataset = []

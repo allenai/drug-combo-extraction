@@ -219,7 +219,7 @@ def average_pairwise_distance(spans: List[Dict]) -> float:
     return np.mean(distances)
 
 class ErrorAnalysisAttributes:
-    def __init__(self, dataset_row: Dict, full_document: Dict, prediction: int):
+    def __init__(self, dataset_row: Dict, full_document: Dict, prediction: int, hide_labels=True):
         self.row_id = dataset_row["row_id"]
         self.sentence = full_document["sentence"]
         self.paragraph = full_document["paragraph"]
@@ -232,14 +232,19 @@ class ErrorAnalysisAttributes:
 
         self.num_spans_in_ground_truth_relation = len(spans_in_relation)
         self.avg_span_distance_in_ground_truth_relation  = average_pairwise_distance(spans_in_relation)
-        self.ground_truth_label = dataset_row["target"]
         self.predicted_label = prediction
+        self.hide_labels = hide_labels
+        if not self.hide_labels:
+            self.ground_truth_label = dataset_row["target"]
 
     def get_row(self):
-        return [self.row_id, self.sentence, self.entities, self.paragraph, self.ground_truth_label, self.predicted_label, self.sentence_length, self.paragraph_length, self.num_spans_in_ground_truth_relation, self.avg_span_distance_in_ground_truth_relation]
+        row = [self.row_id, self.sentence, self.entities, self.paragraph, self.predicted_label, self.sentence_length, self.paragraph_length, self.num_spans_in_ground_truth_relation, self.avg_span_distance_in_ground_truth_relation]
+        if not self.hide_labels:
+            row.append(self.ground_truth_label)
+        return row
 
 
-def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], test_row_ids: List[str], test_predictions: List[int], fname: str):
+def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], test_row_ids: List[str], test_predictions: List[int], fname: str, hide_labels: bool):
     '''Write out all test set rows and their predictions to a TSV file, which will let us connect easily with ExplainaBoard.
 
     Args:
@@ -256,13 +261,14 @@ def write_error_analysis_file(dataset: List[Dict], test_data_raw: List[Dict], te
                 "Sentence",
                 "Entities",
                 "Paragraph",
-                "True Relation Label",
                 "Predicted Relation Label",
                 "Sentence Length",
                 "Paragraph Length",
                 "Number of Entities in Ground Truth Relation",
                 "Average Distance of Entities"
             ]
+    if not hide_labels:
+        header.append("True Relation Label")
 
     with open(fname, 'w') as out_file:
         tsv_writer = csv.writer(out_file, delimiter='\t')

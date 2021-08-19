@@ -14,7 +14,7 @@ from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_f
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
-parser.add_argument('--test-file', type=str, required=False, default="data/dev_set_error_analysis.jsonl")
+parser.add_argument('--test-file', type=str, required=False, default="data/dev_set_error_analysis.jsonl", help="This should be a test file, with labels concealed (to ensure no label leakage when making predictions).")
 parser.add_argument('--batch-size', type=int, default=32, help="Batch size for testing (larger batch -> faster evaluation)")
 parser.add_argument('--outputs-directory', type=str, required=False, help="Output directory where we write predictions, for offline evaluation", default="/tmp/outputs/.tsv")
 parser.add_argument('--error-analysis-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                                hide_test_labels=True)
     dm.setup()
 
-    system = RelationExtractor(model, 0, tokenizer=tokenizer)
+    system = RelationExtractor(model, 0, tokenizer=tokenizer, test_labels_hidden=True)
     trainer = pl.Trainer(
         gpus=1,
         precision=16,
@@ -66,4 +66,4 @@ if __name__ == "__main__":
     test_output = os.path.join(args.outputs_directory, "predictions.jsonl")
 
     write_jsonl(fixed_test, test_output)
-    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)
+    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file, hide_labels=True)

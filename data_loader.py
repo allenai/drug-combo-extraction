@@ -75,7 +75,7 @@ def vectorize_subwords(tokenizer, doc_subwords: List[str], max_seq_length: int =
     segment_ids = make_fixed_length([0] * len(doc_input_ids), max_seq_length)
     return DatasetRow(input_ids, attention_mask, segment_ids)
 
-def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mapping: Dict, max_seq_length: int = 512) -> TensorDataset:
+def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mapping: Dict, max_seq_length: int = 512, hide_test_labels: bool = False) -> TensorDataset:
     """Converts raw data (in the form of text/label pairs) into a binarized, training-ready Torch TensorDataset.
 
     Args:
@@ -94,7 +94,8 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_doc_entity_start_positions = []
     all_row_ids = []
     for doc in tqdm(data):
-        targets.append(doc["target"])
+        if not hide_test_labels:
+            targets.append(doc["target"])
         doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer)
         all_doc_subwords.append(doc_subwords)
         all_doc_entity_start_positions.append(entity_start_token_idxs)
@@ -121,7 +122,10 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.long)
     all_row_ids = torch.tensor(all_row_ids, dtype=torch.long)
 
-    dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idxs, all_row_ids)
+    if hide_test_labels:
+        pass
+    else:
+        dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idxs, all_row_ids)
     return dataset
 
 class DrugSynergyDataModule(pl.LightningDataModule):
@@ -137,7 +141,8 @@ class DrugSynergyDataModule(pl.LightningDataModule):
                  dev_train_ratio: float = 0.1,
                  max_seq_length: int = 512,
                  num_workers: int = 4,
-                 balance_training_batch_labels: bool = True):
+                 balance_training_batch_labels: bool = True,
+                 hide_test_labels: bool = False):
         '''Construct a DataModule for convenient PyTorch Lightning training.
 
         Args:
@@ -175,6 +180,7 @@ class DrugSynergyDataModule(pl.LightningDataModule):
         # Could optionally be assigned dynamically in dm.setup()
         # TODO(Vijay): set dimensions here
         self.dims = (1, 28, 28)
+        self.hide_test_labels = hide_test_labels
 
     def setup(self):
         # Assign train/val datasets for use in dataloaders
