@@ -116,6 +116,7 @@ class RelationExtractor(pl.LightningModule):
                  warmup_proportion: float = 0.1,
                  optimizer_strategy: Callable = simple_adamw,
                  label_weights: Optional[List] = None,
+                 test_labels_hidden: bool = False,
     ):
         """PyTorch Lightning module which wraps the BERT-based model.
 
@@ -146,13 +147,17 @@ class RelationExtractor(pl.LightningModule):
             self.register_buffer("label_weights", torch.tensor(label_weights))
         else:
             self.label_weights = None
+        self.test_labels_hidden = test_labels_hidden
 
     def configure_optimizers(self):
         return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        if not self.test_labels_hidden:
+            input_ids, token_type_ids, attention_mask, _, all_entity_idxs, _ = inputs
+        else:
+            input_ids, token_type_ids, attention_mask, all_entity_idxs, _ = inputs
+        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, all_entity_idxs=all_entity_idxs)
         return logits
 
     def training_step(self, inputs, batch_idx):
@@ -209,24 +214,29 @@ class RelationExtractor(pl.LightningModule):
         Return:
             Accuracy value (float) on the test set
         """
-        input_ids, _, _, labels, _, row_ids = inputs
+        if not self.test_labels_hidden:
+            input_ids, _, _, labels, _, row_ids = inputs
+        else:
+            input_ids, _, _, _, row_ids = inputs
         logits = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
-        loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
-        self.log("test_loss", loss, prog_bar=True, logger=True)
         predictions = torch.argmax(logits, dim=1)
         self.test_sentences.extend(raw_text)
         self.test_row_idxs.extend(row_ids.tolist())
         self.test_predictions.extend(predictions.tolist())
         self.test_batch_idxs.extend([batch_idx for _ in predictions.tolist()])
-        acc = accuracy(predictions, labels)
-        metrics_dict = compute_f1(predictions, labels)
-        f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
-        self.log("accuracy", acc, prog_bar=True, logger=True)
-        self.log("precision", prec, prog_bar=True, logger=True)
-        self.log("recall", rec, prog_bar=True, logger=True)
-        self.log("f1", f, prog_bar=True, logger=True)
+
+        if not self.test_labels_hidden:
+            loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
+            self.log("test_loss", loss, prog_bar=True, logger=True)
+            acc = accuracy(predictions, labels)
+            metrics_dict = compute_f1(predictions, labels)
+            f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
+            self.log("accuracy", acc, prog_bar=True, logger=True)
+            self.log("precision", prec, prog_bar=True, logger=True)
+            self.log("recall", rec, prog_bar=True, logger=True)
+            self.log("f1", f, prog_bar=True, logger=True)
 
 def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
     '''Given a directory containing a model checkpoint, return the model, and other metadata regarding the data
