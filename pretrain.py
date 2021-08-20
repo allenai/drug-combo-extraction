@@ -51,8 +51,8 @@ if __name__ == "__main__":
 
     set_seed(args.seed)
 
-    training_data_raw = list(jsonlines.open(args.training_file))
-    test_data_raw = list(jsonlines.open(args.test_file))
+    training_data_raw = list(jsonlines.open(args.training_file))[:50]
+    test_data_raw = list(jsonlines.open(args.test_file))[:10]
 
     include_paragraph_context = not args.ignore_paragraph_context
 
