@@ -114,6 +114,7 @@ if __name__ == "__main__":
         gpus=1,
         precision=16,
         max_epochs=args.num_train_epochs,
+        profiler="simple"
     )
     trainer.fit(system, datamodule=dm)
     os.makedirs("pretraining_models", exist_ok=True)

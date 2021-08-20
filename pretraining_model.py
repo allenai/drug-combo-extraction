@@ -1,5 +1,6 @@
 import os
 import pytorch_lightning as pl
+import time
 import torch
 from torch import nn
 from torch.autograd import Variable
@@ -103,6 +104,7 @@ class PretrainForRelation(BertPreTrainedModel):
         """
         # TODO(Vijay): delete input_positions, since it's seemingly not used
         # TODO(Vijay): analyze the output with the `output_attentions` flag, to help interpret the model's predictions.
+        forward_start = time.perf_counter()
         outputs = self.bert(input_ids,
                             token_type_ids=token_type_ids,
                             attention_mask=attention_mask,
@@ -133,13 +135,13 @@ class PretrainForRelation(BertPreTrainedModel):
         consine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_rep_repeated)
         # consine_similarities = torch.matmul(text_rep, self.relation_embeddings.T)
         softmaxed_scores = torch.nn.functional.softmax(consine_similarities)
-        return softmaxed_scores
+        return softmaxed_scores, time.perf_counter() - forward_start
 
     def make_predictions(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        logits, forward_time = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
         predictions = torch.argmax(logits, dim=1)
-        return predictions
+        return predictions, forward_time
 
 class Pretrainer(pl.LightningModule):
     def __init__(self,
@@ -187,8 +189,8 @@ class Pretrainer(pl.LightningModule):
 
     def forward(self, inputs, pass_text = True):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        return logits
+        logits, forward_time = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        return logits, forward_time
 
     def training_step(self, inputs, batch_idx):
         """Training step in PyTorch Lightning.
@@ -202,9 +204,10 @@ class Pretrainer(pl.LightningModule):
         """
         # outputs: TokenClassifierOutput
         _, _, _, labels, _, _ = inputs
-        logits = self(inputs, pass_text = True)
+        logits, forward_time = self(inputs, pass_text = True)
         loss = F.cross_entropy(logits, labels.view(-1), weight=self.label_weights)
 
+        self.log("forward_time", forward_time, prog_bar=False, logger=True, on_step=True, on_epoch=True)
         self.log("loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
         predictions = torch.argmax(logits, dim=1)
@@ -229,9 +232,10 @@ class Pretrainer(pl.LightningModule):
         """
         # outputs: TokenClassifierOutput
         _, _, _, labels, _, _ = inputs
-        logits = self(inputs, pass_text = True)
+        logits, forward_time = self(inputs, pass_text = True)
         loss = F.cross_entropy(logits, labels.view(-1), weight=self.label_weights)
 
+        self.log("val_forward_time", forward_time, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         self.log("val_loss", loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         return loss
 
@@ -246,7 +250,7 @@ class Pretrainer(pl.LightningModule):
             Accuracy value (float) on the test set
         """
         input_ids, _, _, labels, _, row_ids = inputs
-        logits = self(inputs, pass_text = True)
+        logits, _ = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
         loss = F.cross_entropy(logits, labels.view(-1), weight=self.label_weights)
 
