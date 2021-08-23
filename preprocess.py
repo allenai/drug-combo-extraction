@@ -167,7 +167,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     relation_entities: List = sorted(relation_entities, key=lambda entity: entity.span_start)
     # This list keeps track of all the indices where special entity marker tokens were inserted.
     position_offsets = []
-    for i, drug in enumerate(relation_entities):
+    for drug in relation_entities:
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
         position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
@@ -178,7 +178,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         # Insert "</m> " after each entity.
         position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
         assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
-        text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
+        text = text[:drug.span_end + position_offset] + " " + ENTITY_END_MARKER + text[drug.span_end + position_offset:]
         position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
     return text
 

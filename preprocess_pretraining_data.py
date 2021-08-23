@@ -35,7 +35,12 @@ parser.add_argument('--dev-fraction', type=float, default=0.1)
 
 def replace_spans(text, spans, replacement_spans, replace_one_instance_of_span_in_sentence=False, spans_to_replace=None):
     for i, (span, replacement) in enumerate(zip(spans, replacement_spans)):
-        span_occurrences = list(re.finditer(re.escape(span), text.lower()))
+        span_occurrences = []
+        for occurrence in re.finditer(re.escape(span), text.lower()):
+            if (occurrence.start() == 0 or text[occurrence.start() - 1] == " ") and \
+                (occurrence.end() == len(text) or text[occurrence.end()] == " "):
+                # Do not replace partial token matches.
+                span_occurrences.append(occurrence)
         if replace_one_instance_of_span_in_sentence:
             span_occurrences = [span_occurrences[spans_to_replace[i]]]
         span_occurrences = sorted(span_occurrences, key=lambda x: x.start(), reverse=True)
@@ -115,18 +120,20 @@ def process_document(sentence, paragraph, article_link, drugs_list, mask_one_dru
             continue
         if is_sublist(drug.split(), sentence_tokens):
             # Sample one instance of the drug in this sentence, if it occurs multiple times.
-            entity_occurrences = list(re.finditer(re.escape(drug), sentence_lower))
+            entity_occurrences = []
+            for occurrence in re.finditer(re.escape(drug), sentence_lower):
+                # Want to find drug mentions that are standalone tokens, not contained in other entities
+                if (occurrence.start() == 0 or sentence_lower[occurrence.start()-1] == " ") and \
+                    (occurrence.end() == len(sentence_lower) or sentence_lower[occurrence.end()] == " "):
+                    entity_occurrences.append(occurrence)
             entity_occurrence_idx = random.choice(list(range(len(entity_occurrences))))
             entity_occurrence = entity_occurrences[entity_occurrence_idx]
             drug_entity = DrugEntity(drug_name=drug,
                                      drug_idx=len(drug_mentions),
                                      span_start=entity_occurrence.start(),
                                      span_end=entity_occurrence.end())
-            if (entity_occurrence.start() == 0 or sentence_lower[entity_occurrence.start()-1] == " ") and \
-                (entity_occurrence.end() == len(sentence_lower) or sentence_lower[entity_occurrence.end()] == " "):
-                # Want to find drug mentions that are standalone tokens, not contained in other entities
-                drug_mentions.append(drug_entity)
-                drug_repetition_idxs.append(entity_occurrence_idx)
+            drug_mentions.append(drug_entity)
+            drug_repetition_idxs.append(entity_occurrence_idx)
 
     masked_documents = []
     relation_counts = Counter()
