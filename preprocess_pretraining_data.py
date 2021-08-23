@@ -1,6 +1,6 @@
 '''
 python preprocess_pretraining_data.py --in-file /Users/vijay/Downloads/distant_supervision_large.csv \
-     --out-directory /Users/vijay/Downloads/distant_supervision_pretraining_data \
+     --out-directory /Users/vijay/Downloads/pretraining_data_small \
      --mask-one-drug-at-a-time \
      --entities-list drugs.txt
 '''
@@ -148,9 +148,9 @@ def process_document(sentence, paragraph, article_link, drugs_list, mask_one_dru
                 update_drug_entity_indices(drug, sentence_drugs_masked, "[drug]", drug_occurrence_idx=0 if args.dont_mask_paragraph_context else entity_occurrence_idx)
 
                 if not args.dont_mask_paragraph_context:
-                    paragraph_prefix_drugs_masked = replace_spans(paragraph_prefix, drug_spans, ["[drug]"])
-                    paragraph_suffix_drugs_masked = replace_spans(paragraph_suffix, drug_spans, ["[drug]"])
-                concatenated = "".join([paragraph_prefix_drugs_masked, sentence_drugs_masked, paragraph_suffix_drugs_masked])
+                    paragraph_prefix = replace_spans(paragraph_prefix, drug_spans, ["[drug]"])
+                    paragraph_suffix = replace_spans(paragraph_suffix, drug_spans, ["[drug]"])
+                concatenated = "".join([paragraph_prefix, sentence_drugs_masked, paragraph_suffix])
                 spans = [{"span_id": 0, "text": drug.drug_name, "start": drug.span_start, "end": drug.span_end, "token_start": -1, "token_end": -1}]
                 rels = [{"class": drug_spans, "spans": [0]}]
                 masked_documents.append({"doc_id": doc_hash,
@@ -174,9 +174,9 @@ def process_document(sentence, paragraph, article_link, drugs_list, mask_one_dru
             except:
                 breakpoint()
         if not args.dont_mask_paragraph_context:
-            paragraph_prefix_drugs_masked = replace_spans(paragraph_prefix, drug_spans, replacement_tokens)
-            paragraph_suffix_drugs_masked = replace_spans(paragraph_suffix, drug_spans, replacement_tokens)
-        concatenated = "".join([paragraph_prefix_drugs_masked, sentence_drugs_masked, paragraph_suffix_drugs_masked])
+            paragraph_prefix = replace_spans(paragraph_prefix, drug_spans, replacement_tokens)
+            paragraph_suffix = replace_spans(paragraph_suffix, drug_spans, replacement_tokens)
+        concatenated = "".join([paragraph_prefix, sentence_drugs_masked, paragraph_suffix])
         # Here we store the true drug names under "class" just to maintain consistency in data loading with the other
         # dataset.
         spans = []
@@ -239,13 +239,17 @@ if __name__ == "__main__":
 
     processed_rows = []
     aggregated_relation_counts = Counter()
+    sources = set()
     sentences = set()
+    paragraphs = set()
     for row in tqdm(csv.DictReader(open(in_file))):
         split_assignment = choose_split(args.train_fraction, args.dev_fraction)
-        if row['sentence_text'] in sentences:
-            # Process each sentence once
+        if row['article_link'] in sources or row["sentence_text"] in sentences or row["paragraph_text"] in paragraphs:
+            # Process each document once
             continue
+        sources.add(row['article_link'])
         sentences.add(row['sentence_text'])
+        paragraphs.add(row["paragraph_text"])
         doc_processed_rows, relation_counts = process_document(row['sentence_text'], row['paragraph_text'], row['article_link'], drugs, mask_one_drug_at_a_time)
         aggregated_relation_counts.update(relation_counts)
         processed_rows.extend(doc_processed_rows)
