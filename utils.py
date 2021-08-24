@@ -5,7 +5,8 @@ import numpy as np
 import os
 import random
 import torch
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
+
 
 def accuracy(predictions: torch.Tensor, labels: torch.Tensor) -> float:
     """Compute accuracy of predictions against ground truth.
@@ -104,8 +105,10 @@ def read_jsonl(fname: str):
     return list(jsonlines.open(fname))
 
 def write_jsonl(data: List[Dict], fname: str):
-    with jsonlines.Writer(open(fname, 'wb')) as writer:
+    with open(fname, 'wb') as fp:
+        writer = jsonlines.Writer(fp)
         writer.write_all(data)
+    writer.close()
     print(f"Wrote {len(data)} json lines to {fname}")
 
 def write_json(data: Dict, fname: str):
@@ -281,6 +284,66 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
+
+def adjust_data(gold: List[str], test: List[int]) -> List[Dict[str, Any]]:
+    """Given a list of row id strings and their corresponding predicted labels, convert the prediction list
+        to a list of the same format as the gold, where the only difference would be the predicted label.
+
+    Args:
+        gold: List of Dictionary object, each of which represents a row_id.
+            A row ID contains a sentence hash, a list of drug indices, and a gold relation label.
+        test: List of integers representing a predicted relation label
+
+    Returns:
+        fixed test lists of "row id" dictionary
+    """
+    fix_t = []
+    for i, (g, t) in enumerate(zip(gold, test)):
+        # for the test/pred we want to the copied information from the gold list,
+        #   except for the relation label itself
+        fix_t.append(json.loads(g))
+        fix_t[i]["relation_label"] = t
+    return fix_t
+
+
+def filter_overloaded_predictions(preds):
+    def do_filtering(d):
+        # our filtering algorithm:
+        #   1. we assume each sentence gets predictions for each subset of drugs in the sentence
+        #   2. we assume these are too many and probably conflicting predictions, so they need to be filtered
+        #   3. we use a very simple (greedy) heuristic in which we look for the biggest (by drug-count) combination,
+        #       that has a non NO_COMB prediction, and we take it.
+        #   4. we try to get as large a coverage (on the drugs) as possible while maintaining
+        #       a minimalistic list of predictions as possible, so we do this repeatedly on the remaining drugs
+        out = d[0]
+        for j, e in d:
+            if e["relation_label"]:
+                out = (j, e)
+                break
+        send_to_further = []
+        for j, e in d:
+            # store all non intersecting predictions with the chosen one, so we can repeat the filtering process on them
+            if len(set(out[1]["drug_idxs"]).intersection(set(e["drug_idxs"]))) == 0:
+                send_to_further.append((j, e))
+        return [out] + (do_filtering(send_to_further) if send_to_further else [])
+
+    # we sort here so it would be easier to group by sentence,
+    #   and to have the high-drug-count examples first for the filtering process
+    sorted_test = sorted(enumerate(preds), key=lambda x: (x[1]["doc_id"], len(x[1]["drug_idxs"]), str(x[1]["drug_idxs"])), reverse=True)
+
+    # aggregate predictions by the sentence and filter each prediction group
+    final_test = []
+    doc = []
+    for i, (original_idx, example) in enumerate(sorted_test):
+        doc.append((original_idx, example))
+        # reached the last one in the list, or last one for this sentence
+        if (i + 1 == len(sorted_test)) or (sorted_test[i + 1][1]["doc_id"] != example["doc_id"]):
+            final_test.extend(do_filtering(doc))
+            doc = []
+    # reorder the filtered list according to original indices, and get rid of the these indices
+    return [x[1] for x in sorted(final_test, key=lambda x: x[0])]
+
 
 def is_sublist(list_a, list_b):
     if len(list_a) == 0:
