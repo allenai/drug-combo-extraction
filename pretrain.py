@@ -63,6 +63,8 @@ if __name__ == "__main__":
         if freq >= args.minimum_relation_frequency:
             relation2idx[rel] = len(relation2idx)
 
+    print(f"Number of relations in embedding matrix: {len(relation2idx)}")
+
     training_data = create_dataset(training_data_raw,
                                    label2idx=relation2idx,
                                    add_no_combination_relations=False,
@@ -139,6 +141,7 @@ if __name__ == "__main__":
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
     os.makedirs("outputs", exist_ok=True)
-    breakpoint()
     ground_truths = [data['target'] for data in test_data]
+    json.dump(test_predictions, open(os.path.join("outputs", "test_predictions.json"), 'w'))
+    json.dump(ground_truths, open(os.path.join("outputs", "ground_truths.json"), 'w'))
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))
