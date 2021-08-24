@@ -63,8 +63,8 @@ class PretrainForRelation(BertPreTrainedModel):
 
         self.relation2idx = relation2idx
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
-        self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
-        # self.register_buffer("relation_embeddings", Variable(torch.randn(len(self.relation2idx), config.hidden_size).float(), requires_grad=True))
+        self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
+        # self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
 
         ''' 
         self.embeddings_by_arity = {}
@@ -114,22 +114,14 @@ class PretrainForRelation(BertPreTrainedModel):
         sequence_output = outputs[0]
         batch_size = len(sequence_output)
 
-        entity_vectors = []
-        for batch_idx in range(batch_size):
-            bert_embeddings = sequence_output[batch_idx]
-            entity_idxs = all_entity_idxs[batch_idx]
-            # TODO(Vijay): replace this with a single matrix multiple over a supersized, 0-padded entity index matrix.
-            #
-            # We store the entity-of-interest indices as a fixed-dimension matrix with padding indices.
-            # Ignore padding indices when computing the average entity representation.
-            assert torch.max(entity_idxs).item() < self.max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
-            entity_idxs = entity_idxs[torch.where(entity_idxs != ENTITY_PAD_IDX)]
-            entity_vector = torch.mean(bert_embeddings[entity_idxs], dim=0).unsqueeze(0)
-            entity_vectors.append(entity_vector)
-        batch_entity_vectors = torch.cat(entity_vectors, dim=0)
-        text_rep = self.layer_norm(batch_entity_vectors)
-        # rep = self.dropout(rep)
+        sequence_output_transposed = sequence_output.transpose(1, 2)
+        all_entity_idxs_transposed = all_entity_idxs.transpose(1, 2)
+        # all_entity_idxs_transposed contains weighted values of each entity in the document, giving effectively
+        # a weightec average of entity embeddings across the document.
+        entity_vectors = torch.matmul(sequence_output_transposed, all_entity_idxs_transposed)
+        entity_vectors = entity_vectors.squeeze(2) # Squeeze 768 x 1 vector into a single row of dimension 768
 
+        text_rep = self.layer_norm(entity_vectors)
         text_rep_repeated = torch.unsqueeze(text_rep, dim=2).repeat(1, 1, len(self.relation_embeddings))
         relation_rep_repeated = torch.unsqueeze(self.relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
         consine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_rep_repeated)
