@@ -125,9 +125,7 @@ class PretrainForRelation(BertPreTrainedModel):
         text_rep_repeated = torch.unsqueeze(text_rep, dim=2).repeat(1, 1, len(self.relation_embeddings))
         relation_rep_repeated = torch.unsqueeze(self.relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
         consine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_rep_repeated)
-        # consine_similarities = torch.matmul(text_rep, self.relation_embeddings.T)
-        softmaxed_scores = torch.nn.functional.softmax(consine_similarities)
-        return softmaxed_scores, time.perf_counter() - forward_start
+        return consine_similarities, time.perf_counter() - forward_start
 
     def make_predictions(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
