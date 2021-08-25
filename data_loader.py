@@ -28,7 +28,7 @@ def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> L
         fixed_array = array + [padding_value] * pad_length
     return fixed_array
 
-def tokenize_sentence(text: str, tokenizer: AutoTokenizer, drug_names: List[str]) -> Tuple[List[str], List[int]]:
+def tokenize_sentence(text: str, tokenizer: AutoTokenizer) -> Tuple[List[str], List[int]]:
     '''Given a text sentence, run the Huggingface subword tokenizer on this sentence,
     and return a list of subword tokens and the positions of all special entity marker
     tokens in the text.
@@ -47,15 +47,17 @@ def tokenize_sentence(text: str, tokenizer: AutoTokenizer, drug_names: List[str]
 
     # Manually split up each token into subwords, to directly identify special entity tokens
     # and store their locations.
-    for token in whitespace_tokens[:2*len(drug_names)]:
-        if token.lower().startswith("<drug"):
+    for token in whitespace_tokens:
+        if token == ENTITY_START_MARKER:
             entity_start_idx = len(doc_subwords)
             entity_start_token_idxs.append(entity_start_idx)
-        doc_subwords.append(token)
-
-    for token in whitespace_tokens[2*len(drug_names):]:
-        for sub_token in tokenizer.tokenize(token):
-            doc_subwords.append(sub_token)
+            doc_subwords.append(ENTITY_START_MARKER)
+        elif token == ENTITY_END_MARKER:
+            doc_subwords.append(ENTITY_END_MARKER)
+        else:
+            # If not a special token, then split the token into subwords.
+            for sub_token in tokenizer.tokenize(token):
+                doc_subwords.append(sub_token)
     doc_subwords.append(SEP)
     return doc_subwords, entity_start_token_idxs
 
@@ -65,12 +67,14 @@ class DatasetRow:
         self.attention_mask = attention_mask
         self.segment_ids = segment_ids
 
-def vectorize_subwords(tokenizer, doc_subwords: List[str], max_seq_length: int = 512):
+def vectorize_subwords(tokenizer, doc_subwords: List[str], drug_names: List[str], max_seq_length: int = 512):
     doc_input_ids = tokenizer.convert_tokens_to_ids(doc_subwords)
     input_ids = make_fixed_length(doc_input_ids, max_seq_length)
     attention_mask = make_fixed_length([1] * len(doc_input_ids), max_seq_length)
     # Treat entire paragraph as a single segment, without SEP tokens
     segment_ids = make_fixed_length([0] * len(doc_input_ids), max_seq_length)
+    # NEW-TODO(Vijay): make segment IDs 0s for the drug prefix, and 1s everywhere else, via [SEP]
+
     return DatasetRow(input_ids, attention_mask, segment_ids)
 
 def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mapping: Dict, max_seq_length: int = 512) -> TensorDataset:

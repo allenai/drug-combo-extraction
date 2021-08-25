@@ -183,6 +183,9 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity], mark_enti
             text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
             position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
 
+            # NEW-TODO(Vijay): replace drug mentions with [drug{i}] token here (over entire paragraph)
+
+    # NEW-TODO(Vijay): prepend drug prefix legend to the text, followed by a SEP token. Reduce context window in train.py accordingly. 
     text = text.lower()
     drug_set = list(set([drug.drug_name.lower() for drug in relation_entities]))
     return text, drug_set
@@ -228,6 +231,9 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
                 text = " ".join(tokens[start_window_left:start_window_right])
             else:
                 text = " ".join(tokens[0:context_window_size])
+
+        # TODO(Vijay): replace drug mentions with [drug{i}] tokens
+
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
         row_id = json.dumps(row_metadata)
@@ -270,7 +276,7 @@ def create_dataset(raw_data: List[Dict],
                                        include_paragraph_context=include_paragraph_context,
                                        context_window_size=context_window_size,
                                        produce_all_subsets=produce_all_subsets,
-                                       mark_entities=False)
+                                       mark_entities=True)
         dataset.extend(datapoints)
     if set(label_sampling_ratios) != {1.0}:
         # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.
