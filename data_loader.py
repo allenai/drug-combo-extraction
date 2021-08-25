@@ -28,7 +28,7 @@ def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> L
         fixed_array = array + [padding_value] * pad_length
     return fixed_array
 
-def tokenize_sentence(text: str, tokenizer: AutoTokenizer) -> Tuple[List[str], List[int]]:
+def tokenize_sentence(text: str, tokenizer: AutoTokenizer, drug_names: List[str]) -> Tuple[List[str], List[int]]:
     '''Given a text sentence, run the Huggingface subword tokenizer on this sentence,
     and return a list of subword tokens and the positions of all special entity marker
     tokens in the text.
@@ -47,17 +47,15 @@ def tokenize_sentence(text: str, tokenizer: AutoTokenizer) -> Tuple[List[str], L
 
     # Manually split up each token into subwords, to directly identify special entity tokens
     # and store their locations.
-    for token in whitespace_tokens:
-        if token == ENTITY_START_MARKER:
+    for token in whitespace_tokens[:2*len(drug_names)]:
+        if token.lower().startswith("<drug"):
             entity_start_idx = len(doc_subwords)
             entity_start_token_idxs.append(entity_start_idx)
-            doc_subwords.append(ENTITY_START_MARKER)
-        elif token == ENTITY_END_MARKER:
-            doc_subwords.append(ENTITY_END_MARKER)
-        else:
-            # If not a special token, then split the token into subwords.
-            for sub_token in tokenizer.tokenize(token):
-                doc_subwords.append(sub_token)
+        doc_subwords.append(token)
+
+    for token in whitespace_tokens[2*len(drug_names):]:
+        for sub_token in tokenizer.tokenize(token):
+            doc_subwords.append(sub_token)
     doc_subwords.append(SEP)
     return doc_subwords, entity_start_token_idxs
 
@@ -95,7 +93,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_row_ids = []
     for doc in tqdm(data):
         targets.append(doc["target"])
-        doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer)
+        doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer, doc["drug_names"])
         all_doc_subwords.append(doc_subwords)
         all_doc_entity_start_positions.append(entity_start_token_idxs)
         max_entities_length = max(max_entities_length, len(entity_start_token_idxs))

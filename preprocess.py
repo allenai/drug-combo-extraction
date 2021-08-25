@@ -150,7 +150,7 @@ def process_doc_with_unknown_relations(raw: Dict, label2idx: Dict, include_parag
         relation.relation_label = RELATION_UNKNOWN
     return document_with_unknown_relations
 
-def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
+def add_entity_markers(text: str, relation_entities: List[DrugEntity], mark_entities: bool) -> str:
     """Add special entity tokens around each drug entity in the annotated text.
     We specifically add "<<m>>" and "<</m>>" before and after (respectively) each drug entity span,
     and construct these tokens in such a way that they are always delimited by whitespace from the
@@ -167,20 +167,25 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     relation_entities: List = sorted(relation_entities, key=lambda entity: entity.span_start)
     # This list keeps track of all the indices where special entity marker tokens were inserted.
     position_offsets = []
-    for i, drug in enumerate(relation_entities):
-        # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
-        # result in a whitespace-delimited "<m>" token before the entity.
-        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
-        assert drug.span_start + position_offset == 0 or text[drug.span_start + position_offset - 1] == " ", breakpoint()
-        text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
-        position_offsets.append((drug.span_start, len(ENTITY_START_MARKER + " ")))
 
-        # Insert "</m> " after each entity.
-        position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
-        assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
-        text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
-        position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
-    return text
+    if mark_entities:
+        for i, drug in enumerate(relation_entities):
+            # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
+            # result in a whitespace-delimited "<m>" token before the entity.
+            position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
+            assert drug.span_start + position_offset == 0 or text[drug.span_start + position_offset - 1] == " ", breakpoint()
+            text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
+            position_offsets.append((drug.span_start, len(ENTITY_START_MARKER + " ")))
+
+            # Insert "</m> " after each entity.
+            position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
+            assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
+            text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
+            position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
+
+    text = text.lower()
+    drug_set = list(set([drug.drug_name.lower() for drug in relation_entities]))
+    return text, drug_set
 
 def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
@@ -208,24 +213,25 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
     samples = []
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.
-        if mark_entities:
-            text = add_entity_markers(processed_document.text, relation.drug_entities)
-        else:
-            text = processed_document.text
+
+        text, drug_names = add_entity_markers(processed_document.text, relation.drug_entities, mark_entities)
         if context_window_size is not None:
             tokens = text.split()
-            first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
-            final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
-            entity_distance = final_entity_end_token - first_entity_start_token
-            add_left = (context_window_size - entity_distance) // 2
-            start_window_left = max(0, first_entity_start_token - add_left)
-            add_right = (context_window_size - entity_distance) - add_left
-            start_window_right = min(len(tokens), final_entity_end_token + add_right)
-            text = " ".join(tokens[start_window_left:start_window_right])
+            if mark_entities:
+                first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
+                final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
+                entity_distance = final_entity_end_token - first_entity_start_token
+                add_left = (context_window_size - entity_distance) // 2
+                start_window_left = max(0, first_entity_start_token - add_left)
+                add_right = (context_window_size - entity_distance) - add_left
+                start_window_right = min(len(tokens), final_entity_end_token + add_right)
+                text = " ".join(tokens[start_window_left:start_window_right])
+            else:
+                text = " ".join(tokens[0:context_window_size])
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
         row_id = json.dumps(row_metadata)
-        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
+        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs, "drug_names": drug_names})
     return samples
 
 def create_dataset(raw_data: List[Dict],
@@ -263,7 +269,8 @@ def create_dataset(raw_data: List[Dict],
                                        only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                        include_paragraph_context=include_paragraph_context,
                                        context_window_size=context_window_size,
-                                       produce_all_subsets=produce_all_subsets)
+                                       produce_all_subsets=produce_all_subsets,
+                                       mark_entities=False)
         dataset.extend(datapoints)
     if set(label_sampling_ratios) != {1.0}:
         # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.

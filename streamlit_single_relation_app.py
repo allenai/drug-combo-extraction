@@ -47,8 +47,14 @@ def classify_message(message: str,
     Returns:
         output: Dictionary containing the top predicted relation label, and the predicted probabilities of all relations.
     '''
-    subwords, entity_start_tokens = tokenize_sentence(message, tokenizer)
+    subwords, entity_start_tokens = tokenize_sentence(message, tokenizer, ["celecoxib", "erlotinib"])
     vectorized_row = vectorize_subwords(tokenizer, subwords, max_seq_length)
+
+
+    for j in range(2 * 2 + 1):
+        vectorized_row.segment_ids[j] = 0
+
+
     input_ids = torch.tensor(vectorized_row.input_ids, dtype=torch.long).unsqueeze(0)
     attention_mask = torch.tensor(vectorized_row.attention_mask, dtype=torch.long).unsqueeze(0)
     segment_ids = torch.tensor(vectorized_row.segment_ids, dtype=torch.long).unsqueeze(0)
