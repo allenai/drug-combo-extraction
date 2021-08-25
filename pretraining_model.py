@@ -58,13 +58,14 @@ class PretrainForRelation(BertPreTrainedModel):
             elif not unfreeze_all_bert_layers:
                 param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.layer_norm = BertLayerNorm(config.hidden_size)
+        self.layer_norm = BertLayerNorm(2*config.hidden_size)
         self.max_seq_length = max_seq_length
 
         self.relation2idx = relation2idx
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
+        self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
 
-        self.classifier = nn.Linear(config.hidden_size, len(self.relation2idx))
+        self.classifier = nn.Linear(2*config.hidden_size, 2)
 
         ''' 
         self.embeddings_by_arity = {}
@@ -118,13 +119,13 @@ class PretrainForRelation(BertPreTrainedModel):
         all_entity_idxs_transposed = all_entity_idxs.transpose(1, 2)
         # all_entity_idxs_transposed contains weighted values of each entity in the document, giving effectively
         # a weightec average of entity embeddings across the document.
-        entity_vectors = torch.matmul(sequence_output_transposed, all_entity_idxs_transposed)
-        entity_vectors = entity_vectors.squeeze(2) # Squeeze 768 x 1 vector into a single row of dimension 768
+        text_rep = torch.matmul(sequence_output_transposed, all_entity_idxs_transposed)
+        text_rep_repeated = text_rep.repeat(1, 1, len(self.relation_embeddings)).transpose(1, 2)
+        relation_embeddings_repeated = self.relation_embeddings.unsqueeze(0).repeat(batch_size, 1, 1)
+        embedding_augmented_text_reps = torch.cat([text_rep_repeated, relation_embeddings_repeated], dim=2)
 
-        text_rep = self.layer_norm(entity_vectors)
-
-        text_rep = self.dropout(text_rep)
-        logits = self.classifier(text_rep)
+        final_rep = self.dropout(self.layer_norm(embedding_augmented_text_reps))
+        logits = self.classifier(final_rep)[:, :, 1]
 
         return logits, time.perf_counter() - forward_start
 
