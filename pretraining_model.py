@@ -63,8 +63,8 @@ class PretrainForRelation(BertPreTrainedModel):
 
         self.relation2idx = relation2idx
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
-        self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
-        # self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
+
+        self.classifier = nn.Linear(config.hidden_size, len(self.relation2idx))
 
         ''' 
         self.embeddings_by_arity = {}
@@ -122,10 +122,11 @@ class PretrainForRelation(BertPreTrainedModel):
         entity_vectors = entity_vectors.squeeze(2) # Squeeze 768 x 1 vector into a single row of dimension 768
 
         text_rep = self.layer_norm(entity_vectors)
-        text_rep_repeated = torch.unsqueeze(text_rep, dim=2).repeat(1, 1, len(self.relation_embeddings))
-        relation_rep_repeated = torch.unsqueeze(self.relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
-        consine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_rep_repeated)
-        return consine_similarities, time.perf_counter() - forward_start
+
+        text_rep = self.dropout(text_rep)
+        logits = self.classifier(text_rep)
+
+        return logits, time.perf_counter() - forward_start
 
     def make_predictions(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
