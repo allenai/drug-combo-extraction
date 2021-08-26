@@ -185,7 +185,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
     return text
 
-def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False):
+def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False, relation2idx: Optional[Dict] = None):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
@@ -228,7 +228,11 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
         row_id = json.dumps(row_metadata)
-        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs})
+        drug_names = [drug.drug_name for drug in relation.drug_entities]
+        entity_idxs = []
+        for drug in drug_names:
+            entity_idxs.append(relation2idx.get(drug, len(relation2idx)))
+        samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs, "entity_idxs": entity_idxs})
     return samples
 
 def create_dataset(raw_data: List[Dict],
@@ -239,7 +243,8 @@ def create_dataset(raw_data: List[Dict],
                    only_include_binary_no_comb_relations: bool = False,
                    include_paragraph_context=True,
                    context_window_size: Optional[int] = None,
-                   produce_all_subsets: bool = False) -> List[Dict]:
+                   produce_all_subsets: bool = False,
+                   relation2idx: Optional[Dict] = None) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
@@ -266,7 +271,8 @@ def create_dataset(raw_data: List[Dict],
                                        only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                        include_paragraph_context=include_paragraph_context,
                                        context_window_size=context_window_size,
-                                       produce_all_subsets=produce_all_subsets)
+                                       produce_all_subsets=produce_all_subsets,
+                                       relation2idx=relation2idx)
         dataset.extend(datapoints)
     if set(label_sampling_ratios) != {1.0}:
         # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.
