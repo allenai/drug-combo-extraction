@@ -32,6 +32,7 @@ class BertForRelation(BertPreTrainedModel):
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
                  unfreeze_bias_terms_only: bool = True,
+                 increase_embedding_size: int = 0,
                  ):
         """Initialize simple BERT-based relation extraction model
 
@@ -46,6 +47,7 @@ class BertForRelation(BertPreTrainedModel):
         self.num_rel_labels = num_rel_labels
         self.max_seq_length = max_seq_length
         if config is not None:
+            config.vocab_size += increase_embedding_size
             self.bert = BertModel(config)
         for name, param in self.bert.named_parameters():
             if unfreeze_final_bert_layer:
@@ -248,7 +250,8 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
                 num_rel_labels=metadata.num_labels,
-                max_seq_length=metadata.max_seq_length
+                max_seq_length=metadata.max_seq_length,
+                increase_embedding_size=2
     )
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
