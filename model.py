@@ -32,7 +32,7 @@ class BertForRelation(BertPreTrainedModel):
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
                  unfreeze_bias_terms_only: bool = True,
-                 increase_embedding_size: int = 0,
+                 relation_embedding_shape: Optional[Tuple] = None,
                  ):
         """Initialize simple BERT-based relation extraction model
 
@@ -43,11 +43,12 @@ class BertForRelation(BertPreTrainedModel):
             unfreeze_final_bert_layer: Finetune only the final encoder layer of BERT
             unfreeze_bias_terms_only: Finetune only the bias terms in BERT (aka BitFit)
         """
+        if relation_embedding_shape is not None:
+            config.relation_embedding_shape = relation_embedding_shape
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.max_seq_length = max_seq_length
         if config is not None:
-            config.vocab_size += increase_embedding_size
             self.bert = BertModel(config)
         for name, param in self.bert.named_parameters():
             if unfreeze_final_bert_layer:
@@ -61,6 +62,8 @@ class BertForRelation(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size*2)
         self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
+        if config.relation_embedding_shape is not None:
+            self.relation_embeddings = torch.nn.Parameter(torch.randn(config.relation_embedding_shape))
         self.init_weights()
 
 
@@ -256,8 +259,7 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
                 num_rel_labels=metadata.num_labels,
-                max_seq_length=metadata.max_seq_length,
-                increase_embedding_size=2
+                max_seq_length=metadata.max_seq_length
     )
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))

@@ -67,15 +67,18 @@ if __name__ == "__main__":
                 max_seq_length=args.max_seq_length,
                 unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
                 unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
-                unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
+                unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit",
+                relation_embedding_shape=(pretrained_model.relation_embeddings.shape[0] + 1, pretrained_model.relation_embeddings.shape[1]) if hasattr(pretrained_model, "relation_embeddings") else None)
+
         model.bert = pretrained_model.bert
+        model.config.vocab_size = pretrained_model.config.vocab_size
         if hasattr(pretrained_model, "relation_embeddings"):
             supervised_relation_embeddings = pretrained_model.relation_embeddings
             # Add extra "bias" row, in case a relation isn't found
             relation2idx = pretrained_model.relation2idx
             supervised_relation_embeddings = torch.cat([supervised_relation_embeddings, torch.randn(1, supervised_relation_embeddings.shape[1])])
             embedding_size = len(supervised_relation_embeddings)
-            model.register_parameter("relation_embeddings", torch.nn.Parameter(supervised_relation_embeddings))
+            model.relation_embeddings = torch.nn.Parameter(supervised_relation_embeddings)
             model.relation2idx = relation2idx
         else:
             relation_idx = None
@@ -110,7 +113,6 @@ if __name__ == "__main__":
                                    include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size,
                                    relation2idx=relation2idx)
-
 
     assert label_values == list(range(num_labels))
     assert len(label_sampling_ratios) == num_labels
@@ -161,7 +163,7 @@ if __name__ == "__main__":
     trainer.fit(system, datamodule=dm)
     model_dir = "checkpoints_" + args.model_name
     model.save_pretrained(model_dir)
-    trainer.save_checkpoint(os.path.join(model_dir, "model.chkpt"))
+    # trainer.save_checkpoint(os.path.join(model_dir, "model.chkpt"))
     tokenizer.save_pretrained(os.path.join(model_dir, "tokenizer"))
     metadata = ModelMetadata(args.pretrained_lm,
                              args.max_seq_length,
@@ -170,7 +172,8 @@ if __name__ == "__main__":
                              not args.ignore_no_comb_relations,
                              args.only_include_binary_no_comb_relations,
                              include_paragraph_context,
-                             args.context_window_size)
+                             args.context_window_size,
+                             pretraining_data={} if args.self_supervised_lm is None else {"relation2idx": relation2idx})
     save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions

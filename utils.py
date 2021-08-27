@@ -5,7 +5,7 @@ import numpy as np
 import os
 import random
 import torch
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any
 
 
 def accuracy(predictions: torch.Tensor, labels: torch.Tensor) -> float:
@@ -124,7 +124,8 @@ class ModelMetadata:
                  add_no_combination_relations: bool,
                  only_include_binary_no_comb_relations: bool,
                  include_paragraph_context: bool,
-                 context_window_size: int):
+                 context_window_size: int,
+                 pretraining_data: Optional[Dict] = {}):
         self.model_name = model_name
         self.max_seq_length = max_seq_length
         self.num_labels = num_labels
@@ -133,6 +134,7 @@ class ModelMetadata:
         self.only_include_binary_no_comb_relations = only_include_binary_no_comb_relations
         self.include_paragraph_context = include_paragraph_context
         self.context_window_size = context_window_size
+        self.pretraining_data = pretraining_data # Can be anything JSON-serializable
 
 
 def save_metadata(metadata: ModelMetadata, checkpoint_directory: str):
@@ -150,7 +152,8 @@ def save_metadata(metadata: ModelMetadata, checkpoint_directory: str):
         "add_no_combination_relations":  metadata.add_no_combination_relations,
         "only_include_binary_no_comb_relations":  metadata.only_include_binary_no_comb_relations,
         "include_paragraph_context":  metadata.include_paragraph_context,
-        "context_window_size":  metadata.context_window_size
+        "context_window_size":  metadata.context_window_size,
+        "pretraining_data": metadata.pretraining_data
     }
     metadata_file = os.path.join(checkpoint_directory, "metadata.json")
     json.dump(metadata_dict, open(metadata_file, 'w'))
@@ -173,7 +176,8 @@ def load_metadata(checkpoint_directory: str) -> ModelMetadata:
                              metadata_dict["add_no_combination_relations"],
                              metadata_dict["only_include_binary_no_comb_relations"],
                              metadata_dict["include_paragraph_context"],
-                             metadata_dict["context_window_size"])
+                             metadata_dict["context_window_size"],
+                             pretraining_data=metadata_dict.get("pretraining_data", {}))
     return metadata
 
 def construct_row_id_idx_mapping(dataset: List[Dict]) -> Tuple[Dict, Dict]:

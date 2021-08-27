@@ -14,6 +14,7 @@ from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_f
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
+parser.add_argument('--self-supervised-lm', type=str, required=False, default=None, help="Path to self-supervised model path")
 parser.add_argument('--test-file', type=str, required=False, default="data/dev_set_error_analysis.jsonl")
 parser.add_argument('--batch-size', type=int, default=32, help="Batch size for testing (larger batch -> faster evaluation)")
 parser.add_argument('--outputs-directory', type=str, required=False, help="Output directory where we write predictions, for offline evaluation", default="/tmp/outputs/.tsv")
@@ -29,24 +30,29 @@ if __name__ == "__main__":
     test_data_raw = list(jsonlines.open(args.test_file))
     # TODO(Vijay): add `add_no_combination_relations`, `only_include_binary_no_comb_relations`, `include_paragraph_context`,
     # `context_window_size` to the model's metadata
+
+    model.relation2idx = metadata.pretraining_data["relation2idx"]
     test_data = create_dataset(test_data_raw,
                                label2idx=metadata.label2idx,
                                add_no_combination_relations=metadata.add_no_combination_relations,
                                only_include_binary_no_comb_relations=metadata.only_include_binary_no_comb_relations,
                                include_paragraph_context=metadata.include_paragraph_context,
                                context_window_size=metadata.context_window_size,
-                               produce_all_subsets=args.produce_all_subsets)
+                               produce_all_subsets=args.produce_all_subsets,
+                               relation2idx=model.relation2idx)
+
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(test_data)
     dm = DrugSynergyDataModule(None,
-                               test_data,
-                               tokenizer,
-                               metadata.label2idx,
-                               row_id_idx_mapping,
-                               train_batch_size=args.batch_size,
-                               dev_batch_size=args.batch_size,
-                               test_batch_size=args.batch_size,
-                               max_seq_length=metadata.max_seq_length,
-                               balance_training_batch_labels=False)
+                            test_data,
+                            tokenizer,
+                            metadata.label2idx,
+                            row_id_idx_mapping,
+                            train_batch_size=args.batch_size,
+                            dev_batch_size=args.batch_size,
+                            test_batch_size=args.batch_size,
+                            max_seq_length=metadata.max_seq_length,
+                            balance_training_batch_labels=False,
+                            embedding_size=len(model.relation_embeddings))
     dm.setup()
 
     system = RelationExtractor(model, 0, tokenizer=tokenizer)
