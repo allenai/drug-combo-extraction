@@ -110,6 +110,7 @@ if __name__ == "__main__":
                 unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
                 unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
         model.bert = pretrained_model.bert
+        model.config.vocab_size = pretrained_model.config.vocab_size
     else:
         model = BertForRelation.from_pretrained(
                 args.pretrained_lm,
