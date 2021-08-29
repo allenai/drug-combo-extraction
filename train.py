@@ -13,11 +13,11 @@ import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
-from data_loader import DrugSynergyDataModule
-from model import BertForRelation, RelationExtractor
-from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
+from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
+from preprocessing.data_loader import DrugSynergyDataModule
+from preprocessing.preprocess import create_dataset
+from modeling.model import BertForRelation, RelationExtractor
+from common.utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="allenai/scibert_scivocab_uncased", help="Path to pretrained Huggingface Transformers model")
@@ -84,6 +84,9 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
+
+    for i in range(10):
+
     dm = DrugSynergyDataModule(training_data,
                                test_data,
                                tokenizer,
