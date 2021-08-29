@@ -46,8 +46,8 @@ if __name__ == "__main__":
 
     set_seed(args.seed)
 
-    training_data_raw = list(jsonlines.open(args.training_file))
-    test_data_raw = list(jsonlines.open(args.test_file))
+    training_data_raw = list(jsonlines.open(args.training_file))[:20]
+    test_data_raw = list(jsonlines.open(args.test_file))[:10]
     label2idx = json.load(open(args.label2idx))
     label2idx[NOT_COMB] = 0
 
@@ -121,8 +121,7 @@ if __name__ == "__main__":
 
     system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer, label_weights=label_loss_weighting)
     trainer = pl.Trainer(
-        gpus=1,
-        precision=16,
+        gpus=0,
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
