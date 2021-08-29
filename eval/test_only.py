@@ -7,10 +7,10 @@ import jsonlines
 import os
 import pytorch_lightning as pl
 
-from data_loader import  DrugSynergyDataModule
-from model import RelationExtractor, load_model
-from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
+from common.utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
+from modeling.model import RelationExtractor, load_model
+from preprocessing.data_loader import  DrugSynergyDataModule
+from preprocessing.preprocess import create_dataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")

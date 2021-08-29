@@ -12,9 +12,9 @@ from transformers import (
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from typing import Callable, Dict, List, Optional, Tuple
 
-from constants import ENTITY_PAD_IDX
-from optimizers import adamw_with_linear_warmup, simple_adamw
-from utils import accuracy, compute_f1, load_metadata
+from common.constants import ENTITY_PAD_IDX
+from common.utils import accuracy, compute_f1, load_metadata
+from modeling.optimizers import adamw_with_linear_warmup, simple_adamw
 
 BertLayerNorm = torch.nn.LayerNorm
 

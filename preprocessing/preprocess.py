@@ -2,9 +2,9 @@ from itertools import chain, combinations
 import json
 import random
 from tqdm import tqdm
-
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
 from typing import Dict, Iterable, List, Optional, Set
+
+from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
 
 random.seed(2021)
 
