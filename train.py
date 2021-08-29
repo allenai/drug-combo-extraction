@@ -85,8 +85,6 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
 
-    for i in range(10):
-
     dm = DrugSynergyDataModule(training_data,
                                test_data,
                                tokenizer,
