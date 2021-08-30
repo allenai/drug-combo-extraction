@@ -1,4 +1,5 @@
 from model import BertForRelation
+import numpy as np
 import os
 import streamlit as st
 import torch
@@ -52,9 +53,13 @@ def classify_message(message: str,
     input_ids = torch.tensor(vectorized_row.input_ids, dtype=torch.long).unsqueeze(0)
     attention_mask = torch.tensor(vectorized_row.attention_mask, dtype=torch.long).unsqueeze(0)
     segment_ids = torch.tensor(vectorized_row.segment_ids, dtype=torch.long).unsqueeze(0)
-    entity_start_tokens = torch.tensor(entity_start_tokens, dtype=torch.long).unsqueeze(0)
+    entity_idx_weights = np.zeros((1, max_seq_length))
+    for start_token_idx in entity_start_tokens:
+        assert start_token_idx < max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
+        entity_idx_weights[0][start_token_idx] = 1.0/len(entity_start_tokens)
+    entity_idx_weights = torch.tensor(entity_idx_weights.tolist(), dtype=torch.float32).unsqueeze(0)
 
-    logits, attention = model(input_ids, token_type_ids=segment_ids, attention_mask=attention_mask, all_entity_idxs=entity_start_tokens)
+    logits, attention = model(input_ids, token_type_ids=segment_ids, attention_mask=attention_mask, all_entity_idxs=entity_idx_weights)
     probabilities = torch.nn.functional.softmax(logits)[0]
     label = torch.argmax(probabilities).item()
 
