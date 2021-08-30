@@ -351,3 +351,18 @@ def filter_overloaded_predictions(preds):
             doc = []
     # reorder the filtered list according to original indices, and get rid of the these indices
     return [x[1] for x in sorted(final_test, key=lambda x: x[0])]
+
+
+def is_sublist(list_a, list_b):
+    if len(list_a) == 0:
+        return True
+    for i in range(len(list_b) - len(list_a)+1):
+        if list_b[i] == list_a[0]:
+            matched = True
+            for j in range(1, len(list_a)):
+                if list_a[j] != list_b[i+j]:
+                    matched = False
+                    break
+            if matched:
+                return True
+    return False

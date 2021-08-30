@@ -26,12 +26,14 @@ class ModelOutput:
 # Adapted from https://github.com/princeton-nlp/PURE
 class BertForRelation(BertPreTrainedModel):
     def __init__(self,
-                 config: PretrainedConfig,
-                 num_rel_labels: int,
-                 max_seq_length: int,
+                 config: PretrainedConfig = None,
+                 num_rel_labels: int = 0,
+                 max_seq_length: int = 0,
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
-                 unfreeze_bias_terms_only: bool = True):
+                 unfreeze_bias_terms_only: bool = True,
+                 increase_embedding_size: int = 0,
+                 ):
         """Initialize simple BERT-based relation extraction model
 
         Args:
@@ -44,7 +46,9 @@ class BertForRelation(BertPreTrainedModel):
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.max_seq_length = max_seq_length
-        self.bert = BertModel(config)
+        if config is not None:
+            config.vocab_size += increase_embedding_size
+            self.bert = BertModel(config)
         for name, param in self.bert.named_parameters():
             if unfreeze_final_bert_layer:
                 if "encoder.layer.11" not in name:
@@ -246,7 +250,8 @@ def load_model(checkpoint_directory: str, output_attentions: bool = False) -> Tu
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
                 num_rel_labels=metadata.num_labels,
                 max_seq_length=metadata.max_seq_length,
-                output_attentions=output_attentions
+                output_attentions=output_attentions,
+                increase_embedding_size=2
     )
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))

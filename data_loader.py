@@ -216,3 +216,77 @@ class DrugSynergyDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test, batch_size=self.test_batch_size, num_workers=self.num_workers)
+
+class PretrainingDataModule(pl.LightningDataModule):
+    def __init__(self,
+                 train_data: List[Dict],
+                 test_data: List[Dict],
+                 tokenizer: AutoTokenizer,
+                 row_idx_mapping: Dict,
+                 train_batch_size: int = 32,
+                 dev_batch_size: int = 32,
+                 test_batch_size: int = 32,
+                 dev_train_ratio: float = 0.1,
+                 max_seq_length: int = 512,
+                 num_workers: int = 4):
+        '''Construct a DataModule for training the self-supervised pretraining model.
+
+        Args:
+            train_data: List of (text, masked drugs) pairs for training and validation
+            test_data: List of (text, masked drugs) pairs for testing
+            tokenizer: Tokenizer/subword segmenter to process raw text
+            row_idx_mapping: Maps each unique row identifier to an integer.
+            train_batch_size: Batch size for training
+            dev_batch_size: Batch size for validation
+            test_batch_size: Batch size for testing
+            dev_train_ratio: Hold out this fraction of the training set as a dev set
+            max_seq_length: Fixed document length to use for the dataset
+            num_workers: Number of CPU workers to use for loading data
+
+        Returns:
+            self: PyTorch Lightning DataModule to load all data during training, validation, and testing.
+        '''
+        super().__init__()
+        self.train_data = train_data
+        self.test_data = test_data
+        self.tokenizer = tokenizer
+        self.row_idx_mapping = row_idx_mapping
+        self.train_batch_size = train_batch_size
+        self.dev_batch_size = dev_batch_size
+        self.test_batch_size = test_batch_size
+        self.dev_train_ratio = dev_train_ratio
+        self.max_seq_length = max_seq_length
+        self.num_workers = num_workers
+
+        # self.dims is returned when you call dm.size()
+        # Setting default dims here because we know them.
+        # Could optionally be assigned dynamically in dm.setup()
+        # TODO(Vijay): set dimensions here
+        self.dims = (1, 28, 28)
+
+    def setup(self):
+        # Assign train/val datasets for use in dataloaders
+        if self.train_data is not None:
+            full_dataset = construct_dataset(self.train_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
+            dev_size = int(self.dev_train_ratio * len(full_dataset))
+            train_size = len(full_dataset) - dev_size
+            self.train, self.val = random_split(full_dataset, [train_size, dev_size])
+        else:
+            self.train, self.val = None, None
+
+        self.test = construct_dataset(self.test_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length)
+        # Optionally...
+        # self.dims = tuple(self.train[0][0].shape)
+
+    def train_dataloader(self):
+        if self.train is None:
+            return None
+        return DataLoader(self.train, num_workers=self.num_workers, batch_size=self.train_batch_size)
+
+    def val_dataloader(self):
+        if self.val is None:
+            return None
+        return DataLoader(self.val, batch_size=self.dev_batch_size, num_workers=self.num_workers)
+
+    def test_dataloader(self):
+        return DataLoader(self.test, batch_size=self.test_batch_size, num_workers=self.num_workers)
