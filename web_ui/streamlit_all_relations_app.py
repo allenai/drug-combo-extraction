@@ -1,16 +1,13 @@
 import json
 import os
 import streamlit as st
-import torch
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from typing import Dict, Tuple
 
-from common.constants import ENTITY_PAD_IDX
 from common.utils import load_metadata
 from modeling.model import BertForRelation
-from preprocessing.data_loader import make_fixed_length, tokenize_sentence, vectorize_subwords
-from preprocessing.preprocess import add_entity_markers, process_doc_with_unknown_relations
+from scripts.postprocessing import find_all_relations
 
 @st.cache(allow_output_mutation=True)
 def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
@@ -36,62 +33,6 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
     return model, tokenizer, metadata
-
-def find_all_relations(message: Dict,
-                       model: BertForRelation,
-                       tokenizer: AutoTokenizer,
-                       max_seq_length: int,
-                       threshold: float,
-                       label2idx: Dict,
-                       label_of_interest: int = 1,
-                       include_paragraph_context: bool = True):
-    '''Given a row from the Drug Synergy dataset, find and display all relations with probability greater than some threshold.
-
-    Args:
-        message: JSON row from the Drug Synergy dataset
-        model: Pretrained BertForRelation model object
-        tokenizer: Hugging Face tokenizer loaded from disk
-        max_seq_length: Maximum number of subwords in a document allowed by the model (if longer, truncate input)
-        label2idx: Mapping from label strings to numerical label indices
-        label_of_interest: Return relations that maximize the probability of this label (typically, this should be 1 for the POS label)
-        include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
-    '''
-    doc_with_unknown_relations = process_doc_with_unknown_relations(message, label2idx, include_paragraph_context=include_paragraph_context)
-    marked_sentences = []
-    relations = []
-    for relation in doc_with_unknown_relations.relations:
-        # Mark drug entities with special tokens.
-        marked_sentence = add_entity_markers(doc_with_unknown_relations.text, relation.drug_entities)
-        marked_sentences.append(marked_sentence)
-        relations.append(tuple([f"{drug.drug_name} ({drug.span_start} - {drug.span_end})" for drug in relation.drug_entities]))
-
-    all_entity_idxs = []
-    all_input_ids = []
-    all_token_type_ids = []
-    all_attention_masks = []
-    for sentence in marked_sentences:
-        subwords, entity_start_tokens = tokenize_sentence(sentence, tokenizer)
-        vectorized_row = vectorize_subwords(tokenizer, subwords, max_seq_length)
-        all_input_ids.append(vectorized_row.input_ids)
-        all_token_type_ids.append(vectorized_row.attention_mask)
-        all_attention_masks.append(vectorized_row.segment_ids)
-        all_entity_idxs.append(make_fixed_length(entity_start_tokens, len(message["spans"]), padding_value=ENTITY_PAD_IDX))
-
-    all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.long)
-    all_input_ids = torch.tensor(all_input_ids, dtype=torch.long)
-    all_token_type_ids = torch.tensor(all_token_type_ids, dtype=torch.long)
-    all_attention_masks = torch.tensor(all_attention_masks, dtype=torch.long)
-
-    logits = model(all_input_ids, token_type_ids=all_token_type_ids, attention_mask=all_attention_masks, all_entity_idxs=all_entity_idxs)
-    probability = torch.nn.functional.softmax(logits)
-    label_probabilities = probability[:, label_of_interest].tolist()
-
-    relation_probabilities = []
-    for i, probability in enumerate(label_probabilities):
-        if probability > threshold:
-            relation_probabilities.append({"drugs": relations[i], "positive probability": probability})
-    relation_probabilities = sorted(relation_probabilities, key=lambda x: x["positive probability"], reverse=True)
-    return {'relations': relation_probabilities}
 
 def get_ground_truth_relations(message):
     '''Parse the document's annotation to return the ground truth relations in a human-readable format
