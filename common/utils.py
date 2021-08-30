@@ -375,6 +375,7 @@ def is_sublist(list_a, list_b):
 
 def find_mentions_in_sentence(sentence, drug_list):
     drug_mentions = []
+    drug_repetition_idxs = []
     sentence_lower = sentence.lower()
     sentence_tokens = sentence_lower.split()
     for drug in drug_list:
@@ -402,3 +403,4 @@ def find_mentions_in_sentence(sentence, drug_list):
                                      span_end=entity_occurrence.end())
             drug_mentions.append(drug_entity)
             drug_repetition_idxs.append(entity_occurrence_idx)
+    return drug_mentions, drug_repetition_idxs
