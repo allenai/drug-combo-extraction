@@ -1,3 +1,4 @@
+import numpy as np
 import pytorch_lightning as pl
 from tqdm import tqdm
 import torch
@@ -103,14 +104,18 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
         all_row_ids.append(row_idx_mapping[doc["row_id"]])
         all_doc_drug_names.append(doc["drug_names"])
 
-    all_entity_idxs = []
+    all_entity_idx_weights = [] # Used to compute an average of embeddings for the document.
     all_input_ids = []
     all_token_type_ids = []
     all_attention_masks = []
 
     for i, doc_subwords in enumerate(all_doc_subwords):
         entity_start_token_idxs = all_doc_entity_start_positions[i]
-        all_entity_idxs.append(make_fixed_length(entity_start_token_idxs, max_entities_length, padding_value=ENTITY_PAD_IDX))
+        entity_idx_weights = np.zeros((1, max_seq_length))
+        for start_token_idx in entity_start_token_idxs:
+            assert start_token_idx < max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
+            entity_idx_weights[0][start_token_idx] = 1.0/len(entity_start_token_idxs)
+        all_entity_idx_weights.append(entity_idx_weights.tolist())
         row = vectorize_subwords(tokenizer, doc_subwords, max_seq_length)
         all_input_ids.append(row.input_ids)
         relation_arity = len(all_doc_drug_names[i])
@@ -123,10 +128,10 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_token_type_ids = torch.tensor(all_token_type_ids, dtype=torch.long)
     all_attention_masks = torch.tensor(all_attention_masks, dtype=torch.long)
     targets = torch.tensor(targets, dtype=torch.long)
-    all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.long)
+    all_entity_idx_weights = torch.tensor(all_entity_idx_weights, dtype=torch.float32)
     all_row_ids = torch.tensor(all_row_ids, dtype=torch.long)
 
-    dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idxs, all_row_ids)
+    dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idx_weights, all_row_ids)
     return dataset
 
 class DrugSynergyDataModule(pl.LightningDataModule):

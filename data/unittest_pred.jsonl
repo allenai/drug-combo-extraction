@@ -1,0 +1,9 @@
+{"doc_id": 1, "drug_idxs": [0,1,2], "relation_label": 3}
+{"doc_id": 2, "drug_idxs": [0,1], "relation_label": 3}
+{"doc_id": 4, "drug_idxs": [0,1], "relation_label": 2}
+{"doc_id": 5, "drug_idxs": [0,1], "relation_label": 2}
+{"doc_id": 6, "drug_idxs": [0,1,2], "relation_label": 3}
+{"doc_id": 7, "drug_idxs": [0,1], "relation_label": 3}
+{"doc_id": 8, "drug_idxs": [0,1], "relation_label": 3}
+{"doc_id": 8, "drug_idxs": [0,2], "relation_label": 3}
+{"doc_id": 8, "drug_idxs": [0,3], "relation_label": 3}

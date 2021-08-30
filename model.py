@@ -86,15 +86,14 @@ class BertForRelation(BertPreTrainedModel):
         sequence_output = outputs[0]
         attention = None if len(outputs) < 3 else outputs[2]
 
-        entity_vectors = []
-        for a, entity_idxs in zip(sequence_output, all_entity_idxs):
-            # We store the entity-of-interest indices as a fixed-dimension matrix with padding indices.
-            # Ignore padding indices when computing the average entity representation.
-            assert torch.max(entity_idxs).item() < self.max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
-            entity_idxs = entity_idxs[torch.where(entity_idxs != ENTITY_PAD_IDX)]
-            entity_vectors.append(torch.mean(a[entity_idxs], dim=0).unsqueeze(0))
-        mean_entity_embs = torch.cat(entity_vectors, dim=0)
-        rep = self.layer_norm(mean_entity_embs)
+        sequence_output_transposed = sequence_output.transpose(1, 2)
+        all_entity_idxs_transposed = all_entity_idxs.transpose(1, 2)
+        # all_entity_idxs_transposed contains weighted values of each entity in the document, giving effectively
+        # a weightec average of entity embeddings across the document.
+        entity_vectors = torch.matmul(sequence_output_transposed, all_entity_idxs_transposed)
+        entity_vectors = entity_vectors.squeeze(2) # Squeeze 768 x 1 vector into a single row of dimension 768
+
+        rep = self.layer_norm(entity_vectors)
         rep = self.dropout(rep)
         logits = self.classifier(rep)
         return logits, attention

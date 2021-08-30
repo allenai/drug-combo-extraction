@@ -1,7 +1,7 @@
 '''
 Usage
 python train.py --pretrained-lm allenai/scibert_scivocab_uncased --num-train-epochs 10 --lr 2e-4 \
---batch-size 71 --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json \
+--batch-size 18 --context-window-size 300 --max-seq-length 512 --label2idx data/label2idx.json \
 --model-name baseline_model
 '''
 
@@ -17,26 +17,26 @@ from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file
+from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract", help="Path to pretrained Huggingface Transformers model")
+parser.add_argument('--pretrained-lm', type=str, required=False, default="allenai/scibert_scivocab_uncased", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/train_set.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/test_set.jsonl")
 parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
-parser.add_argument('--batch-size', type=int, required=False, default=12) # This number is good for training on an 11GB Tesla K80 GPU.
+parser.add_argument('--batch-size', type=int, required=False, default=19) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')
-parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
+parser.add_argument('--num-train-epochs', default=10, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--label-sampling-ratios', default=None, type=str, help="Loss weights (json list) for up/downsampling training examples of each class for training (due to label imbalance)")
 parser.add_argument('--label-loss-weights', default=None, type=str, help="Loss weights (json list) for negative class labels in training (to help with label imbalance)")
 parser.add_argument('--ignore-no-comb-relations', action='store_true', help="If true, then don't mine NO_COMB negative relations from the relation annotations.")
 parser.add_argument('--only-include-binary-no-comb-relations', action='store_true', help="If true, and we are including no-comb relations, then only mine binary no-comb relations (ignoring n-ary no-comb relations)")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
-parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
+parser.add_argument('--lr', default=2e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
-parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
+parser.add_argument('--context-window-size', type=int, required=False, default=300, help="Amount of cross-sentence context to use (including the sentence in question")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 parser.add_argument('--model-name', type=str, required=True)
 parser.add_argument('--seed', type=int, required=False, default=2021)
@@ -155,5 +155,9 @@ if __name__ == "__main__":
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
+
+    fixed_test = filter_overloaded_predictions(adjust_data(test_row_ids, test_predictions))
     os.makedirs("outputs", exist_ok=True)
+    test_output = os.path.join("outputs", args.model_name + "_predictions.jsonl")
+    write_jsonl(fixed_test, test_output)
     write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))

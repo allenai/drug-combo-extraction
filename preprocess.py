@@ -1,4 +1,5 @@
 from itertools import chain, combinations
+import json
 import random
 from tqdm import tqdm
 
@@ -55,7 +56,7 @@ def powerset(iterable: Iterable) -> List[Set]:
     powerset = [set(subset) for subset in powerset if len(subset) > 1]
     return powerset
 
-def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntity], only_include_binary_no_comb_relations: bool = True) -> List[Dict]:
+def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntity], only_include_binary_no_comb_relations: bool = True, produce_all_subsets: bool = False) -> List[Dict]:
     """Construct NOT-COMB relations - relations that are not mentioned as being used in combination.
     We do this by exclusion - any set of entities that are not explicitly mentioned as being combined,
     are treated as NO_COMB.
@@ -86,7 +87,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
     for candidate in candidate_no_combinations:
         entity_found = False
         for c in entity_cooccurrences:
-            if candidate.issubset(c):
+            if (not produce_all_subsets and candidate.issubset(c)) or (candidate == c):
                 entity_found = True
         # If a set of drugs is not contained in any other relation, then consider it as an implicit
         # NO_COMB relation.
@@ -95,7 +96,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True) -> Document:
+def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True, produce_all_subsets: bool = False) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
@@ -104,6 +105,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
         add_no_combination_relations: Whether to add implicit NO_COMB relations.
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: Whether to include full-paragraph context around each drug-mention sentence
+        produce_all_subsets: Whether to include all subsets of existing relations as NO_COMB or not
 
     Returns:
         document: Processed version of the input document.
@@ -122,11 +124,13 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
         entity = DrugEntity(span['text'], idx, span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
         drug_entities.append(entity)
 
-
-    relations = raw['rels']
-    if add_no_combination_relations:
-        # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
-        relations = relations + find_no_combination_examples(relations, drug_entities, only_include_binary_no_comb_relations=only_include_binary_no_comb_relations)
+    if produce_all_subsets:
+        relations = [{'class': NOT_COMB, 'spans': list(candidate)} for candidate in powerset(range(len(drug_entities)))]
+    else:
+        relations = raw['rels']
+        if add_no_combination_relations:
+            # Construct "NOT-COMB" relation pairs from pairs of annotated entities that do not co-occur in any other relation.
+            relations = relations + find_no_combination_examples(relations, drug_entities, only_include_binary_no_comb_relations=only_include_binary_no_comb_relations, produce_all_subsets=produce_all_subsets)
 
     # Construct DrugRelation objects, which contain full information about the document's annotations.
     final_relations = []
@@ -163,7 +167,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
     relation_entities: List = sorted(relation_entities, key=lambda entity: entity.span_start)
     # This list keeps track of all the indices where special entity marker tokens were inserted.
     position_offsets = []
-    for i, drug in enumerate(relation_entities):
+    for drug in relation_entities:
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
         position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
@@ -174,7 +178,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         # Insert "</m> " after each entity.
         position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
         assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "
-        text = text[:drug.span_end + position_offset + 1] + ENTITY_END_MARKER + " " + text[drug.span_end + position_offset + 1:]
+        text = text[:drug.span_end + position_offset] + " " + ENTITY_END_MARKER + text[drug.span_end + position_offset:]
         position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
 
     text = text.lower()
@@ -193,7 +197,7 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
 
     return text, unique_drugs
 
-def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None):
+def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
@@ -204,6 +208,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
         context_window_size: If set, we limit our paragraph context to this number of words
+        produce_all_subsets: Whether to include all subsets of existing relations as NO_COMB or not
 
     Returns:
         samples: List of (text, relation label) pairs representing all positive/negative relations
@@ -213,7 +218,8 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
                                      label2idx,
                                      add_no_combination_relations=add_no_combination_relations,
                                      only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
-                                     include_paragraph_context=include_paragraph_context)
+                                     include_paragraph_context=include_paragraph_context,
+                                     produce_all_subsets=produce_all_subsets)
     samples = []
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.
@@ -232,7 +238,8 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
             start_window_right = min(len(tokens), final_entity_end_token + add_right)
             text = " ".join(tokens[start_window_left:start_window_right])
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
-        row_id = raw["doc_id"] + "_rels_" + "_".join(map(str, drug_idxs))
+        row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
+        row_id = json.dumps(row_metadata)
         samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs, "drug_names": drug_names})
     return samples
 
@@ -243,7 +250,8 @@ def create_dataset(raw_data: List[Dict],
                    add_no_combination_relations=True,
                    only_include_binary_no_comb_relations: bool = False,
                    include_paragraph_context=True,
-                   context_window_size: Optional[int] = None) -> List[Dict]:
+                   context_window_size: Optional[int] = None,
+                   produce_all_subsets: bool = False) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
@@ -256,6 +264,7 @@ def create_dataset(raw_data: List[Dict],
         only_include_binary_no_comb_relations: If true, ignore n-ary no-comb relations.
         include_paragraph_context: If true, include paragraph context around each entity-bearing sentence.
         context_window_size: If set, we limit our paragraph context to this number of words
+        produce_all_subsets: Whether to include all subsets of existing relations as NO_COMB or not
 
     Returns:
         dataset: A list of text, label pairs (represented as a dictionary), ready to be consumed by a model.
@@ -268,7 +277,8 @@ def create_dataset(raw_data: List[Dict],
                                        add_no_combination_relations=add_no_combination_relations,
                                        only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                        include_paragraph_context=include_paragraph_context,
-                                       context_window_size=context_window_size)
+                                       context_window_size=context_window_size,
+                                       produce_all_subsets=produce_all_subsets)
         dataset.extend(datapoints)
     if set(label_sampling_ratios) != {1.0}:
         # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.
