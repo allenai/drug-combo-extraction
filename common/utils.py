@@ -4,9 +4,11 @@ import jsonlines
 import numpy as np
 import os
 import random
+import re
 import torch
 from typing import List, Dict, Tuple, Any
 
+from common.types import DrugEntity
 
 def accuracy(predictions: torch.Tensor, labels: torch.Tensor) -> float:
     """Compute accuracy of predictions against ground truth.
@@ -343,3 +345,60 @@ def filter_overloaded_predictions(preds):
             doc = []
     # reorder the filtered list according to original indices, and get rid of the these indices
     return [x[1] for x in sorted(final_test, key=lambda x: x[0])]
+
+def find_sent_in_para(sent, para):
+    para = para.replace("\u2009", " ").replace("\u00a0", " ").replace("\u202f", " ").replace("\u2003", " ").replace("\u200a", " ")
+    idx = para.replace(" ", "").find(sent.replace(" ", ""))
+    c = 0
+    for i in range(idx):
+        while para[i + c] == " ":
+            c += 1
+    c2 = 0
+    for i in range(len(sent.replace(" ", ""))):
+        while i + idx + c + c2 < len(para) and para[i + idx + c + c2] == " ":
+            c2 += 1
+    return idx + c, idx + c + c2 + len(sent.replace(" ", ""))
+
+def is_sublist(list_a, list_b):
+    if len(list_a) == 0:
+        return True
+    for i in range(len(list_b) - len(list_a)+1):
+        if list_b[i] == list_a[0]:
+            matched = True
+            for j in range(1, len(list_a)):
+                if list_a[j] != list_b[i+j]:
+                    matched = False
+                    break
+            if matched:
+                return True
+    return False
+
+def find_mentions_in_sentence(sentence, drug_list):
+    drug_mentions = []
+    sentence_lower = sentence.lower()
+    sentence_tokens = sentence_lower.split()
+    for drug in drug_list:
+        skip_drug = False
+        for existing_drug in drug_mentions:
+            if drug in existing_drug.drug_name or existing_drug.drug_name in drug:
+                # Having overlapping drug names makes it difficult to preprocess; omit these
+                skip_drug = True
+                break
+        if skip_drug:
+            continue
+        if is_sublist(drug.split(), sentence_tokens):
+            # Sample one instance of the drug in this sentence, if it occurs multiple times.
+            entity_occurrences = []
+            for occurrence in re.finditer(re.escape(drug), sentence_lower):
+                # Want to find drug mentions that are standalone tokens, not contained in other entities
+                if (occurrence.start() == 0 or sentence_lower[occurrence.start()-1] == " ") and \
+                    (occurrence.end() == len(sentence_lower) or sentence_lower[occurrence.end()] == " "):
+                    entity_occurrences.append(occurrence)
+            entity_occurrence_idx = random.choice(list(range(len(entity_occurrences))))
+            entity_occurrence = entity_occurrences[entity_occurrence_idx]
+            drug_entity = DrugEntity(drug_name=drug,
+                                     drug_idx=len(drug_mentions),
+                                     span_start=entity_occurrence.start(),
+                                     span_end=entity_occurrence.end())
+            drug_mentions.append(drug_entity)
+            drug_repetition_idxs.append(entity_occurrence_idx)
