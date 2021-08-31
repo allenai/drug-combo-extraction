@@ -1,3 +1,5 @@
+import hashlib
+import numpy as np
 import torch
 from transformers import AutoTokenizer
 from typing import Dict
@@ -46,9 +48,14 @@ def find_all_relations(message: Dict,
         all_input_ids.append(vectorized_row.input_ids)
         all_token_type_ids.append(vectorized_row.attention_mask)
         all_attention_masks.append(vectorized_row.segment_ids)
-        all_entity_idxs.append(make_fixed_length(entity_start_tokens, len(message["spans"]), padding_value=ENTITY_PAD_IDX))
 
-    all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.long)
+        entity_idx_weights = np.zeros((1, max_seq_length))
+        for start_token_idx in entity_start_tokens:
+            assert start_token_idx < max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
+            entity_idx_weights[0][start_token_idx] = 1.0/len(entity_start_tokens)
+        all_entity_idxs.append(entity_idx_weights.tolist())
+
+    all_entity_idxs = torch.tensor(all_entity_idxs, dtype=torch.float32)
     all_input_ids = torch.tensor(all_input_ids, dtype=torch.long)
     all_token_type_ids = torch.tensor(all_token_type_ids, dtype=torch.long)
     all_attention_masks = torch.tensor(all_attention_masks, dtype=torch.long)
@@ -63,3 +70,6 @@ def find_all_relations(message: Dict,
             relation_probabilities.append({"drugs": relations[i], "positive probability": probability})
     relation_probabilities = sorted(relation_probabilities, key=lambda x: x["positive probability"], reverse=True)
     return {'relations': relation_probabilities}
+
+def hash_string(string):
+    return hashlib.md5((string).encode()).hexdigest()

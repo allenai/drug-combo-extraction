@@ -2,19 +2,19 @@
 python scripts/extract_relations_from_spike.py \
     --spike-file /Users/vijay/Downloads/distant_supervision_small.csv \
     --model-path /tmp/ \
-    --output-file /Users/vijay/Downloads/output_rows.csv \
+    --output-file /tmp/output_rows.csv \
     --classifier-threshold 0.3
 '''
 
 import argparse
 import csv
-
 import sys
 sys.path.extend(["..", "."])
+from tqdm import tqdm
 
 from common.utils import find_mentions_in_sentence, find_sent_in_para
 from modeling.model import load_model
-from postprocessing import find_all_relations
+from postprocessing import find_all_relations, hash_string
 
 
 parser = argparse.ArgumentParser()
@@ -29,8 +29,9 @@ def load_spike_rows(spike_file):
 
 def convert_spike_row_to_model_input(row, drugs_list):
     sentence_start_idx, sentence_end_idx = find_sent_in_para(row["sentence_text"], row["paragraph_text"])
+    doc_id = hash_string(row["sentence_text"])
     # Update document to insert processed sentence into unprocessed paragraph
-    row["paragraph_text"] = row["paragraph_text"][:sentence_start_idx] + row["sentence_text"] + row["paragraph_text"][sentence_end_idx:]
+    row["paragraph_text"] = " ".join([row["paragraph_text"][:sentence_start_idx].strip(), row["sentence_text"], row["paragraph_text"][sentence_end_idx:].strip()])
     matched_drugs, _ = find_mentions_in_sentence(row["sentence_text"], drugs_list)
     spans_object = []
     for i, drug in enumerate(matched_drugs):
@@ -42,7 +43,7 @@ def convert_spike_row_to_model_input(row, drugs_list):
                              "token_end": -1})
         
     # Need to have `spans`, `paragraph`, `sentence`
-    model_friendly_format = {"sentence": row["sentence_text"], "paragraph": row["paragraph_text"], "spans": spans_object}
+    model_friendly_format = {"doc_id": doc_id, "sentence": row["sentence_text"], "paragraph": row["paragraph_text"], "spans": spans_object}
     return model_friendly_format
 
 if __name__ == "__main__":
@@ -51,6 +52,6 @@ if __name__ == "__main__":
     spike_rows = load_spike_rows(args.spike_file)
     model, tokenizer, metadata = load_model(args.model_path)
     
-    for row in spike_rows:
+    for row in tqdm(spike_rows):
         message = convert_spike_row_to_model_input(row, drugs)
         message = find_all_relations(message, model, tokenizer, metadata.max_seq_length, args.classifier_threshold, metadata.label2idx, label_of_interest=1, include_paragraph_context=metadata.include_paragraph_context)
