@@ -2,20 +2,18 @@ import hashlib
 import numpy as np
 import torch
 from transformers import AutoTokenizer
-from typing import Dict
+from typing import Dict, Tuple
 
 from common.constants import ENTITY_PAD_IDX
 from modeling.model import BertForRelation
 from preprocessing.data_loader import make_fixed_length, tokenize_sentence, vectorize_subwords
 from preprocessing.preprocess import add_entity_markers, process_doc_with_unknown_relations
 
-def find_all_relations(message: Dict,
-                       model: BertForRelation,
+
+def extract_all_candidate_relations_for_document(message: Dict,
                        tokenizer: AutoTokenizer,
                        max_seq_length: int,
-                       threshold: float,
                        label2idx: Dict,
-                       label_of_interest: int = 1,
                        include_paragraph_context: bool = True):
     '''Given a row from the Drug Synergy dataset, find and display all relations with probability greater than some threshold,
     by making multiple calls to the relation classifier.
@@ -59,7 +57,33 @@ def find_all_relations(message: Dict,
     all_input_ids = torch.tensor(all_input_ids, dtype=torch.long)
     all_token_type_ids = torch.tensor(all_token_type_ids, dtype=torch.long)
     all_attention_masks = torch.tensor(all_attention_masks, dtype=torch.long)
+    return relations, (all_input_ids, all_token_type_ids, all_attention_masks, all_entity_idxs)
 
+def hash_string(string):
+    return hashlib.md5((string).encode()).hexdigest()
+
+def concate_tensors(list_of_tuples):
+    tuple_of_lists = [[] for _ in range(len(list_of_tuples[0]))]
+    for tup in list_of_tuples:
+        for i, val in enumerate(tup):
+            tuple_of_lists[i].append(val)
+    for i in range(len(tuple_of_lists)):
+        tuple_of_lists[i] = torch.cat(tuple_of_lists)
+    return tuple_of_lists
+
+def find_all_relations(model_inputs: Tuple[torch.Tensor],
+                       model: BertForRelation,
+                       threshold: float,
+                       label_of_interest: int = 1):
+    '''Given a row from the Drug Synergy dataset, find and display all relations with probability greater than some threshold,
+    by making multiple calls to the relation classifier.
+
+    Args:
+        model: Pretrained BertForRelation model object
+        threshold: Classifier threshold
+        label_of_interest: Return relations that maximize the probability of this label (typically, this should be 1 for the POS label)
+    '''
+    all_input_ids, all_token_type_ids, all_attention_masks, all_entity_idxs = model_inputs
     logits = model(all_input_ids, token_type_ids=all_token_type_ids, attention_mask=all_attention_masks, all_entity_idxs=all_entity_idxs)
     probability = torch.nn.functional.softmax(logits)
     label_probabilities = probability[:, label_of_interest].tolist()
@@ -70,6 +94,3 @@ def find_all_relations(message: Dict,
             relation_probabilities.append({"drugs": relations[i], "positive probability": probability})
     relation_probabilities = sorted(relation_probabilities, key=lambda x: x["positive probability"], reverse=True)
     return {'relations': relation_probabilities}
-
-def hash_string(string):
-    return hashlib.md5((string).encode()).hexdigest()
