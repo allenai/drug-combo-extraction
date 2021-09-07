@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from common.utils import find_mentions_in_sentence, find_sent_in_para
 from modeling.model import load_model
-from postprocessing import concate_tensors, find_all_relations, hash_string
+from postprocessing import concate_tensors, extract_all_candidate_relations_for_document, find_all_relations, hash_string
 
 
 parser = argparse.ArgumentParser()
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     tensors = []
     for row in tqdm(spike_rows):
         message = convert_spike_row_to_model_input(row, drugs)
-        num_rows, row_tensors = find_all_relations(message, model, tokenizer, metadata.max_seq_length, args.classifier_threshold, metadata.label2idx, label_of_interest=1, include_paragraph_context=metadata.include_paragraph_context)
+        num_rows, row_tensors = extract_all_candidate_relations_for_document(message, tokenizer, metadata.max_seq_length, metadata.label2idx, metadata.context_window_size, metadata.include_paragraph_context)
         rows_per_document.append(num_rows)
         tensors.append(row_tensors)
 
