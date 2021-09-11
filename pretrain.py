@@ -113,10 +113,10 @@ if __name__ == "__main__":
 
     system = Pretrainer(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
     trainer = pl.Trainer(
-        gpus=1,
+        gpus=2,
         precision=16,
         max_epochs=args.num_train_epochs,
-        profiler="simple"
+        accelerator="ddp"
     )
     trainer.fit(system, datamodule=dm)
     os.makedirs("pretraining_models", exist_ok=True)
