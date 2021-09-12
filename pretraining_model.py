@@ -277,7 +277,7 @@ def load_model(checkpoint_directory: str) -> Tuple[PretrainForRelation, AutoToke
     model = PretrainForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
-                num_rel_labels=metadata.num_labels,
+                relation2idx=metadata.label2idx,
                 max_seq_length=metadata.max_seq_length
     )
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
