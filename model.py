@@ -47,7 +47,6 @@ class BertForRelation(BertPreTrainedModel):
         self.num_rel_labels = num_rel_labels
         self.max_seq_length = max_seq_length
         if config is not None:
-            config.vocab_size += increase_embedding_size
             self.bert = BertModel(config)
         for name, param in self.bert.named_parameters():
             if unfreeze_final_bert_layer:
