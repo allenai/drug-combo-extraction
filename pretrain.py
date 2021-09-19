@@ -40,6 +40,7 @@ parser.add_argument('--num-train-epochs', default=6, type=int, help="Total numbe
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--minimum-relation-frequency', type=int, default=1, help="Only train on documents with relations up to a certain frequency")
 parser.add_argument('--relation-counts', type=str, required=True, help="File generated from pretraining data preprocessing that describes the number of times each relation was observed in the pretraining data.")
+parser.add_argument('--key-relations-file', type=str, required=True, help="File generated from pretraining data preprocessing that describes the key relations (contained in our supervised data) to represent.")
 parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="all", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
@@ -61,6 +62,10 @@ if __name__ == "__main__":
     for rel_json, freq in relation_counts.items():
         rel = tuple(sorted(json.loads(rel_json)))
         if freq >= args.minimum_relation_frequency:
+            relation2idx[rel] = len(relation2idx)
+    for rel_json in json.load(open(args.key_relations_file)):
+        rel = tuple(sorted(json.loads(rel_json)))
+        if rel not in relation2idx:
             relation2idx[rel] = len(relation2idx)
 
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
