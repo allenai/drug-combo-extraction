@@ -26,6 +26,7 @@ TEST_SPLIT = "test"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--in-file', type=str, required=True)
+parser.add_argument('--supervised-data', type=str, required=True)
 parser.add_argument('--out-directory', type=str, required=True)
 parser.add_argument('--entities-list', type=str, required=True)
 parser.add_argument('--mask-one-drug-at-a-time', action="store_true")
@@ -226,16 +227,18 @@ if __name__ == "__main__":
     train_set = "/Users/vijay/Documents/code/drug-synergy-models/data/train_set.jsonl"
     test_set = "/Users/vijay/Documents/code/drug-synergy-models/data/test_set.jsonl"
 
-    annotated_entities = set()
+    key_drugs = set()
+    key_relations = set()
     for dataset in [train_set, test_set]:
-        for train_row in jsonlines.open(dataset):
-            for span_obj in train_row["spans"]:
-                entity_name = " ".join(span_obj["text"].lower().split())
-                if len(entity_name) <= 3:
-                    print(f"Skipping {entity_name}")
-                    continue
-                annotated_entities.add(entity_name)
-    drugs.update(annotated_entities)
+        for row in jsonlines.open(dataset):
+            relation_drugs = sorted([span['text'].lower() for span in row['spans']])
+            processed_rows, relation_counts = process_document(row['sentence'], row['paragraph'], row['source'], relation_drugs, mask_one_drug_at_a_time)
+            train_writer.write_all(processed_rows)
+            train_dev_writer.write_all(processed_rows)
+            key_drugs.update(relation_drugs)
+            key_relations.add(tuple(relation_drugs))
+
+    drugs.update(key_drugs)
     drugs = list(drugs)
 
     with open(os.path.join(out_directory, "updated_drugs.txt"), 'w') as f:
@@ -249,6 +252,7 @@ if __name__ == "__main__":
     sources = set()
     sentences = set()
     paragraphs = set()
+
     for row in tqdm(csv.DictReader(open(in_file))):
         split_assignment = choose_split(args.train_fraction, args.dev_fraction)
         if row['article_link'] in sources or row["sentence_text"] in sentences or row["paragraph_text"] in paragraphs:
@@ -279,4 +283,6 @@ if __name__ == "__main__":
     # Make the list of counts JSON-serializable.
     aggregated_relation_counts = {json.dumps(list(k)): v for k, v in aggregated_relation_counts.items()}
     json.dump(aggregated_relation_counts, open(os.path.join(out_directory, "relation_counts.json"), 'w'))
+    json.dump(list(key_drugs), open(os.path.join(out_directory, "key_drugs.json"), 'w'))
+    json.dump([json.dumps(list(k)) for k in key_relations], open(os.path.join(out_directory, "key_relations.json"), 'w'))
     print(f"Wrote {len(processed_rows)} rows to {out_directory}")
