@@ -69,7 +69,6 @@ if __name__ == "__main__":
                 unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
                 unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit",
                 relation_embedding_shape=(pretrained_model.relation_embeddings.shape[0] + 1, pretrained_model.relation_embeddings.shape[1]) if hasattr(pretrained_model, "relation_embeddings") else None)
-
         model.bert = pretrained_model.bert
         model.config.vocab_size = pretrained_model.config.vocab_size
         if hasattr(pretrained_model, "relation_embeddings"):
