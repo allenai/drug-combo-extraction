@@ -88,6 +88,9 @@ if __name__ == "__main__":
     training_data = [doc for doc in training_data if doc["target"] != LOW_FREQ_RELATION_IDX]
     test_data = [doc for doc in test_data if doc["target"] != LOW_FREQ_RELATION_IDX]
 
+    entity2idx = {ent:idx for ent, idx in entity2idx if idx != LOW_FREQ_RELATION_IDX}
+    relation2idx = {rel:idx for rel, idx in relation2idx if idx != LOW_FREQ_RELATION_IDX}
+
     # Remove training examples with frequency below args.minimum_relation_frequency
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
 
