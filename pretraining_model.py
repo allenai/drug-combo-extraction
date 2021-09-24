@@ -67,22 +67,7 @@ class PretrainForRelation(BertPreTrainedModel):
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
         self.register_parameter("entity_embeddings", nn.Parameter(torch.randn(len(self.entity2idx), config.hidden_size), requires_grad=True))
         self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
-        # self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
 
-        ''' 
-        self.embeddings_by_arity = {}
-        self.relation2idx_by_arity = {}
-        self.idx2relation_by_arity = {}
-
-        for arity in range(1, max_arity + 1):
-            relations_with_arity = get_relations_with_arity(relations, arity)
-            self.embeddings_by_arity[arity] = torch.nn.Embedding(len(relations_with_arity), config.hidden_size)
-            self.relation2idx_by_arity[arity] = {}
-            self.idx2relation_by_arity[arity] = {}
-            for i, rel in relations_with_arity:
-                self.relation2idx_by_arity[arity][rel] = i
-                self.idx2relation_by_arity[arity][i] = rel
-        '''
         self.init_weights()
 
 

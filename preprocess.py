@@ -233,13 +233,14 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
 
 def create_dataset(raw_data: List[Dict],
                    label2idx: Dict,
+                   relation_constituents: List,
                    shuffle: bool = True,
                    label_sampling_ratios=[1.0, 1.0],
                    add_no_combination_relations=True,
                    only_include_binary_no_comb_relations: bool = False,
                    include_paragraph_context=True,
                    context_window_size: Optional[int] = None,
-                   produce_all_subsets: bool = False) -> List[Dict]:
+                   produce_all_subsets: bool = False,) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 

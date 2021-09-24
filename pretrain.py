@@ -18,6 +18,7 @@ from collections import defaultdict
 import json
 import jsonlines
 import os
+import numpy as np
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -59,17 +60,29 @@ if __name__ == "__main__":
 
     relation2idx = defaultdict(lambda: LOW_FREQ_RELATION_IDX)
     relation_counts = json.load(open(args.relation_counts))
+    entities_in_relations = set()
     for rel_json, freq in relation_counts.items():
         rel = tuple(sorted(json.loads(rel_json)))
         if freq >= args.minimum_relation_frequency:
             relation2idx[rel] = len(relation2idx)
+            entities_in_relations.update(list(rel))
+
 
     entity2idx = defaultdict(lambda: LOW_FREQ_RELATION_IDX)
     entity_counts = json.load(open(args.entity_counts))
     for entity_json, freq in entity_counts.items():
         entity = tuple(sorted(json.loads(entity_json)))
-        if freq >= args.minimum_relation_frequency:
+        if freq >= args.minimum_relation_frequency or entity[0] in entities_in_relations:
             entity2idx[entity] = len(entity2idx)
+
+    entity_relation_constituents = np.zeros((len(relation2idx), len(entity2idx)))
+    for rel in relation2idx:
+        relation_constituent_indices = [entity2idx[(e,)] for e in rel]
+        entity_relation_constituents[relation_constituent_indices] = 1.0 / len(relation_constituent_indices)
+
+    breakpoint()
+    relation2idx[rel] = len(relation2idx)
+    entities_in_relations.update(list(rel))
 
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
 
@@ -87,6 +100,9 @@ if __name__ == "__main__":
     # Remove documents with low-frequency relations.
     training_data = [doc for doc in training_data if doc["target"] != LOW_FREQ_RELATION_IDX]
     test_data = [doc for doc in test_data if doc["target"] != LOW_FREQ_RELATION_IDX]
+
+    entity2idx = {ent:idx for ent, idx in entity2idx if idx != LOW_FREQ_RELATION_IDX}
+    relation2idx = {rel:idx for rel, idx in relation2idx if idx != LOW_FREQ_RELATION_IDX}
 
     # Remove training examples with frequency below args.minimum_relation_frequency
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
