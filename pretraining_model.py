@@ -31,6 +31,7 @@ def get_relations_with_arity(relations, arity):
 class PretrainForRelation(BertPreTrainedModel):
     def __init__(self,
                  config: PretrainedConfig,
+                 entity2idx: Dict,
                  relation2idx: Dict,
                  max_seq_length: int,
                  unfreeze_all_bert_layers: bool = False,
@@ -61,8 +62,10 @@ class PretrainForRelation(BertPreTrainedModel):
         self.layer_norm = BertLayerNorm(config.hidden_size)
         self.max_seq_length = max_seq_length
 
+        self.entity2idx = entity2idx
         self.relation2idx = relation2idx
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
+        self.register_parameter("entity_embeddings", nn.Parameter(torch.randn(len(self.entity2idx), config.hidden_size), requires_grad=True))
         self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
         # self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
 

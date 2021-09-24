@@ -39,6 +39,7 @@ parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--minimum-relation-frequency', type=int, default=1, help="Only train on documents with relations up to a certain frequency")
+parser.add_argument('--entity-counts', type=str, required=True, help="File generated from pretraining data preprocessing that describes the number of times each entity was observed in the pretraining data.")
 parser.add_argument('--relation-counts', type=str, required=True, help="File generated from pretraining data preprocessing that describes the number of times each relation was observed in the pretraining data.")
 parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="all", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
@@ -62,6 +63,13 @@ if __name__ == "__main__":
         rel = tuple(sorted(json.loads(rel_json)))
         if freq >= args.minimum_relation_frequency:
             relation2idx[rel] = len(relation2idx)
+
+    entity2idx = defaultdict(lambda: LOW_FREQ_RELATION_IDX)
+    entity_counts = json.load(open(args.entity_counts))
+    for entity_json, freq in entity_counts.items():
+        entity = tuple(sorted(json.loads(entity_json)))
+        if freq >= args.minimum_relation_frequency:
+            entity2idx[entity] = len(entity2idx)
 
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
 
@@ -99,6 +107,7 @@ if __name__ == "__main__":
     model = PretrainForRelation.from_pretrained(
             args.pretrained_lm,
             cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
+            entity2idx=entity2idx,
             relation2idx=relation2idx,
             max_seq_length=args.max_seq_length,
             unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
