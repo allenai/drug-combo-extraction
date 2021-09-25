@@ -86,7 +86,6 @@ if __name__ == "__main__":
         entity_relation_constituents[relation2idx[rel]][relation_constituent_indices] = 1.0 / len(relation_constituent_indices)
 
     entity_relation_constituents = entity_relation_constituents.tolist()
-    breakpoint()
     relation2idx[rel] = len(relation2idx)
     entities_in_relations.update(list(rel))
 
@@ -94,13 +93,11 @@ if __name__ == "__main__":
 
     training_data = create_dataset(training_data_raw,
                                    label2idx=relation2idx,
-                                   relation_constituents=entity_relation_constituents,
                                    add_no_combination_relations=False,
                                    include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size)
     test_data = create_dataset(test_data_raw,
                                    label2idx=relation2idx,
-                                   relation_constituents=entity_relation_constituents,
                                    add_no_combination_relations=False,
                                    include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size)
@@ -109,8 +106,8 @@ if __name__ == "__main__":
     training_data = [doc for doc in training_data if doc["target"] != LOW_FREQ_RELATION_IDX]
     test_data = [doc for doc in test_data if doc["target"] != LOW_FREQ_RELATION_IDX]
 
-    entity2idx = {ent:idx for ent, idx in entity2idx if idx != LOW_FREQ_RELATION_IDX}
-    relation2idx = {rel:idx for rel, idx in relation2idx if idx != LOW_FREQ_RELATION_IDX}
+    entity2idx = {ent:idx for ent, idx in entity2idx.items() if idx != LOW_FREQ_RELATION_IDX}
+    relation2idx = {rel:idx for rel, idx in relation2idx.items() if idx != LOW_FREQ_RELATION_IDX}
 
     # Remove training examples with frequency below args.minimum_relation_frequency
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
@@ -133,6 +130,7 @@ if __name__ == "__main__":
             cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
             entity2idx=entity2idx,
             relation2idx=relation2idx,
+            entity_relation_constituents=entity_relation_constituents,
             max_seq_length=args.max_seq_length,
             unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
             unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",

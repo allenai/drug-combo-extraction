@@ -233,7 +233,6 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
 
 def create_dataset(raw_data: List[Dict],
                    label2idx: Dict,
-                   relation_constituents: List,
                    shuffle: bool = True,
                    label_sampling_ratios=[1.0, 1.0],
                    add_no_combination_relations=True,
