@@ -18,6 +18,7 @@ from collections import defaultdict
 import json
 import jsonlines
 import os
+import numpy as np
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -59,27 +60,47 @@ if __name__ == "__main__":
 
     relation2idx = defaultdict(lambda: LOW_FREQ_RELATION_IDX)
     relation_counts = json.load(open(args.relation_counts))
+    entities_in_relations = set()
     for rel_json, freq in relation_counts.items():
         rel = tuple(sorted(json.loads(rel_json)))
         if freq >= args.minimum_relation_frequency:
             relation2idx[rel] = len(relation2idx)
+            entities_in_relations.update(list(rel))
+
 
     entity2idx = defaultdict(lambda: LOW_FREQ_RELATION_IDX)
     entity_counts = json.load(open(args.entity_counts))
     for entity_json, freq in entity_counts.items():
         entity = tuple(sorted(json.loads(entity_json)))
-        if freq >= args.minimum_relation_frequency:
+        if freq >= args.minimum_relation_frequency or entity[0] in entities_in_relations:
             entity2idx[entity] = len(entity2idx)
+
+    entity_relation_constituents = np.zeros((len(relation2idx), len(entity2idx)))
+    for rel in relation2idx:
+        relation_constituent_indices = []
+        for e in rel:
+            assert (e,) in entity2idx
+            relation_constituent_indices.append(entity2idx[(e,)])
+        assert max(relation_constituent_indices) < entity_relation_constituents.shape[1], breakpoint()
+        assert relation2idx[rel] >= 0 and relation2idx[rel] < entity_relation_constituents.shape[0], breakpoint()
+        entity_relation_constituents[relation2idx[rel]][relation_constituent_indices] = 1.0 / len(relation_constituent_indices)
+
+    entity_relation_constituents = entity_relation_constituents.tolist()
+    breakpoint()
+    relation2idx[rel] = len(relation2idx)
+    entities_in_relations.update(list(rel))
 
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
 
     training_data = create_dataset(training_data_raw,
                                    label2idx=relation2idx,
+                                   relation_constituents=entity_relation_constituents,
                                    add_no_combination_relations=False,
                                    include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size)
     test_data = create_dataset(test_data_raw,
                                    label2idx=relation2idx,
+                                   relation_constituents=entity_relation_constituents,
                                    add_no_combination_relations=False,
                                    include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size)
