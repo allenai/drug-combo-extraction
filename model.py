@@ -33,6 +33,7 @@ class BertForRelation(BertPreTrainedModel):
                  unfreeze_final_bert_layer: bool = False,
                  unfreeze_bias_terms_only: bool = True,
                  relation_embedding_shape: Optional[Tuple] = None,
+                 entity_embedding_shape: Optional[Tuple] = None,
                  ):
         """Initialize simple BERT-based relation extraction model
 
@@ -45,6 +46,7 @@ class BertForRelation(BertPreTrainedModel):
         """
         if relation_embedding_shape is not None:
             config.relation_embedding_shape = relation_embedding_shape
+            config.entity_embedding_shape = entity_embedding_shape
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.max_seq_length = max_seq_length
@@ -60,10 +62,13 @@ class BertForRelation(BertPreTrainedModel):
             elif not unfreeze_all_bert_layers:
                 param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.layer_norm = BertLayerNorm(config.hidden_size*2)
-        self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
+        self.drug_entity_intermediate_dim = 100
+        self.entity_embedding_ff = nn.Linear(config.hidden_size*2, self.drug_entity_intermediate_dim)
+        self.layer_norm = BertLayerNorm(config.hidden_size + self.drug_entity_intermediate_dim)
+        self.classifier = nn.Linear(config.hidden_size + self.drug_entity_intermediate_dim, self.num_rel_labels)
         if config.relation_embedding_shape is not None:
             self.relation_embeddings = torch.nn.Parameter(torch.randn(config.relation_embedding_shape))
+            self.entity_embeddings = torch.nn.Parameter(torch.randn(config.entity_embedding_shape))
         self.init_weights()
 
 
@@ -74,7 +79,8 @@ class BertForRelation(BertPreTrainedModel):
                 labels: Optional[torch.Tensor] = None,
                 all_entity_idxs: Optional[torch.Tensor] = None,
                 input_position: Optional[torch.Tensor] = None,
-                all_entity_lookup_idx_weights: Optional[torch.Tensor] = None) -> ModelOutput:
+                all_entity_lookup_idx_weights: Optional[torch.Tensor] = None,
+                all_relation_lookup_idx_weights: Optional[torch.Tensor] = None) -> ModelOutput:
         """BertForRelation model, forward pass.
 
         Args:
@@ -103,9 +109,13 @@ class BertForRelation(BertPreTrainedModel):
         entity_vectors = torch.matmul(sequence_output_transposed, all_entity_idxs_transposed)
         entity_vectors = entity_vectors.squeeze(2) # Squeeze 768 x 1 vector into a single row of dimension 768
 
+        entity_embeddings_rep = self.entity_embeddings.unsqueeze(0).repeat(batch_size, 1, 1)
+        batch_entity_embeddings = torch.matmul(all_entity_lookup_idx_weights, entity_embeddings_rep).squeeze(1)
         relation_embeddings_rep = self.relation_embeddings.unsqueeze(0).repeat(batch_size, 1, 1)
-        batch_entity_embeddings = torch.matmul(all_entity_lookup_idx_weights, relation_embeddings_rep).squeeze(1)
-        fused_embeddings = torch.cat([entity_vectors, batch_entity_embeddings], dim=1)
+        batch_relation_embeddings = torch.matmul(all_relation_lookup_idx_weights, relation_embeddings_rep).squeeze(1)
+
+        drug_entity_information = self.entity_embedding_ff(torch.cat([batch_entity_embeddings, batch_relation_embeddings], dim=1))
+        fused_embeddings = torch.cat([entity_vectors, drug_entity_information], dim=1)
 
         rep = self.layer_norm(fused_embeddings)
         rep = self.dropout(rep)
@@ -113,7 +123,7 @@ class BertForRelation(BertPreTrainedModel):
         return logits
 
     def make_predictions(self, inputs):
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _, _ = inputs
+        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _, _, _ = inputs
         logits = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
         predictions = torch.argmax(logits, dim=1)
         return predictions
@@ -163,8 +173,8 @@ class RelationExtractor(pl.LightningModule):
         return self.optimizer_strategy(self.named_parameters(), self.lr, self.correct_bias, self.num_train_optimization_steps, self.warmup_proportion)
 
     def forward(self, inputs, pass_text = True):
-        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, all_entity_lookup_idx_weights, _ = inputs
-        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs, all_entity_lookup_idx_weights=all_entity_lookup_idx_weights)
+        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, all_entity_lookup_idx_weights, all_relation_lookup_idx_weights, _ = inputs
+        logits = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs, all_entity_lookup_idx_weights=all_entity_lookup_idx_weights, all_relation_lookup_idx_weights=all_relation_lookup_idx_weights)
         return logits
 
     def training_step(self, inputs, batch_idx):
@@ -178,7 +188,7 @@ class RelationExtractor(pl.LightningModule):
             Loss tensor
         """
         # outputs: TokenClassifierOutput
-        _, _, _, labels, _, _, _ = inputs
+        _, _, _, labels, _, _, _, _ = inputs
         logits = self(inputs, pass_text = True)
         loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
         self.log("loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
@@ -204,7 +214,7 @@ class RelationExtractor(pl.LightningModule):
             Loss tensor
         """
         # outputs: TokenClassifierOutput
-        _, _, _, labels, _, _, _ = inputs
+        _, _, _, labels, _, _, _, _ = inputs
         logits = self(inputs, pass_text = True)
         loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
@@ -221,7 +231,7 @@ class RelationExtractor(pl.LightningModule):
         Return:
             Accuracy value (float) on the test set
         """
-        input_ids, _, _, labels, _, _, row_ids = inputs
+        input_ids, _, _, labels, _, _, _, row_ids = inputs
         logits = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
         loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)

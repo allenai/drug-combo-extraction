@@ -33,8 +33,8 @@ class PretrainForRelation(BertPreTrainedModel):
                  config: PretrainedConfig,
                  entity2idx: Dict,
                  relation2idx: Dict,
-                 entity_relation_constituents: List,
-                 max_seq_length: int,
+                 entity_relation_constituents: Optional[List] = None,
+                 max_seq_length: int = 512,
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
                  unfreeze_bias_terms_only: bool = True):
@@ -68,7 +68,10 @@ class PretrainForRelation(BertPreTrainedModel):
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
         self.register_parameter("entity_embeddings", nn.Parameter(torch.randn(len(self.entity2idx), config.hidden_size), requires_grad=True))
         self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
-        self.register_parameter("entity_relation_constituents", nn.Parameter(torch.tensor(entity_relation_constituents), requires_grad=False))
+        if entity_relation_constituents is not None:
+            self.register_parameter("entity_relation_constituents", nn.Parameter(torch.tensor(entity_relation_constituents), requires_grad=False))
+        else:
+            self.register_parameter("entity_relation_constituents", nn.Parameter(torch.randn(len(self.relation2idx), len(self.entity2idx)), requires_grad=True))
 
         self.init_weights()
 
@@ -271,7 +274,8 @@ def load_model(checkpoint_directory: str) -> Tuple[PretrainForRelation, AutoToke
     model = PretrainForRelation.from_pretrained(
                 checkpoint_directory,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
-                relation2idx=metadata.label2idx,
+                relation2idx=metadata.label2idx["relation2idx"],
+                entity2idx=metadata.label2idx["entity2idx"],
                 max_seq_length=metadata.max_seq_length
     )
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)

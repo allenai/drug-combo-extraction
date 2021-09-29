@@ -76,7 +76,7 @@ def vectorize_subwords(tokenizer, doc_subwords: List[str], max_seq_length: int =
     segment_ids = make_fixed_length([0] * len(doc_input_ids), max_seq_length)
     return DatasetRow(input_ids, attention_mask, segment_ids)
 
-def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mapping: Dict, max_seq_length: int = 512, embedding_size: int = None) -> TensorDataset:
+def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mapping: Dict, max_seq_length: int = 512, entity_embedding_size: int = None, relation_embedding_size: int = None) -> TensorDataset:
     """Converts raw data (in the form of text/label pairs) into a binarized, training-ready Torch TensorDataset.
 
     Args:
@@ -95,6 +95,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_doc_entity_start_positions = []
     all_row_ids = []
     all_entity_lookup_idxs = []
+    all_relation_lookup_idxs = []
     for doc in tqdm(data):
         targets.append(doc["target"])
         doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer)
@@ -103,12 +104,14 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
         max_entities_length = max(max_entities_length, len(entity_start_token_idxs))
         all_row_ids.append(row_idx_mapping[doc["row_id"]])
         all_entity_lookup_idxs.append(doc["entity_idxs"])
+        all_relation_lookup_idxs.append(doc["relation_idx"])
 
     all_entity_idx_weights = [] # Used to compute an average of embeddings for the document.
     all_input_ids = []
     all_token_type_ids = []
     all_attention_masks = []
     all_entity_lookup_idx_weights = []
+    all_relation_lookup_idx_weights = []
 
     for i, doc_subwords in enumerate(all_doc_subwords):
         entity_start_token_idxs = all_doc_entity_start_positions[i]
@@ -117,12 +120,16 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
             assert start_token_idx < max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
             entity_idx_weights[0][start_token_idx] = 1.0/len(entity_start_token_idxs)
 
-        entity_lookup_idx_weights = np.zeros((1, embedding_size))
+        entity_lookup_idx_weights = np.zeros((1, entity_embedding_size))
         for entity_lookup_idx in all_entity_lookup_idxs[i]:
             entity_lookup_idx_weights[0][entity_lookup_idx] += 1.0/len(all_entity_lookup_idxs[i])
 
+        relation_lookup_idx_weights = np.zeros((1, relation_embedding_size))
+        relation_lookup_idx_weights[0][all_relation_lookup_idxs[i]] = 1.0
+
         all_entity_idx_weights.append(entity_idx_weights.tolist())
         all_entity_lookup_idx_weights.append(entity_lookup_idx_weights.tolist())
+        all_relation_lookup_idx_weights.append(relation_lookup_idx_weights.tolist())
         row = vectorize_subwords(tokenizer, doc_subwords, max_seq_length)
         all_input_ids.append(row.input_ids)
         all_token_type_ids.append(row.segment_ids)
@@ -134,9 +141,10 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     targets = torch.tensor(targets, dtype=torch.long)
     all_entity_idx_weights = torch.tensor(all_entity_idx_weights, dtype=torch.float32)
     all_entity_lookup_idx_weights = torch.tensor(all_entity_lookup_idx_weights, dtype=torch.float32)
+    all_relation_lookup_idx_weights = torch.tensor(all_relation_lookup_idx_weights, dtype=torch.float32)
     all_row_ids = torch.tensor(all_row_ids, dtype=torch.long)
 
-    dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idx_weights, all_entity_lookup_idx_weights, all_row_ids)
+    dataset = TensorDataset(all_input_ids, all_token_type_ids, all_attention_masks, targets, all_entity_idx_weights, all_entity_lookup_idx_weights, all_relation_lookup_idx_weights, all_row_ids)
     return dataset
 
 class DrugSynergyDataModule(pl.LightningDataModule):
@@ -153,7 +161,8 @@ class DrugSynergyDataModule(pl.LightningDataModule):
                  max_seq_length: int = 512,
                  num_workers: int = 4,
                  balance_training_batch_labels: bool = True,
-                 embedding_size: Optional[int] = None):
+                 entity_embedding_size: Optional[int] = None,
+                 relation_embedding_size: Optional[int] = None):
         '''Construct a DataModule for convenient PyTorch Lightning training.
 
         Args:
@@ -185,7 +194,8 @@ class DrugSynergyDataModule(pl.LightningDataModule):
         self.max_seq_length = max_seq_length
         self.num_workers = num_workers
         self.balance_training_batch_labels = balance_training_batch_labels
-        self.embedding_size = embedding_size
+        self.entity_embedding_size = entity_embedding_size
+        self.relation_embedding_size = relation_embedding_size
 
         # self.dims is returned when you call dm.size()
         # Setting default dims here because we know them.
@@ -196,14 +206,14 @@ class DrugSynergyDataModule(pl.LightningDataModule):
     def setup(self):
         # Assign train/val datasets for use in dataloaders
         if self.train_data is not None:
-            full_dataset = construct_dataset(self.train_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length, embedding_size=self.embedding_size)
+            full_dataset = construct_dataset(self.train_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length, entity_embedding_size=self.entity_embedding_size, relation_embedding_size=self.relation_embedding_size)
             dev_size = int(self.dev_train_ratio * len(full_dataset))
             train_size = len(full_dataset) - dev_size
             self.train, self.val = random_split(full_dataset, [train_size, dev_size])
         else:
             self.train, self.val = None, None
 
-        self.test = construct_dataset(self.test_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length, embedding_size=self.embedding_size)
+        self.test = construct_dataset(self.test_data, self.tokenizer, self.row_idx_mapping, max_seq_length=self.max_seq_length, entity_embedding_size=self.entity_embedding_size, relation_embedding_size=self.relation_embedding_size)
         # Optionally...
         # self.dims = tuple(self.train[0][0].shape)
 

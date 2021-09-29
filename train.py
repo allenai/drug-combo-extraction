@@ -60,6 +60,7 @@ if __name__ == "__main__":
 
     if args.self_supervised_lm is not None:
         pretrained_model, pretrained_tokenizer, pretraining_metadata = load_model(args.self_supervised_lm)
+
         model = BertForRelation.from_pretrained(
                 args.pretrained_lm,
                 cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
@@ -68,7 +69,8 @@ if __name__ == "__main__":
                 unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
                 unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
                 unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit",
-                relation_embedding_shape=(pretrained_model.relation_embeddings.shape[0] + 1, pretrained_model.relation_embeddings.shape[1]) if hasattr(pretrained_model, "relation_embeddings") else None)
+                relation_embedding_shape=(pretrained_model.relation_embeddings.shape[0] + 1, pretrained_model.relation_embeddings.shape[1]) if hasattr(pretrained_model, "relation_embeddings") else None,
+                entity_embedding_shape=(pretrained_model.entity_embeddings.shape[0] + 1, pretrained_model.entity_embeddings.shape[1]) if hasattr(pretrained_model, "entity_embeddings") else None)
         model.bert = pretrained_model.bert
         model.config.vocab_size = pretrained_model.config.vocab_size
         if hasattr(pretrained_model, "relation_embeddings"):
@@ -76,11 +78,20 @@ if __name__ == "__main__":
             # Add extra "bias" row, in case a relation isn't found
             relation2idx = pretrained_model.relation2idx
             supervised_relation_embeddings = torch.cat([supervised_relation_embeddings, torch.randn(1, supervised_relation_embeddings.shape[1])])
-            embedding_size = len(supervised_relation_embeddings)
             model.relation_embeddings = torch.nn.Parameter(supervised_relation_embeddings)
             model.relation2idx = relation2idx
+            relation_embedding_size = len(supervised_relation_embeddings)
+
+            supervised_entity_embeddings = pretrained_model.entity_embeddings
+            entity2idx = pretrained_model.entity2idx
+            supervised_entity_embeddings = torch.cat([supervised_entity_embeddings, torch.randn(1, supervised_entity_embeddings.shape[1])])
+            model.entity_embeddings = torch.nn.Parameter(supervised_entity_embeddings)
+            model.entity2idx = entity2idx
+            entity_embedding_size = len(supervised_entity_embeddings)
+
         else:
-            relation_idx = None
+            relation2idx = None
+            entity2idx = None
     else:
         model = BertForRelation.from_pretrained(
                 args.pretrained_lm,
@@ -91,6 +102,8 @@ if __name__ == "__main__":
                 unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
                 unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
         model.relation_embeddings = None
+        entity_embedding_size=None
+        relation_embedding_size=None
         relation2idx = None
 
     if args.label_sampling_ratios is None:
@@ -111,7 +124,8 @@ if __name__ == "__main__":
                                    only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
                                    include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size,
-                                   relation2idx=relation2idx)
+                                   relation2idx=relation2idx,
+                                   entity2idx=entity2idx)
 
     assert label_values == list(range(num_labels))
     assert len(label_sampling_ratios) == num_labels
@@ -122,7 +136,8 @@ if __name__ == "__main__":
                                only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
                                include_paragraph_context=include_paragraph_context,
                                context_window_size=args.context_window_size,
-                               relation2idx=relation2idx)
+                               relation2idx=relation2idx,
+                               entity2idx=entity2idx)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
@@ -138,7 +153,8 @@ if __name__ == "__main__":
                                dev_train_ratio=args.dev_train_split,
                                max_seq_length=args.max_seq_length,
                                balance_training_batch_labels=args.balance_training_batch_labels,
-                               embedding_size=embedding_size)
+                               entity_embedding_size=entity_embedding_size,
+                               relation_embedding_size=relation_embedding_size)
     dm.setup()
 
     # Add rows to embedding matrix if not large enough to accomodate special tokens.
