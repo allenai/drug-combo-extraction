@@ -63,12 +63,18 @@ if __name__ == "__main__":
         rel = tuple(sorted(json.loads(rel_json)))
         if freq >= args.minimum_relation_frequency:
             relation2idx[rel] = len(relation2idx)
-    for rel_json in json.load(open(args.key_relations_file)):
+
+    new_entities_added = 0
+    for i, rel_json in enumerate(json.load(open(args.key_relations_file))):
         rel = tuple(sorted(json.loads(rel_json)))
-        if rel not in relation2idx:
-            relation2idx[rel] = len(relation2idx)
+        for entity in rel:
+            entity_tuple = (entity,)
+            if entity_tuple not in relation2idx:
+                new_entities_added += 1
+                relation2idx[entity_tuple] = len(relation2idx)
 
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
+    print(f"{new_entities_added} entities added from key entities list")
 
     training_data = create_dataset(training_data_raw,
                                    label2idx=relation2idx,
@@ -118,10 +124,11 @@ if __name__ == "__main__":
 
     system = Pretrainer(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
     trainer = pl.Trainer(
-        gpus=1,
+        num_nodes=1,
+        gpus=4,
         precision=16,
         max_epochs=args.num_train_epochs,
-        profiler="simple"
+        accelerator="dp"
     )
     trainer.fit(system, datamodule=dm)
     os.makedirs("pretraining_models", exist_ok=True)
