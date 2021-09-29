@@ -33,6 +33,7 @@ class BertForRelation(BertPreTrainedModel):
                  unfreeze_final_bert_layer: bool = False,
                  unfreeze_bias_terms_only: bool = True,
                  relation_embedding_shape: Optional[Tuple] = None,
+                 entity_embedding_shape: Optional[Tuple] = None,
                  ):
         """Initialize simple BERT-based relation extraction model
 
@@ -45,6 +46,7 @@ class BertForRelation(BertPreTrainedModel):
         """
         if relation_embedding_shape is not None:
             config.relation_embedding_shape = relation_embedding_shape
+            config.entity_embedding_shape = entity_embedding_shape
         super(BertForRelation, self).__init__(config)
         self.num_rel_labels = num_rel_labels
         self.max_seq_length = max_seq_length
@@ -64,6 +66,7 @@ class BertForRelation(BertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
         if config.relation_embedding_shape is not None:
             self.relation_embeddings = torch.nn.Parameter(torch.randn(config.relation_embedding_shape))
+            self.entity_embeddings = torch.nn.Parameter(torch.randn(config.entity_embedding_shape))
         self.init_weights()
 
 

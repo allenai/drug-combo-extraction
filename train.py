@@ -68,11 +68,14 @@ if __name__ == "__main__":
                 unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
                 unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
                 unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit",
-                relation_embedding_shape=(pretrained_model.relation_embeddings.shape[0] + 1, pretrained_model.relation_embeddings.shape[1]) if hasattr(pretrained_model, "relation_embeddings") else None)
+                relation_embedding_shape=(pretrained_model.relation_embeddings.shape[0] + 1, pretrained_model.relation_embeddings.shape[1]) if hasattr(pretrained_model, "relation_embeddings") else None,
+                entity_embedding_shape=(pretrained_model.entity_embeddings.shape[0] + 1, pretrained_model.entity_embeddings.shape[1]) if hasattr(pretrained_model, "entity_embeddings") else None)
         model.bert = pretrained_model.bert
         model.config.vocab_size = pretrained_model.config.vocab_size
         if hasattr(pretrained_model, "relation_embeddings"):
             supervised_relation_embeddings = pretrained_model.relation_embeddings
+            supervised_entity_embeddings = pretrained_model.entity_embeddings
+            breakpoint()
             # Add extra "bias" row, in case a relation isn't found
             relation2idx = pretrained_model.relation2idx
             supervised_relation_embeddings = torch.cat([supervised_relation_embeddings, torch.randn(1, supervised_relation_embeddings.shape[1])])
