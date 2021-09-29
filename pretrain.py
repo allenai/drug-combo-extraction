@@ -75,6 +75,17 @@ if __name__ == "__main__":
         if freq >= args.minimum_relation_frequency or entity[0] in entities_in_relations:
             entity2idx[entity] = len(entity2idx)
 
+    relation2idx_hashable = {}
+    for relation, idx in relation2idx.items():
+        relation2idx_hashable[json.dumps(relation)] = idx
+
+    entity2idx_hashable = {}
+    for entity, idx in entity2idx.items():
+        entity2idx_hashable[json.dumps(entity)] = idx
+
+    key_mapping = {"relation2idx": relation2idx_hashable, "entity2idx": entity2idx_hashable}
+    breakpoint()
+
     entity_relation_constituents = np.zeros((len(relation2idx), len(entity2idx)))
     for rel in relation2idx:
         relation_constituent_indices = []
@@ -108,6 +119,14 @@ if __name__ == "__main__":
 
     entity2idx = {ent:idx for ent, idx in entity2idx.items() if idx != LOW_FREQ_RELATION_IDX}
     relation2idx = {rel:idx for rel, idx in relation2idx.items() if idx != LOW_FREQ_RELATION_IDX}
+
+    relation2idx_hashable = {}
+    for relation, idx in relation2idx.items():
+        relation2idx_hashable[json.dumps(relation)] = idx
+
+    entity2idx_hashable = {}
+    for entity, idx in entity2idx.items():
+        entity2idx_hashable[json.dumps(entity)] = idx
 
     # Remove training examples with frequency below args.minimum_relation_frequency
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
@@ -156,18 +175,14 @@ if __name__ == "__main__":
     trainer.save_checkpoint(os.path.join(model_dir, "model.chkpt"))
     tokenizer.save_pretrained(os.path.join(model_dir, "tokenizer"))
 
-    relation2idx_hashable = {}
-    for relation, idx in relation2idx.items():
-        relation2idx_hashable[json.dumps(relation)] = idx
-
     metadata = ModelMetadata(args.pretrained_lm,
-                             args.max_seq_length,
-                             len(relation2idx_hashable),
-                             relation2idx_hashable,
-                             False,
-                             False,
-                             include_paragraph_context,
-                             args.context_window_size)
+                                args.max_seq_length,
+                                len(relation2idx_hashable),
+                                {"relation2idx": relation2idx_hashable, "entity2idx": entity2idx_hashable},
+                                False,
+                                False,
+                                include_paragraph_context,
+                                args.context_window_size)
     save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions
