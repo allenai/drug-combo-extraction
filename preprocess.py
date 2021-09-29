@@ -3,7 +3,7 @@ import json
 import random
 from tqdm import tqdm
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, LOW_FREQ_RELATION_IDX, NOT_COMB, RELATION_UNKNOWN
 from typing import Dict, Iterable, List, Optional, Set
 
 random.seed(2021)
@@ -231,7 +231,11 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         drug_names = [drug.drug_name for drug in relation.drug_entities]
         entity_idxs = []
         for drug in drug_names:
-            entity_idxs.append(relation2idx.get(drug, len(relation2idx)))
+            drug_str = json.dumps([drug])
+            entity_idx = relation2idx.get(drug_str, LOW_FREQ_RELATION_IDX)
+            if entity_idx == LOW_FREQ_RELATION_IDX:
+                entity_idx = len(relation2idx)
+            entity_idxs.append(entity_idx)
         samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs, "entity_idxs": entity_idxs})
     return samples
 

@@ -119,10 +119,7 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
 
         entity_lookup_idx_weights = np.zeros((1, embedding_size))
         for entity_lookup_idx in all_entity_lookup_idxs[i]:
-            try:
-                entity_lookup_idx_weights[0][entity_lookup_idx] = 1.0/len(all_entity_lookup_idxs[i])
-            except:
-                breakpoint()
+            entity_lookup_idx_weights[0][entity_lookup_idx] += 1.0/len(all_entity_lookup_idxs[i])
 
         all_entity_idx_weights.append(entity_idx_weights.tolist())
         all_entity_lookup_idx_weights.append(entity_lookup_idx_weights.tolist())
