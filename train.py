@@ -77,7 +77,7 @@ if __name__ == "__main__":
             relation2idx = pretrained_model.relation2idx
             supervised_relation_embeddings = torch.cat([supervised_relation_embeddings, torch.randn(1, supervised_relation_embeddings.shape[1])])
             embedding_size = len(supervised_relation_embeddings)
-            model.relation_embeddings = torch.nn.Parameter(supervised_relation_embeddings)
+            model.relation_embeddings = torch.nn.Parameter(supervised_relation_embeddings, requires_grad=False)
             model.relation2idx = relation2idx
         else:
             relation_idx = None

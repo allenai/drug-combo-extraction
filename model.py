@@ -63,7 +63,7 @@ class BertForRelation(BertPreTrainedModel):
         self.layer_norm = BertLayerNorm(config.hidden_size*2)
         self.classifier = nn.Linear(config.hidden_size*2, self.num_rel_labels)
         if config.relation_embedding_shape is not None:
-            self.relation_embeddings = torch.nn.Parameter(torch.randn(config.relation_embedding_shape))
+            self.relation_embeddings = torch.nn.Parameter(torch.randn(config.relation_embedding_shape), requires_grad=False)
         self.init_weights()
 
 
