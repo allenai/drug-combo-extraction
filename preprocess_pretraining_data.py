@@ -136,10 +136,11 @@ def process_document(sentence, paragraph, article_link, drugs_list, mask_one_dru
             drug_repetition_idxs.append(entity_occurrence_idx)
 
     masked_documents = []
+    entity_counts = Counter()
     relation_counts = Counter()
     if len(drug_mentions) == 0:
         # No valid drug mentions in this sentence.
-        return masked_documents, relation_counts
+        return masked_documents, entity_counts, relation_counts
 
     zipped_sort = sorted(zip(drug_mentions, drug_repetition_idxs), key=lambda x: x[0].drug_name)
     drug_mentions, drug_repetition_idxs = zip(*zipped_sort)
@@ -167,6 +168,8 @@ def process_document(sentence, paragraph, article_link, drugs_list, mask_one_dru
                                          "spans": spans,
                                          "rels": rels,
                                          "source": article_link})
+                for drug_name in drug_spans:
+                    entity_counts[(drug_name,)] += 1
                 relation_counts[tuple(drug_spans)] += 1
     else:
         sentence_marked = add_entity_markers(sentence, drug_mentions)
@@ -199,7 +202,9 @@ def process_document(sentence, paragraph, article_link, drugs_list, mask_one_dru
                                      "rels": rels,
                                      "source": article_link})
             relation_counts[tuple(drug_spans)] += 1
-    return masked_documents, relation_counts
+            for drug_name in drug_spans:
+                entity_counts[(drug_name,)] += 1
+    return masked_documents, entity_counts, relation_counts
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -245,6 +250,7 @@ if __name__ == "__main__":
     # Borrow existing preprocessing functionality wherever possible
 
     processed_rows = []
+    aggregated_entity_counts = Counter()
     aggregated_relation_counts = Counter()
     sources = set()
     sentences = set()
@@ -257,8 +263,9 @@ if __name__ == "__main__":
         sources.add(row['article_link'])
         sentences.add(row['sentence_text'])
         paragraphs.add(row["paragraph_text"])
-        doc_processed_rows, relation_counts = process_document(row['sentence_text'], row['paragraph_text'], row['article_link'], drugs, mask_one_drug_at_a_time)
+        doc_processed_rows, entity_counts, relation_counts = process_document(row['sentence_text'], row['paragraph_text'], row['article_link'], drugs, mask_one_drug_at_a_time)
         aggregated_relation_counts.update(relation_counts)
+        aggregated_entity_counts.update(entity_counts)
         processed_rows.extend(doc_processed_rows)
         if len(processed_rows) % 1000 == 0:
             print(f"{len(processed_rows)} sentences processed")
@@ -279,4 +286,6 @@ if __name__ == "__main__":
     # Make the list of counts JSON-serializable.
     aggregated_relation_counts = {json.dumps(list(k)): v for k, v in aggregated_relation_counts.items()}
     json.dump(aggregated_relation_counts, open(os.path.join(out_directory, "relation_counts.json"), 'w'))
+    aggregated_entity_counts = {json.dumps(list(k)): v for k, v in aggregated_entity_counts.items()}
+    json.dump(aggregated_entity_counts, open(os.path.join(out_directory, "entity_counts.json"), 'w'))
     print(f"Wrote {len(processed_rows)} rows to {out_directory}")

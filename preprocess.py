@@ -233,7 +233,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         for drug in drug_names:
             drug_str = json.dumps([drug])
             entity_idx = relation2idx.get(drug_str, LOW_FREQ_RELATION_IDX)
-            if entity_idx == LOW_FREQ_RELATION_IDX:
+            if entity_idx >= LOW_FREQ_RELATION_IDX:
                 entity_idx = len(relation2idx)
             entity_idxs.append(entity_idx)
         samples.append({"text": text, "target": relation.relation_label, "row_id": row_id, "drug_indices": drug_idxs, "entity_idxs": entity_idxs})

@@ -18,6 +18,7 @@ from collections import defaultdict
 import json
 import jsonlines
 import os
+import numpy as np
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -39,6 +40,7 @@ parser.add_argument('--preserve-case', action='store_true')
 parser.add_argument('--num-train-epochs', default=6, type=int, help="Total number of training epochs to perform.")
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--minimum-relation-frequency', type=int, default=1, help="Only train on documents with relations up to a certain frequency")
+parser.add_argument('--entity-counts', type=str, required=True, help="File generated from pretraining data preprocessing that describes the number of times each entity was observed in the pretraining data.")
 parser.add_argument('--relation-counts', type=str, required=True, help="File generated from pretraining data preprocessing that describes the number of times each relation was observed in the pretraining data.")
 parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="all", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
@@ -58,10 +60,34 @@ if __name__ == "__main__":
 
     relation2idx = defaultdict(lambda: LOW_FREQ_RELATION_IDX)
     relation_counts = json.load(open(args.relation_counts))
+    entities_in_relations = set()
     for rel_json, freq in relation_counts.items():
         rel = tuple(sorted(json.loads(rel_json)))
         if freq >= args.minimum_relation_frequency:
             relation2idx[rel] = len(relation2idx)
+            entities_in_relations.update(list(rel))
+
+
+    entity2idx = defaultdict(lambda: LOW_FREQ_RELATION_IDX)
+    entity_counts = json.load(open(args.entity_counts))
+    for entity_json, freq in entity_counts.items():
+        entity = tuple(sorted(json.loads(entity_json)))
+        if freq >= args.minimum_relation_frequency or entity[0] in entities_in_relations:
+            entity2idx[entity] = len(entity2idx)
+
+    entity_relation_constituents = np.zeros((len(relation2idx), len(entity2idx)))
+    for rel in relation2idx:
+        relation_constituent_indices = []
+        for e in rel:
+            assert (e,) in entity2idx
+            relation_constituent_indices.append(entity2idx[(e,)])
+        assert max(relation_constituent_indices) < entity_relation_constituents.shape[1], breakpoint()
+        assert relation2idx[rel] >= 0 and relation2idx[rel] < entity_relation_constituents.shape[0], breakpoint()
+        entity_relation_constituents[relation2idx[rel]][relation_constituent_indices] = 1.0 / len(relation_constituent_indices)
+
+    entity_relation_constituents = entity_relation_constituents.tolist()
+    relation2idx[rel] = len(relation2idx)
+    entities_in_relations.update(list(rel))
 
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
 
@@ -77,8 +103,11 @@ if __name__ == "__main__":
                                    context_window_size=args.context_window_size)
 
     # Remove documents with low-frequency relations.
-    training_data = [doc for doc in training_data if doc["target"] != LOW_FREQ_RELATION_IDX]
-    test_data = [doc for doc in test_data if doc["target"] != LOW_FREQ_RELATION_IDX]
+    training_data = [doc for doc in training_data if doc["target"] < LOW_FREQ_RELATION_IDX]
+    test_data = [doc for doc in test_data if doc["target"] < LOW_FREQ_RELATION_IDX]
+
+    entity2idx = {ent:idx for ent, idx in entity2idx.items() if idx < LOW_FREQ_RELATION_IDX}
+    relation2idx = {rel:idx for rel, idx in relation2idx.items() if idx < LOW_FREQ_RELATION_IDX}
 
     # Remove training examples with frequency below args.minimum_relation_frequency
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
@@ -99,7 +128,9 @@ if __name__ == "__main__":
     model = PretrainForRelation.from_pretrained(
             args.pretrained_lm,
             cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
+            entity2idx=entity2idx,
             relation2idx=relation2idx,
+            entity_relation_constituents=entity_relation_constituents,
             max_seq_length=args.max_seq_length,
             unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
             unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",

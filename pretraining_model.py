@@ -31,7 +31,9 @@ def get_relations_with_arity(relations, arity):
 class PretrainForRelation(BertPreTrainedModel):
     def __init__(self,
                  config: PretrainedConfig,
+                 entity2idx: Dict,
                  relation2idx: Dict,
+                 entity_relation_constituents: List,
                  max_seq_length: int,
                  unfreeze_all_bert_layers: bool = False,
                  unfreeze_final_bert_layer: bool = False,
@@ -61,25 +63,13 @@ class PretrainForRelation(BertPreTrainedModel):
         self.layer_norm = BertLayerNorm(config.hidden_size)
         self.max_seq_length = max_seq_length
 
+        self.entity2idx = entity2idx
         self.relation2idx = relation2idx
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
+        self.register_parameter("entity_embeddings", nn.Parameter(torch.randn(len(self.entity2idx), config.hidden_size), requires_grad=True))
         self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
-        # self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
+        self.register_parameter("entity_relation_constituents", nn.Parameter(torch.tensor(entity_relation_constituents), requires_grad=False))
 
-        ''' 
-        self.embeddings_by_arity = {}
-        self.relation2idx_by_arity = {}
-        self.idx2relation_by_arity = {}
-
-        for arity in range(1, max_arity + 1):
-            relations_with_arity = get_relations_with_arity(relations, arity)
-            self.embeddings_by_arity[arity] = torch.nn.Embedding(len(relations_with_arity), config.hidden_size)
-            self.relation2idx_by_arity[arity] = {}
-            self.idx2relation_by_arity[arity] = {}
-            for i, rel in relations_with_arity:
-                self.relation2idx_by_arity[arity][rel] = i
-                self.idx2relation_by_arity[arity][i] = rel
-        '''
         self.init_weights()
 
 
@@ -123,9 +113,14 @@ class PretrainForRelation(BertPreTrainedModel):
 
         text_rep = self.layer_norm(entity_vectors)
         text_rep_repeated = torch.unsqueeze(text_rep, dim=2).repeat(1, 1, len(self.relation_embeddings))
-        relation_rep_repeated = torch.unsqueeze(self.relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
-        consine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_rep_repeated)
-        return consine_similarities, time.perf_counter() - forward_start
+        relation_embeddings_rep_repeated = torch.unsqueeze(self.relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
+        relation_cosine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_embeddings_rep_repeated)
+
+        entity_relation_embeddings = torch.matmul(self.entity_relation_constituents, self.entity_embeddings)
+        entity_relation_embeddings_rep_repeated = torch.unsqueeze(entity_relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
+        entity_relation_cosine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, entity_relation_embeddings_rep_repeated)
+        combined_cosine_similarities = relation_cosine_similarities + entity_relation_cosine_similarities
+        return combined_cosine_similarities, time.perf_counter() - forward_start
 
     def make_predictions(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
