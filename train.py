@@ -75,6 +75,8 @@ if __name__ == "__main__":
         model.config.vocab_size = pretrained_model.config.vocab_size
         if hasattr(pretrained_model, "relation_embeddings"):
             supervised_relation_embeddings = pretrained_model.relation_embeddings
+            supervised_entity_embeddings = pretrained_model.entity_embeddings
+            breakpoint()
             # Add extra "bias" row, in case a relation isn't found
             relation2idx = pretrained_model.relation2idx
             supervised_relation_embeddings = torch.cat([supervised_relation_embeddings, torch.randn(1, supervised_relation_embeddings.shape[1])])
