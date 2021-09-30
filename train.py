@@ -188,7 +188,7 @@ if __name__ == "__main__":
                              args.only_include_binary_no_comb_relations,
                              include_paragraph_context,
                              args.context_window_size,
-                             pretraining_data={} if args.self_supervised_lm is None else {"relation2idx": relation2idx})
+                             pretraining_data={} if args.self_supervised_lm is None else {"entity2idx": entity2idx, "relation2idx": relation2idx})
     save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions

@@ -8,6 +8,7 @@ import os
 import pytorch_lightning as pl
 
 from data_loader import  DrugSynergyDataModule
+from pretraining_model import load_model as load_pretraining_model
 from model import RelationExtractor, load_model
 from preprocess import create_dataset
 from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
@@ -27,11 +28,17 @@ if __name__ == "__main__":
     set_seed(args.seed)
     model, tokenizer, metadata = load_model(args.checkpoint_path)
 
+    if args.self_supervised_lm is not None:
+        pretrained_model, pretrained_tokenizer, pretraining_metadata = load_pretraining_model(args.self_supervised_lm)
+        model.relation2idx = pretrained_model.relation2idx
+        model.entity2idx = pretrained_model.relation2idx
+    else:
+        model.relation2idx = metadata.pretraining_data["relation2idx"]
+
     test_data_raw = list(jsonlines.open(args.test_file))
     # TODO(Vijay): add `add_no_combination_relations`, `only_include_binary_no_comb_relations`, `include_paragraph_context`,
     # `context_window_size` to the model's metadata
 
-    model.relation2idx = metadata.pretraining_data["relation2idx"]
     test_data = create_dataset(test_data_raw,
                                label2idx=metadata.label2idx,
                                add_no_combination_relations=metadata.add_no_combination_relations,
@@ -39,7 +46,8 @@ if __name__ == "__main__":
                                include_paragraph_context=metadata.include_paragraph_context,
                                context_window_size=metadata.context_window_size,
                                produce_all_subsets=args.produce_all_subsets,
-                               relation2idx=model.relation2idx)
+                               relation2idx=model.relation2idx,
+                               entity2idx=model.entity2idx)
 
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(test_data)
     dm = DrugSynergyDataModule(None,
@@ -52,7 +60,8 @@ if __name__ == "__main__":
                             test_batch_size=args.batch_size,
                             max_seq_length=metadata.max_seq_length,
                             balance_training_batch_labels=False,
-                            embedding_size=len(model.relation_embeddings))
+                            entity_embedding_size=len(model.entity_embeddings),
+                            relation_embedding_size=len(model.relation_embeddings))
     dm.setup()
 
     system = RelationExtractor(model, 0, tokenizer=tokenizer)
