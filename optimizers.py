@@ -20,6 +20,18 @@ def adamw_with_linear_warmup(named_parameters, lr, correct_bias, num_train_optim
             'scheduler': scheduler,
         }
 
+def adamw_with_higher_lr_for_knowledge_embeddings(named_parameters, lr, correct_bias, num_train_optimization_steps, warmup_proportion):
+        # Decay scheme taken from https://github.com/princeton-nlp/PURE/blob/main/run_relation.py#L384.
+        param_optimizer = list(named_parameters)
+        knowledge_bank_parameters = ['entity_embeddings']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer
+                        if not any(nd in n for nd in knowledge_bank_parameters)], 'lr': lr},
+            {'params': [p for n, p in param_optimizer
+                        if any(nd in n for nd in knowledge_bank_parameters)], 'lr': 10*lr}
+        ]
+        return AdamW(optimizer_grouped_parameters, lr=lr, correct_bias=correct_bias)
+
 def simple_adamw(named_parameters, lr, correct_bias, num_train_optimization_steps=None, warmup_proportion=None):
     parameters = [p for n, p in named_parameters]
     return AdamW(parameters, lr=lr, correct_bias=correct_bias)
