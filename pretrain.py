@@ -84,7 +84,6 @@ if __name__ == "__main__":
         entity2idx_hashable[json.dumps(entity)] = idx
 
     key_mapping = {"relation2idx": relation2idx_hashable, "entity2idx": entity2idx_hashable}
-    breakpoint()
 
     entity_relation_constituents = np.zeros((len(relation2idx), len(entity2idx)))
     for rel in relation2idx:
@@ -97,7 +96,6 @@ if __name__ == "__main__":
         entity_relation_constituents[relation2idx[rel]][relation_constituent_indices] = 1.0 / len(relation_constituent_indices)
 
     entity_relation_constituents = entity_relation_constituents.tolist()
-    relation2idx[rel] = len(relation2idx)
     entities_in_relations.update(list(rel))
 
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
@@ -114,11 +112,11 @@ if __name__ == "__main__":
                                    context_window_size=args.context_window_size)
 
     # Remove documents with low-frequency relations.
-    training_data = [doc for doc in training_data if doc["target"] != LOW_FREQ_RELATION_IDX]
-    test_data = [doc for doc in test_data if doc["target"] != LOW_FREQ_RELATION_IDX]
+    training_data = [doc for doc in training_data if doc["target"] < LOW_FREQ_RELATION_IDX]
+    test_data = [doc for doc in test_data if doc["target"] < LOW_FREQ_RELATION_IDX]
 
-    entity2idx = {ent:idx for ent, idx in entity2idx.items() if idx != LOW_FREQ_RELATION_IDX}
-    relation2idx = {rel:idx for rel, idx in relation2idx.items() if idx != LOW_FREQ_RELATION_IDX}
+    entity2idx = {ent:idx for ent, idx in entity2idx.items() if idx < LOW_FREQ_RELATION_IDX}
+    relation2idx = {rel:idx for rel, idx in relation2idx.items() if idx < LOW_FREQ_RELATION_IDX}
 
     relation2idx_hashable = {}
     for relation, idx in relation2idx.items():
@@ -163,10 +161,10 @@ if __name__ == "__main__":
 
     system = Pretrainer(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
     trainer = pl.Trainer(
-        gpus=1,
+        gpus=4,
         precision=16,
         max_epochs=args.num_train_epochs,
-        profiler="simple"
+        accelerator="dp"
     )
     trainer.fit(system, datamodule=dm)
     os.makedirs("pretraining_models", exist_ok=True)

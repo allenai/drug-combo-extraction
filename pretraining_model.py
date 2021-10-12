@@ -67,7 +67,6 @@ class PretrainForRelation(BertPreTrainedModel):
         self.relation2idx = relation2idx
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
         self.register_parameter("entity_embeddings", nn.Parameter(torch.randn(len(self.entity2idx), config.hidden_size), requires_grad=True))
-        self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
         self.register_parameter("entity_relation_constituents", nn.Parameter(torch.tensor(entity_relation_constituents), requires_grad=False))
 
         self.init_weights()
@@ -112,15 +111,13 @@ class PretrainForRelation(BertPreTrainedModel):
         entity_vectors = entity_vectors.squeeze(2) # Squeeze 768 x 1 vector into a single row of dimension 768
 
         text_rep = self.layer_norm(entity_vectors)
-        text_rep_repeated = torch.unsqueeze(text_rep, dim=2).repeat(1, 1, len(self.relation_embeddings))
-        relation_embeddings_rep_repeated = torch.unsqueeze(self.relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
-        relation_cosine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, relation_embeddings_rep_repeated)
+        text_rep_repeated = torch.unsqueeze(text_rep, dim=2).repeat(1, 1, len(self.relation2idx))
 
         entity_relation_embeddings = torch.matmul(self.entity_relation_constituents, self.entity_embeddings)
         entity_relation_embeddings_rep_repeated = torch.unsqueeze(entity_relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
+        assert text_rep_repeated.shape == entity_relation_embeddings_rep_repeated.shape, breakpoint()
         entity_relation_cosine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, entity_relation_embeddings_rep_repeated)
-        combined_cosine_similarities = relation_cosine_similarities + entity_relation_cosine_similarities
-        return combined_cosine_similarities, time.perf_counter() - forward_start
+        return entity_relation_cosine_similarities, time.perf_counter() - forward_start
 
     def make_predictions(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
@@ -190,6 +187,7 @@ class Pretrainer(pl.LightningModule):
         # outputs: TokenClassifierOutput
         _, _, _, labels, _, _ = inputs
         logits, forward_time = self(inputs, pass_text = True)
+        max_label = torch.max(labels)
         loss = F.cross_entropy(logits, labels.view(-1), weight=self.label_weights)
 
         self.log("forward_time", forward_time, prog_bar=False, logger=True, on_step=True, on_epoch=True)
