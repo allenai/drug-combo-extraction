@@ -68,6 +68,7 @@ class PretrainForRelation(BertPreTrainedModel):
         self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
         self.register_parameter("entity_embeddings", nn.Parameter(torch.randn(len(self.entity2idx), config.hidden_size), requires_grad=True))
         self.register_parameter("entity_relation_constituents", nn.Parameter(torch.tensor(entity_relation_constituents), requires_grad=False))
+        self.classifier = nn.Linear(config.hidden_size, len(self.relation2idx))
 
         self.init_weights()
 
@@ -117,7 +118,10 @@ class PretrainForRelation(BertPreTrainedModel):
         entity_relation_embeddings_rep_repeated = torch.unsqueeze(entity_relation_embeddings.T, dim=0).repeat(batch_size, 1, 1)
         assert text_rep_repeated.shape == entity_relation_embeddings_rep_repeated.shape, breakpoint()
         entity_relation_cosine_similarities = torch.nn.functional.cosine_similarity(text_rep_repeated, entity_relation_embeddings_rep_repeated)
-        return entity_relation_cosine_similarities, time.perf_counter() - forward_start
+
+        mlm_logits = self.classifier(text_rep)
+
+        return entity_relation_cosine_similarities, mlm_logits, time.perf_counter() - forward_start
 
     def make_predictions(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
@@ -171,8 +175,8 @@ class Pretrainer(pl.LightningModule):
 
     def forward(self, inputs, pass_text = True):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
-        logits, forward_time = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        return logits, forward_time
+        entity_bank_scores, mlm_logits, forward_time = self.model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        return entity_bank_scores, mlm_logits, forward_time
 
     def training_step(self, inputs, batch_idx):
         """Training step in PyTorch Lightning.
@@ -186,14 +190,19 @@ class Pretrainer(pl.LightningModule):
         """
         # outputs: TokenClassifierOutput
         _, _, _, labels, _, _ = inputs
-        logits, forward_time = self(inputs, pass_text = True)
+        entity_bank_scores, mlm_logits, forward_time = self(inputs, pass_text = True)
         max_label = torch.max(labels)
-        loss = F.cross_entropy(logits, labels.view(-1), weight=self.label_weights)
+        entity_bank_loss = F.cross_entropy(entity_bank_scores, labels.view(-1), weight=self.label_weights)
+        mlm_loss = F.cross_entropy(mlm_logits, labels.view(-1), weight=self.label_weights)
+        loss = entity_bank_loss + mlm_loss
 
         self.log("forward_time", forward_time, prog_bar=False, logger=True, on_step=True, on_epoch=True)
+        self.log("entity_bank_loss", entity_bank_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+        self.log("mlm_loss", mlm_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         self.log("loss", loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
-        predictions = torch.argmax(logits, dim=1)
+        combined_logits = F.softmax(entity_bank_scores) + F.softmax(mlm_logits)
+        predictions = torch.argmax(combined_logits, dim=1)
         acc = accuracy(predictions, labels)
         metrics_dict = compute_f1(predictions, labels)
         f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
@@ -215,11 +224,16 @@ class Pretrainer(pl.LightningModule):
         """
         # outputs: TokenClassifierOutput
         _, _, _, labels, _, _ = inputs
-        logits, forward_time = self(inputs, pass_text = True)
-        loss = F.cross_entropy(logits, labels.view(-1), weight=self.label_weights)
+        entity_bank_scores, mlm_logits, forward_time = self(inputs, pass_text = True)
 
-        self.log("val_forward_time", forward_time, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        entity_bank_loss = F.cross_entropy(entity_bank_scores, labels.view(-1), weight=self.label_weights)
+        mlm_loss = F.cross_entropy(mlm_logits, labels.view(-1), weight=self.label_weights)
+        loss = entity_bank_loss + mlm_loss
+
+        self.log("val_entity_bank_loss", entity_bank_loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_mlm_loss", mlm_loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         self.log("val_loss", loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_forward_time", forward_time, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         return loss
 
     def test_step(self, inputs, batch_idx):
@@ -233,12 +247,18 @@ class Pretrainer(pl.LightningModule):
             Accuracy value (float) on the test set
         """
         input_ids, _, _, labels, _, row_ids = inputs
-        logits, _ = self(inputs, pass_text = True)
+        entity_bank_scores, mlm_logits, _ = self(inputs, pass_text = True)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
-        loss = F.cross_entropy(logits, labels.view(-1), weight=self.label_weights)
+        entity_bank_loss = F.cross_entropy(entity_bank_scores, labels.view(-1), weight=self.label_weights)
+        mlm_loss = F.cross_entropy(mlm_logits, labels.view(-1), weight=self.label_weights)
+        loss = entity_bank_loss + mlm_loss
 
+        self.log("test_entity_bank_loss", entity_bank_loss, prog_bar=True, logger=True)
+        self.log("test_mlm_loss", mlm_loss, prog_bar=True, logger=True)
         self.log("test_loss", loss, prog_bar=True, logger=True)
-        predictions = torch.argmax(logits, dim=1)
+
+        combined_logits = F.softmax(entity_bank_scores) + F.softmax(mlm_logits)
+        predictions = torch.argmax(combined_logits, dim=1)
         self.test_sentences.extend(raw_text)
         self.test_row_idxs.extend(row_ids.tolist())
         self.test_predictions.extend(predictions.tolist())
