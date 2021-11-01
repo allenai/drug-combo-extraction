@@ -254,5 +254,4 @@ def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenize
     )
     tokenizer = AutoTokenizer.from_pretrained(metadata.model_name, do_lower_case=True)
     tokenizer.from_pretrained(os.path.join(checkpoint_directory, "tokenizer"))
-    tokenizer.add_tokens(["<<m>>", "<</m>>"])
     return model, tokenizer, metadata
