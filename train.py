@@ -17,10 +17,12 @@ from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from data_loader import DrugSynergyDataModule
 from model import BertForRelation, RelationExtractor
 from preprocess import create_dataset
+from pretraining_model import load_model
 from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="allenai/scibert_scivocab_uncased", help="Path to pretrained Huggingface Transformers model")
+parser.add_argument('--self-supervised-lm', type=str, required=False, default=None, help="Local path to self-supervised language model, if exists")
 parser.add_argument('--training-file', type=str, required=False, default="data/train_set.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/test_set.jsonl")
 parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
@@ -97,14 +99,27 @@ if __name__ == "__main__":
                                balance_training_batch_labels=args.balance_training_batch_labels)
     dm.setup()
 
-    model = BertForRelation.from_pretrained(
-            args.pretrained_lm,
-            cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
-            num_rel_labels=num_labels,
-            max_seq_length=args.max_seq_length,
-            unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
-            unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
-            unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
+    if args.self_supervised_lm is not None:
+        pretrained_model, pretrained_tokenizer, pretraining_metadata = load_model(args.self_supervised_lm)
+        model = BertForRelation.from_pretrained(
+                args.pretrained_lm,
+                cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
+                num_rel_labels=num_labels,
+                max_seq_length=args.max_seq_length,
+                unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
+                unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
+                unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
+        model.bert = pretrained_model.bert
+        model.config.vocab_size = pretrained_model.config.vocab_size
+    else:
+        model = BertForRelation.from_pretrained(
+                args.pretrained_lm,
+                cache_dir=str(PYTORCH_PRETRAINED_BERT_CACHE),
+                num_rel_labels=num_labels,
+                max_seq_length=args.max_seq_length,
+                unfreeze_all_bert_layers=args.unfreezing_strategy=="all",
+                unfreeze_final_bert_layer=args.unfreezing_strategy=="final-bert-layer",
+                unfreeze_bias_terms_only=args.unfreezing_strategy=="BitFit")
 
     # Add rows to embedding matrix if not large enough to accomodate special tokens.
     if len(tokenizer) > len(model.bert.embeddings.word_embeddings.weight):

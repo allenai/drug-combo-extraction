@@ -136,7 +136,10 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
     final_relations = []
     for relation in relations:
         entities = [drug_entities[entity_idx] for entity_idx in relation['spans']]
-        rel_label = label2idx[relation['class']]
+        if isinstance(relation['class'], list):
+            rel_label = label2idx[tuple(sorted(relation['class']))]
+        else:
+            rel_label = label2idx[relation['class']]
         final_relations.append(DrugRelation(entities, rel_label))
     document = Document(raw["doc_id"], final_relations, text)
     return document

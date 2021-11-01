@@ -7,6 +7,7 @@ import jsonlines
 import os
 import pytorch_lightning as pl
 
+from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
 from data_loader import  DrugSynergyDataModule
 from model import RelationExtractor, load_model
 from preprocess import create_dataset
@@ -25,6 +26,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_seed(args.seed)
     model, tokenizer, metadata = load_model(args.checkpoint_path)
+    tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
 
     test_data_raw = list(jsonlines.open(args.test_file))
     # TODO(Vijay): add `add_no_combination_relations`, `only_include_binary_no_comb_relations`, `include_paragraph_context`,
@@ -65,4 +67,4 @@ if __name__ == "__main__":
     test_output = os.path.join(args.outputs_directory, "predictions.jsonl")
 
     write_jsonl(fixed_test, test_output)
-    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)
+    # write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)
