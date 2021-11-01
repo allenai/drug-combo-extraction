@@ -40,6 +40,7 @@ parser.add_argument('--num-train-epochs', default=6, type=int, help="Total numbe
 parser.add_argument('--ignore-paragraph-context', action='store_true', help="If true, only look at each entity-bearing sentence and ignore its surrounding context.")
 parser.add_argument('--minimum-relation-frequency', type=int, default=1, help="Only train on documents with relations up to a certain frequency")
 parser.add_argument('--relation-counts', type=str, required=True, help="File generated from pretraining data preprocessing that describes the number of times each relation was observed in the pretraining data.")
+parser.add_argument('--key-relations-file', type=str, required=True, help="File generated from pretraining data preprocessing that describes the key relations (contained in our supervised data) to represent.")
 parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="all", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=None, help="Amount of cross-sentence context to use (including the sentence in question")
@@ -63,7 +64,17 @@ if __name__ == "__main__":
         if freq >= args.minimum_relation_frequency:
             relation2idx[rel] = len(relation2idx)
 
+    new_entities_added = 0
+    for i, rel_json in enumerate(json.load(open(args.key_relations_file))):
+        rel = tuple(sorted(json.loads(rel_json)))
+        for entity in rel:
+            entity_tuple = (entity,)
+            if entity_tuple not in relation2idx:
+                new_entities_added += 1
+                relation2idx[entity_tuple] = len(relation2idx)
+
     print(f"Number of relations in embedding matrix: {len(relation2idx)}")
+    print(f"{new_entities_added} entities added from key entities list")
 
     training_data = create_dataset(training_data_raw,
                                    label2idx=relation2idx,
@@ -113,10 +124,11 @@ if __name__ == "__main__":
 
     system = Pretrainer(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer)
     trainer = pl.Trainer(
-        gpus=1,
+        num_nodes=1,
+        gpus=4,
         precision=16,
         max_epochs=args.num_train_epochs,
-        profiler="simple"
+        accelerator="dp"
     )
     trainer.fit(system, datamodule=dm)
     os.makedirs("pretraining_models", exist_ok=True)
