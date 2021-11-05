@@ -57,6 +57,9 @@ if __name__ == "__main__":
     for row in tqdm(spike_rows):
         message = convert_spike_row_to_model_input(row, drugs)
         num_rows, row_tensors = extract_all_candidate_relations_for_document(message, tokenizer, metadata.max_seq_length, metadata.label2idx, metadata.context_window_size, metadata.include_paragraph_context)
+        if num_rows is None and row_tensors is None:
+            # Skip doc.
+            continue
         rows_per_document.append(num_rows)
         tensors.append(row_tensors)
 

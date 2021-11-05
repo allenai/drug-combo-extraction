@@ -15,7 +15,8 @@ def extract_all_candidate_relations_for_document(message: Dict,
                        max_seq_length: int,
                        label2idx: Dict,
                        context_window_size: int,
-                       include_paragraph_context: bool = True):
+                       include_paragraph_context: bool = True,
+                       max_num_candidate_relations: int = 600):
     '''Given a row from the Drug Synergy dataset, find and display all relations with probability greater than some threshold,
     by making multiple calls to the relation classifier.
 
@@ -29,6 +30,8 @@ def extract_all_candidate_relations_for_document(message: Dict,
         include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
     '''
     doc_with_unknown_relations = process_doc_with_unknown_relations(message, label2idx, include_paragraph_context=include_paragraph_context)
+    if len(doc_with_unknown_relations.relations) > max_num_candidate_relations:
+        return None, None
     marked_sentences = []
     relations = []
     for relation in doc_with_unknown_relations.relations:
