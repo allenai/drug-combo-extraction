@@ -29,7 +29,7 @@ def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> L
         fixed_array = array + [padding_value] * pad_length
     return fixed_array
 
-def tokenize_sentence(text: str, tokenizer: AutoTokenizer) -> Tuple[List[str], List[int]]:
+def tokenize_sentence(text: str, tokenizer: AutoTokenizer, tokenizer_cache: Dict) -> Tuple[List[str], List[int]]:
     '''Given a text sentence, run the Huggingface subword tokenizer on this sentence,
     and return a list of subword tokens and the positions of all special entity marker
     tokens in the text.
@@ -57,7 +57,12 @@ def tokenize_sentence(text: str, tokenizer: AutoTokenizer) -> Tuple[List[str], L
             doc_subwords.append(ENTITY_END_MARKER)
         else:
             # If not a special token, then split the token into subwords.
-            for sub_token in tokenizer.tokenize(token):
+            if token in tokenizer_cache:
+                sub_tokens = tokenizer_cache[token]
+            else:
+                sub_tokens = tokenizer.tokenize(token)
+                tokenizer_cache[token] = sub_tokens
+            for sub_token in sub_tokens:
                 doc_subwords.append(sub_token)
     doc_subwords.append(SEP)
     return doc_subwords, entity_start_token_idxs
@@ -94,9 +99,10 @@ def construct_dataset(data: List[Dict], tokenizer: AutoTokenizer, row_idx_mappin
     all_doc_subwords = []
     all_doc_entity_start_positions = []
     all_row_ids = []
+    tokenizer_cache = {}
     for doc in tqdm(data):
         targets.append(doc["target"])
-        doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer)
+        doc_subwords, entity_start_token_idxs = tokenize_sentence(doc["text"], tokenizer, tokenizer_cache)
         all_doc_subwords.append(doc_subwords)
         all_doc_entity_start_positions.append(entity_start_token_idxs)
         max_entities_length = max(max_entities_length, len(entity_start_token_idxs))

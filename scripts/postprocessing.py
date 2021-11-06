@@ -34,6 +34,9 @@ def extract_all_candidate_relations_for_document(message: Dict,
         return None, None
     marked_sentences = []
     relations = []
+
+    tokenizer_cache = {}
+
     for relation in doc_with_unknown_relations.relations:
         # Mark drug entities with special tokens.
         marked_sentence = add_entity_markers(doc_with_unknown_relations.text, relation.drug_entities)
@@ -45,7 +48,7 @@ def extract_all_candidate_relations_for_document(message: Dict,
     all_token_type_ids = []
     all_attention_masks = []
     for sentence in marked_sentences:
-        subwords, entity_start_tokens = tokenize_sentence(sentence, tokenizer)
+        subwords, entity_start_tokens = tokenize_sentence(sentence, tokenizer, tokenizer_cache)
         vectorized_row = vectorize_subwords(tokenizer, subwords, max_seq_length)
         all_input_ids.append(vectorized_row.input_ids)
         all_token_type_ids.append(vectorized_row.attention_mask)
