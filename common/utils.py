@@ -395,6 +395,8 @@ def find_mentions_in_sentence(sentence, drug_list):
                 if (occurrence.start() == 0 or sentence_lower[occurrence.start()-1] == " ") and \
                     (occurrence.end() == len(sentence_lower) or sentence_lower[occurrence.end()] == " "):
                     entity_occurrences.append(occurrence)
+            if len(entity_occurrences) == 0:
+                return [], []
             entity_occurrence_idx = random.choice(list(range(len(entity_occurrences))))
             entity_occurrence = entity_occurrences[entity_occurrence_idx]
             drug_entity = DrugEntity(drug_name=drug,

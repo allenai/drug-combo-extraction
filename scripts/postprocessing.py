@@ -16,7 +16,7 @@ def extract_all_candidate_relations_for_document(message: Dict,
                        label2idx: Dict,
                        context_window_size: int,
                        include_paragraph_context: bool = True,
-                       max_num_candidate_relations: int = 600):
+                       max_num_candidate_relations: int = 400):
     '''Given a row from the Drug Synergy dataset, find and display all relations with probability greater than some threshold,
     by making multiple calls to the relation classifier.
 
@@ -41,7 +41,7 @@ def extract_all_candidate_relations_for_document(message: Dict,
         # Mark drug entities with special tokens.
         marked_sentence = add_entity_markers(doc_with_unknown_relations.text, relation.drug_entities)
         marked_sentences.append(truncate_text_into_window(marked_sentence, context_window_size))
-        relations.append(tuple([f"{drug.drug_name} ({drug.span_start} - {drug.span_end})" for drug in relation.drug_entities]))
+        relations.append(tuple(sorted([drug.drug_name for drug in relation.drug_entities])))
 
     all_entity_idxs = []
     all_input_ids = []

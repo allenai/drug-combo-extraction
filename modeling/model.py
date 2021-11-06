@@ -105,6 +105,12 @@ class BertForRelation(BertPreTrainedModel):
         predictions = torch.argmax(logits, dim=1)
         return predictions
 
+    def predict_probabilities(self, inputs):
+        input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
+        logits = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
+        probs = torch.nn.functional.softmax(logits)
+        return probs
+
 class RelationExtractor(pl.LightningModule):
     def __init__(self,
                  model: BertForRelation,
@@ -227,7 +233,7 @@ class RelationExtractor(pl.LightningModule):
         self.log("recall", rec, prog_bar=True, logger=True)
         self.log("f1", f, prog_bar=True, logger=True)
 
-def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
+def load_model(checkpoint_directory: str,) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
     '''Given a directory containing a model checkpoint, return the model, and other metadata regarding the data
     preprocessing that the model expects.
 
