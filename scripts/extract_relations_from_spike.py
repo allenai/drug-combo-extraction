@@ -1,10 +1,10 @@
 '''
 python scripts/extract_relations_from_spike.py \
     --spike-file /home/vijay/drug_interaction_synergy_sentence_large_dedup.csv \
-    --model-path /home/vijay/drug-synergy-models/checkpoints_with_continued_pretraining_large_scale_2023_multiclass\
-    --output-file /home/vijay/drug-synergy-models/extracted_drugs_distant_supervision_large.jsonl\
+    --model-path /home/vijay/drug-synergy-models/checkpoints_with_continued_pretraining_large_scale_2023_multiclass \
+    --output-file /home/vijay/drug-synergy-models/extracted_drugs_distant_supervision_large.jsonl \
     --classifier-threshold 0.3 --batch-size 13
-    drug_interaction_synergy_abstract_large_dedup.csv
+    drug_interaction_synergy_sentence_large_updated_drugs.csv
 '''
 
 import argparse
@@ -28,14 +28,12 @@ parser.add_argument('--drug-list', type=str, required=False, default="data/drugs
 parser.add_argument('--classifier-threshold', type=float, default=0.3, required=False, help="Threshold to use for classifier decisions")
 parser.add_argument('--batch-size', type=int, required=False, default=32)
 
-cuda = torch.device('cuda')
-
 def load_spike_rows(spike_file):
     return csv.DictReader(open(spike_file))
 
 def convert_spike_row_to_model_input(row, drugs_list):
     sentence_start_idx, sentence_end_idx = find_sent_in_para(row["sentence_text"], row["paragraph_text"])
-    doc_id = hash_string(row["sentence_text"])
+    doc_id = hash_string(row["paragraph_text"])
     # Update document to insert processed sentence into unprocessed paragraph
     row["paragraph_text"] = " ".join([row["paragraph_text"][:sentence_start_idx].strip(), row["sentence_text"], row["paragraph_text"][sentence_end_idx:].strip()])
     matched_drugs, _ = find_mentions_in_sentence(row["sentence_text"], drugs_list)
@@ -70,6 +68,7 @@ def divide_into_batches(model_inputs, batch_size=32):
 def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drugs_list, batch_size):
     batch_doc_ids = []
     batch_texts = []
+    batch_sentences = []
     batch_candidate_relations = []
     tensors = []
     for row in batch:
@@ -83,6 +82,7 @@ def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drug
         batch_candidate_relations.extend([list(r) for r in candidate_relations])
         batch_doc_ids.extend([message["doc_id"] for _ in candidate_relations])
         batch_texts.extend([message["paragraph"] for _ in candidate_relations])
+        batch_sentences.extend([message["sentence"] for _ in candidate_relations])
         tensors.append(row_tensors)
 
     model_inputs = concate_tensors(tensors)
@@ -97,7 +97,8 @@ def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drug
         all_entity_idxs = all_entity_idxs.cuda()
 
         model_inputs = [all_input_ids, all_token_type_ids, all_attention_masks, None, all_entity_idxs, None]
-        softmaxes = model.predict_probabilities(model_inputs)
+        with torch.cuda.amp.autocast():
+            softmaxes = model.predict_probabilities(model_inputs)
         all_relation_probs.extend(softmaxes.detach().cpu().tolist())
         del all_input_ids
         del all_token_type_ids
@@ -110,7 +111,11 @@ def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drug
     jlines = []
     for i in range(len(all_relation_probs)):
         relation_probabilities = dict(zip(relation_labels, all_relation_probs[i]))
-        line = {"drug_combination": batch_candidate_relations[i], "relation_probabilities": relation_probabilities, "paragraph": batch_texts[i], "docid": batch_doc_ids[i]}
+        line = {"drug_combination": batch_candidate_relations[i],
+                "relation_probabilities": relation_probabilities,
+                "paragraph": batch_texts[i],
+                "sentence": batch_sentences[i],
+                "docid": batch_doc_ids[i]}
         jlines.append(line)
     return jlines
 
@@ -127,6 +132,7 @@ if __name__ == "__main__":
     MEM_BATCH_SIZE=350
     num_rows_processed = 0
     rows_batch = []
+    sentence_hashes_seen = set()
     with open(args.output_file, 'w') as outfile:
         jsonl_writer = jsonlines.Writer(outfile)
         for row in spike_rows:
@@ -136,9 +142,6 @@ if __name__ == "__main__":
                 rows_batch = []
             num_rows_processed += 1
             rows_batch.append(row)
-            if num_rows_processed % 10000 == 0:
-                print(f"{num_rows_processed} Spike rows processed")
-
         # Process final batch
         if len(rows_batch) > 0:
             outlines = process_batch(rows_batch, model, tokenizer, relation_labels, metadata, drugs_list, args.batch_size)

@@ -16,7 +16,7 @@ def extract_all_candidate_relations_for_document(message: Dict,
                        label2idx: Dict,
                        context_window_size: int,
                        include_paragraph_context: bool = True,
-                       max_num_candidate_relations: int = 400):
+                       max_num_candidate_relations: int = 100):
     '''Given a row from the Drug Synergy dataset, find and display all relations with probability greater than some threshold,
     by making multiple calls to the relation classifier.
 
@@ -56,7 +56,8 @@ def extract_all_candidate_relations_for_document(message: Dict,
 
         entity_idx_weights = np.zeros((1, max_seq_length))
         for start_token_idx in entity_start_tokens:
-            assert start_token_idx < max_seq_length, "Entity is out of bounds in truncated text seqence, make --max-seq-length larger"
+            if start_token_idx >= max_seq_length:
+                return None, None
             entity_idx_weights[0][start_token_idx] = 1.0/len(entity_start_tokens)
         all_entity_idxs.append(entity_idx_weights.tolist())
 
