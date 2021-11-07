@@ -17,6 +17,11 @@ usage: train.py [--pretrained-lm PRETRAINED_LM (defaults to "microsoft/BiomedNLP
                 [--num-train-epochs NUM_TRAIN_EPOCHS (defaults to 3)]
 ```
 
+To train 8 models with different foundation models (SciBERT, PubmedBert, etc), run:
+```
+./scripts/launch_trainings_with_foundation_models.sh
+```
+
 ### Requirements
 [PyTorch](https://pytorch.org/get-started/locally/)
 
