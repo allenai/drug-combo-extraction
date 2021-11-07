@@ -124,7 +124,8 @@ if __name__ == "__main__":
 
     system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer, label_weights=label_loss_weighting)
     trainer = pl.Trainer(
-        gpus=0,
+        gpus=1,
+        precision=16,
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)
