@@ -6,8 +6,8 @@ from torch.utils.data import random_split, DataLoader, TensorDataset
 from transformers import AutoTokenizer
 from typing import Dict, List, Tuple
 
-from balanced_batch_sampler import BalancedBatchSampler
-from constants import CLS, ENTITY_END_MARKER, ENTITY_PAD_IDX, ENTITY_START_MARKER, SEP
+from preprocessing.balanced_batch_sampler import BalancedBatchSampler
+from common.constants import CLS, ENTITY_END_MARKER, ENTITY_START_MARKER, SEP
 
 def make_fixed_length(array: List, max_length: int, padding_value: int = 0) -> List:
     """Helper function to make a variable-length array into a fixed-length one.

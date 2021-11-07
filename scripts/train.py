@@ -13,11 +13,13 @@ import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
-from data_loader import DrugSynergyDataModule
-from model import BertForRelation, RelationExtractor
-from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
+import sys
+sys.path.append('..')
+from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
+from preprocessing.data_loader import DrugSynergyDataModule
+from preprocessing.preprocess import create_dataset
+from modeling.model import BertForRelation, RelationExtractor
+from common.utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="allenai/scibert_scivocab_uncased", help="Path to pretrained Huggingface Transformers model")
@@ -46,8 +48,8 @@ if __name__ == "__main__":
 
     set_seed(args.seed)
 
-    training_data_raw = list(jsonlines.open(args.training_file))
-    test_data_raw = list(jsonlines.open(args.test_file))
+    training_data_raw = list(jsonlines.open(args.training_file))[:20]
+    test_data_raw = list(jsonlines.open(args.test_file))[:10]
     label2idx = json.load(open(args.label2idx))
     label2idx[NOT_COMB] = 0
 
@@ -84,6 +86,7 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
     tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
+
     dm = DrugSynergyDataModule(training_data,
                                test_data,
                                tokenizer,
@@ -120,8 +123,7 @@ if __name__ == "__main__":
 
     system = RelationExtractor(model, num_train_optimization_steps, lr=args.lr, tokenizer=tokenizer, label_weights=label_loss_weighting)
     trainer = pl.Trainer(
-        gpus=1,
-        precision=16,
+        gpus=0,
         max_epochs=args.num_train_epochs,
     )
     trainer.fit(system, datamodule=dm)

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import random
 
-from balanced_batch_sampler import BalancedBatchSampler
+from .balanced_batch_sampler import BalancedBatchSampler
 
 TEST_DATASET_SIZE=1000
 

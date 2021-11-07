@@ -1,5 +1,4 @@
 import json
-from model import BertForRelation
 import os
 import streamlit as st
 import torch
@@ -7,10 +6,11 @@ from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from typing import Dict, Tuple
 
-from constants import ENTITY_PAD_IDX
-from data_loader import make_fixed_length, tokenize_sentence, vectorize_subwords
-from preprocess import add_entity_markers, process_doc_with_unknown_relations
-from utils import load_metadata
+from common.constants import ENTITY_PAD_IDX
+from common.utils import load_metadata
+from modeling.model import BertForRelation
+from preprocessing.data_loader import make_fixed_length, tokenize_sentence, vectorize_subwords
+from preprocessing.preprocess import add_entity_markers, process_doc_with_unknown_relations
 
 @st.cache(allow_output_mutation=True)
 def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
