@@ -28,6 +28,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_seed(args.seed)
     model, tokenizer, metadata = load_model(args.checkpoint_path)
+    model.eval()
 
     test_data_raw = list(jsonlines.open(args.test_file))
     # TODO(Vijay): add `add_no_combination_relations`, `only_include_binary_no_comb_relations`, `include_paragraph_context`,
