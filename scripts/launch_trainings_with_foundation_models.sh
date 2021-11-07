@@ -1,3 +1,4 @@
+mkdir ~/logs/
 HOME_DIR=/home/vijay
 declare -a arr=("${HOME_DIR}/continued_pretraining_directory_large_scale_10_epochs/" "${HOME_DIR}/continued_pretraining_directory_bluebert_10_epochs/" "${HOME_DIR}/continued_pretraining_directory_biobert_10_epochs/" "${HOME_DIR}/continued_pretraining_directory_pubmedbert_10_epochs/" "allenai/scibert" "bionlp/bluebert_pubmed_uncased_L-12_H-768_A-12" "dmis-lab/biobert-v1.1" "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext")
 
