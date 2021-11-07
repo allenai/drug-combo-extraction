@@ -2,29 +2,12 @@ from itertools import chain, combinations
 import json
 import random
 from tqdm import tqdm
-
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
 from typing import Dict, Iterable, List, Optional, Set
 
+from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
+from common.types import DrugEntity, DrugRelation, Document
+
 random.seed(2021)
-
-class DrugEntity:
-    def __init__(self, drug_name, drug_idx, span_start, span_end):
-        self.drug_name: str = drug_name
-        self.drug_idx: int = drug_idx
-        self.span_start: int = span_start
-        self.span_end: int = span_end
-
-class DrugRelation:
-    def __init__(self, drug_entities, relation_label):
-        self.drug_entities: List[DrugEntity] = drug_entities
-        self.relation_label: int = relation_label
-
-class Document:
-    def __init__(self, doc_id, relations, text):
-        self.doc_id: str = doc_id
-        self.relations: List[DrugRelation] = relations
-        self.text: str = text
 
 def pairset(iterable: Iterable) -> List[Set]:
     """Return the set of pairs of an iterable.
@@ -144,7 +127,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
 def process_doc_with_unknown_relations(raw: Dict, label2idx: Dict, include_paragraph_context: bool = True) -> Document:
     doc_with_no_relations = raw.copy()
     doc_with_no_relations['rels'] = []
-    document_with_unknown_relations = process_doc(raw, label2idx, add_no_combination_relations=True, include_paragraph_context=include_paragraph_context)
+    document_with_unknown_relations = process_doc(raw, label2idx, add_no_combination_relations=True, include_paragraph_context=include_paragraph_context, produce_all_subsets=True)
     for relation in document_with_unknown_relations.relations:
         # Set all relation labels to be UNKNOWN_RELATION, to ensure no confusion
         relation.relation_label = RELATION_UNKNOWN
