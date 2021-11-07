@@ -7,6 +7,8 @@ import jsonlines
 import os
 import pytorch_lightning as pl
 
+import sys
+sys.path.append('..')
 from common.utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 from modeling.model import RelationExtractor, load_model
 from preprocessing.data_loader import  DrugSynergyDataModule
