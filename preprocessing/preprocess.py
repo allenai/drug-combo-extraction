@@ -96,7 +96,7 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
     if include_paragraph_context:
         text = raw['paragraph']
         sentence_start_idx = text.find(raw['sentence'])
-        assert sentence_start_idx != -1, "Sentence must be a substring of the containing paragraph."
+        assert sentence_start_idx != -1, breakpoint()
     else:
         text = raw['sentence']
         sentence_start_idx = 0
@@ -154,15 +154,22 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         # Insert "<m> " before each entity. Assuming that each entity is preceded by a whitespace, this will neatly
         # result in a whitespace-delimited "<m>" token before the entity.
         position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_start])
+        if not(drug.span_start + position_offset == 0 or text[drug.span_start + position_offset - 1] == " "):
+            start_marker = " " + ENTITY_START_MARKER
+        else:
+            start_marker = ENTITY_START_MARKER
         assert drug.span_start + position_offset == 0 or text[drug.span_start + position_offset - 1] == " ", breakpoint()
-        text = text[:drug.span_start + position_offset] + ENTITY_START_MARKER + " " + text[drug.span_start + position_offset:]
-        position_offsets.append((drug.span_start, len(ENTITY_START_MARKER + " ")))
+        text = text[:drug.span_start + position_offset] + start_marker + " " + text[drug.span_start + position_offset:]
+        position_offsets.append((drug.span_start, len(start_marker + " ")))
 
         # Insert "</m> " after each entity.
         position_offset = sum([offset for idx, offset in position_offsets if idx <= drug.span_end])
-        assert drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " ", breakpoint()
-        text = text[:drug.span_end + position_offset] + " " + ENTITY_END_MARKER + text[drug.span_end + position_offset:]
-        position_offsets.append((drug.span_end, len(ENTITY_END_MARKER + " ")))
+        if not(drug.span_end + position_offset == len(text) or text[drug.span_end + position_offset] == " "):
+            end_marker = ENTITY_END_MARKER + " "
+        else:
+            end_marker = ENTITY_END_MARKER
+        text = text[:drug.span_end + position_offset] + " " + end_marker + text[drug.span_end + position_offset:]
+        position_offsets.append((drug.span_end, len(end_marker + " ")))
     return text
 
 def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False):
