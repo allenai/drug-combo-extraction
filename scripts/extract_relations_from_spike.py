@@ -12,6 +12,7 @@ import csv
 import jsonlines
 import math
 import sys
+import time
 import torch
 sys.path.extend(["..", "."])
 
@@ -133,6 +134,8 @@ if __name__ == "__main__":
     num_rows_processed = 0
     rows_batch = []
     sentence_hashes_seen = set()
+
+    start = time.perf_counter()
     with open(args.output_file, 'w') as outfile:
         jsonl_writer = jsonlines.Writer(outfile)
         for row in spike_rows:
@@ -141,6 +144,9 @@ if __name__ == "__main__":
                 jsonl_writer.write_all(outlines)
                 rows_batch = []
             num_rows_processed += 1
+            if num_rows_processed % 1000 == 0 or (num_rows_processed < 1000 and num_rows_processed % 100 == 0):
+                now = time.perf_counter()
+                print(f"{num_rows_processed} rows processed in {round(now - start, 3)} seconds")
             rows_batch.append(row)
         # Process final batch
         if len(rows_batch) > 0:
