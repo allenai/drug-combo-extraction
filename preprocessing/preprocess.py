@@ -79,7 +79,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True, produce_all_subsets: bool = False) -> Document:
+def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True, produce_all_subsets: bool = False, max_candidate_entities: int = 15) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
@@ -107,6 +107,9 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
         entity = DrugEntity(span['text'], idx, span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
         drug_entities.append(entity)
 
+    if len(drug_entities) > max_candidate_entities:
+        return None
+
     if produce_all_subsets:
         relations = [{'class': NOT_COMB, 'spans': list(candidate)} for candidate in powerset(range(len(drug_entities)))]
     else:
@@ -128,6 +131,8 @@ def process_doc_with_unknown_relations(raw: Dict, label2idx: Dict, include_parag
     doc_with_no_relations = raw.copy()
     doc_with_no_relations['rels'] = []
     document_with_unknown_relations = process_doc(raw, label2idx, add_no_combination_relations=True, include_paragraph_context=include_paragraph_context, produce_all_subsets=True)
+    if document_with_unknown_relations is None:
+        return None
     for relation in document_with_unknown_relations.relations:
         # Set all relation labels to be UNKNOWN_RELATION, to ensure no confusion
         relation.relation_label = RELATION_UNKNOWN
@@ -206,6 +211,8 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
                                      only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                      include_paragraph_context=include_paragraph_context,
                                      produce_all_subsets=produce_all_subsets)
+    if processed_document is None:
+        return []
     samples = []
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.

@@ -30,7 +30,7 @@ def extract_all_candidate_relations_for_document(message: Dict,
         include_paragraph_context: Whether or not to include paragraph context in addition to the relation-bearing sentence
     '''
     doc_with_unknown_relations = process_doc_with_unknown_relations(message, label2idx, include_paragraph_context=include_paragraph_context)
-    if len(doc_with_unknown_relations.relations) > max_num_candidate_relations:
+    if doc_with_unknown_relations is None or len(doc_with_unknown_relations.relations) > max_num_candidate_relations:
         return None, None
     marked_sentences = []
     relations = []

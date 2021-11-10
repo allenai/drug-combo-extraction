@@ -3,16 +3,17 @@ python scripts/extract_relations_from_spike.py \
     --spike-file /home/vijay/drug_interaction_synergy_sentence_large_dedup.csv \
     --model-path /home/vijay/drug-synergy-models/checkpoints_with_continued_pretraining_large_scale_2023_multiclass \
     --output-file /home/vijay/drug-synergy-models/extracted_drugs_distant_supervision_large.jsonl \
-    --classifier-threshold 0.3 --batch-size 13
-    drug_interaction_synergy_sentence_large_updated_drugs.csv
+    --classifier-threshold 0.3 --batch-size 13 drug_interaction_synergy_sentence_large_updated_drugs.csv
 '''
 
 import argparse
 import csv
 import jsonlines
 import math
+import numpy as np
 import sys
 import time
+from tqdm import tqdm
 import torch
 sys.path.extend(["..", "."])
 
@@ -107,7 +108,7 @@ def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drug
         del all_entity_idxs
         del model_inputs
         torch.cuda.empty_cache()
-    assert len(all_relation_probs) == len(batch_doc_ids)
+    assert len(all_relation_probs) == len(batch_doc_ids), breakpoint()
 
     jlines = []
     for i in range(len(all_relation_probs)):
@@ -133,12 +134,11 @@ if __name__ == "__main__":
     MEM_BATCH_SIZE=350
     num_rows_processed = 0
     rows_batch = []
-    sentence_hashes_seen = set()
 
     start = time.perf_counter()
     with open(args.output_file, 'w') as outfile:
         jsonl_writer = jsonlines.Writer(outfile)
-        for row in spike_rows:
+        for row in tqdm(spike_rows):
             if len(rows_batch) == MEM_BATCH_SIZE:
                 outlines = process_batch(rows_batch, model, tokenizer, relation_labels, metadata, drugs_list, args.batch_size)
                 jsonl_writer.write_all(outlines)

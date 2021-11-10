@@ -108,7 +108,7 @@ class BertForRelation(BertPreTrainedModel):
     def predict_probabilities(self, inputs):
         input_ids, token_type_ids, attention_mask, labels, all_entity_idxs, _ = inputs
         logits = self(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, labels=labels, all_entity_idxs=all_entity_idxs)
-        probs = torch.nn.functional.softmax(logits)
+        probs = torch.nn.functional.softmax(logits, dim=1)
         return probs
 
 class RelationExtractor(pl.LightningModule):
