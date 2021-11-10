@@ -3,7 +3,9 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer
 from typing import Dict, Tuple
+import sys
 
+sys.path.extend(['.', '..'])
 from common.constants import ENTITY_PAD_IDX
 from modeling.model import BertForRelation
 from preprocessing.data_loader import make_fixed_length, tokenize_sentence, vectorize_subwords

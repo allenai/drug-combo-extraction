@@ -27,9 +27,9 @@ parser.add_argument('--batch-size', type=int, default=32, help="Batch size for t
 parser.add_argument('--error-analysis-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
 parser.add_argument('--seed', type=int, required=False, default=2021)
 parser.add_argument('--produce_all_subsets', action='store_true', help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
-parser.add_argument('--confidence-threshold', type=float, default=0.995, help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
+parser.add_argument('--confidence-threshold', type=float, default=0.9, help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
 
-def generate_high_confidence_predictions(pred_proba, label2idx, threshold = 0.99):
+def generate_high_confidence_predictions(pred_proba, label2idx, threshold = 0.9):
     predictions = []
     for i in range(len(pred_proba)):
         pred_idx = np.argmax(pred_proba[i])
@@ -39,7 +39,7 @@ def generate_high_confidence_predictions(pred_proba, label2idx, threshold = 0.99
             predictions.append(label2idx["NO_COMB"])
     return predictions
 
-def compute_high_confidence_precision(test_data, fixed_high_confidence, label2idx):
+def compute_high_confidence_precision(test_data, fixed_high_confidence, label_of_interest, no_comb):
     true_positives = 0
     false_positives = 0
 
@@ -51,9 +51,9 @@ def compute_high_confidence_precision(test_data, fixed_high_confidence, label2id
         true_labels[(row_meta["doc_id"], tuple(sorted(row_meta["drug_idxs"])))] = true_label
 
     for high_confidence_pred in fixed_high_confidence:
-        true_label = true_labels.get((high_confidence_pred["doc_id"], tuple(sorted(high_confidence_pred["drug_idxs"]))), label2idx["NO_COMB"])
-        if high_confidence_pred["relation_label"] == label2idx["POS"]:
-            if true_label == label2idx["POS"]:
+        true_label = true_labels.get((high_confidence_pred["doc_id"], tuple(sorted(high_confidence_pred["drug_idxs"]))), no_comb)
+        if high_confidence_pred["relation_label"] == label_of_interest:
+            if true_label == label_of_interest:
                 true_positives += 1
             else:
                 false_positives += 1
@@ -105,5 +105,6 @@ if __name__ == "__main__":
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
     fixed_high_confidence = filter_overloaded_predictions(adjust_data(test_row_ids, high_confidence_predictions))
 
-    high_confidence_precision, num_high_confidence_predictions = compute_high_confidence_precision(test_data, fixed_high_confidence, metadata.label2idx)
-    print(f"High confidence precision is {high_confidence_precision}, based on {num_high_confidence_predictions} positive predictions with probability over {args.confidence_threshold}.")
+    high_confidence_positive_precision, num_high_confidence_positive_predictions = compute_high_confidence_precision(test_data, fixed_high_confidence, metadata.label2idx["POS"], metadata.label2idx["NO_COMB"])
+    print(f"High confidence precision is {high_confidence_positive_precision}, based on {num_high_confidence_positive_predictions} positive predictions with probability over {args.confidence_threshold}.")
+

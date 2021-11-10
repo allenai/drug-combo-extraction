@@ -143,6 +143,7 @@ class RelationExtractor(pl.LightningModule):
         self.test_sentences = []
         self.test_row_idxs = []
         self.test_predictions = []
+        self.test_pred_probas = []
         self.test_batch_idxs = []
         self.optimizer_strategy = optimizer_strategy
         if label_weights is not None:
@@ -216,6 +217,7 @@ class RelationExtractor(pl.LightningModule):
         """
         input_ids, _, _, labels, _, row_ids = inputs
         logits = self(inputs, pass_text = True)
+        softmaxes = torch.nn.functional.softmax(logits, dim=1)
         raw_text = [self.tokenizer.convert_ids_to_tokens(ids) for ids in input_ids]
         loss = F.cross_entropy(logits.view(-1, self.model.num_rel_labels), labels.view(-1), weight=self.label_weights)
 
@@ -224,6 +226,7 @@ class RelationExtractor(pl.LightningModule):
         self.test_sentences.extend(raw_text)
         self.test_row_idxs.extend(row_ids.tolist())
         self.test_predictions.extend(predictions.tolist())
+        self.test_pred_probas.extend(softmaxes.tolist())
         self.test_batch_idxs.extend([batch_idx for _ in predictions.tolist()])
         acc = accuracy(predictions, labels)
         metrics_dict = compute_f1(predictions, labels)
