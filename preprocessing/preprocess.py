@@ -111,7 +111,14 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
         return None
 
     if produce_all_subsets:
-        relations = [{'class': NOT_COMB, 'spans': list(candidate)} for candidate in powerset(range(len(drug_entities)))]
+        relation_label_mapping = {}
+        for rel in raw['rels']:
+            relation_label_mapping[tuple(sorted(rel["spans"]))] = rel["class"]
+        relations = []
+        for candidate in powerset(range(len(drug_entities))):
+            relation_class = relation_label_mapping.get(tuple(sorted(candidate)), NOT_COMB)
+            relation_dict = {'class': relation_class, 'spans': list(candidate)}
+            relations.append(relation_dict)
     else:
         relations = raw['rels']
         if add_no_combination_relations:
