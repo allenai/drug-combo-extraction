@@ -72,6 +72,7 @@ def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drug
     batch_texts = []
     batch_sentences = []
     batch_candidate_relations = []
+    batch_drug_idxs = []
     tensors = []
     for row in batch:
         message = convert_spike_row_to_model_input(row, drugs_list)
@@ -81,10 +82,18 @@ def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drug
         if candidate_relations is None and row_tensors is None:
             # Skip doc.
             continue
+
         batch_candidate_relations.extend([list(r) for r in candidate_relations])
-        batch_doc_ids.extend([message["doc_id"] for _ in candidate_relations])
+        batch_doc_ids.extend([str(message["doc_id"]) for _ in candidate_relations])
         batch_texts.extend([message["paragraph"] for _ in candidate_relations])
         batch_sentences.extend([message["sentence"] for _ in candidate_relations])
+        for relation in candidate_relations:
+            relation_drug_idxs = []
+            for drug_name in relation:
+                matching_span_idxs = [span["span_id"] for span in message["spans"] if span["text"] == drug_name]
+                assert len(matching_span_idxs) > 0
+                relation_drug_idxs.append(matching_span_idxs[0])
+            batch_drug_idxs.append(sorted(relation_drug_idxs))
         tensors.append(row_tensors)
 
     model_inputs = concate_tensors(tensors)
@@ -117,7 +126,8 @@ def process_batch(batch, model, tokenizer, relation_labels, model_metadata, drug
                 "relation_probabilities": relation_probabilities,
                 "paragraph": batch_texts[i],
                 "sentence": batch_sentences[i],
-                "docid": batch_doc_ids[i]}
+                "doc_id": batch_doc_ids[i],
+                "drug_idxs": batch_drug_idxs[i]}
         jlines.append(line)
     return jlines
 
