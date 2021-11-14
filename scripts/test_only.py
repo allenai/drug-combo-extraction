@@ -10,7 +10,6 @@ import pytorch_lightning as pl
 import sys
 sys.path.append('.')
 sys.path.append('..')
-
 from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER
 from common.utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 from modeling.model import RelationExtractor, load_model
@@ -34,7 +33,6 @@ if __name__ == "__main__":
         tokenizer.add_tokens([ENTITY_START_MARKER])
     if ENTITY_END_MARKER not in tokenizer.vocab:
         tokenizer.add_tokens([ENTITY_END_MARKER])
-
     model.eval()
 
     test_data_raw = list(jsonlines.open(args.test_file))
