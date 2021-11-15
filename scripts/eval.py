@@ -19,8 +19,8 @@ class Label(Enum):
 
 
 def get_label_pos_comb(rel):
-    str_label2idx = {"POS": 1, "NEG": 0, "COMB": 0, "NO_COMB": 0}
-    int_label2idx = {2: 1, 1: 0, 0: 0}
+    str_label2idx = {"POS": 2, "NEG": 1, "COMB": 1, "NO_COMB": 0}
+    int_label2idx = {2: 2, 1: 1, 0: 0}
     if type(rel['relation_label']) == str:
         idx_label = str_label2idx[rel['relation_label']]
     else:
@@ -101,15 +101,15 @@ def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], exact
 def get_max_sum_score(v, labeled):
     interesting = 0
     score = 0
-    for (_, _, label), matched in v.items():
+    for (_, _, label), matched in v:
         if label != Label.NO_COMB.value:
             interesting += 1
             score += max([s if ((not labeled and other != Label.NO_COMB.value) or (other == label)) else 0 for other, s in matched])
     return score / interesting
 
 def f_from_p_r(gs, ts, labeled=False):
-    p = get_max_sum_score(ts, labeled)
-    r = get_max_sum_score(gs, labeled)
+    p = get_max_sum_score(ts.items(), labeled)
+    r = get_max_sum_score(gs.items(), labeled)
     return (2 * p * r) / (p + r), p, r
 
 
