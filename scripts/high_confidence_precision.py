@@ -1,6 +1,6 @@
 # Usage
 # python scripts/high_confidence_precision.py \
-#        --checkpoint-path /home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2021 \
+#        --checkpoint-path /home/vijay/checkpoints_pubmedbert_cpt_2021_three_class \
 #        --test-file data/final_test_set.jsonl \
 #        --batch-size 70 \
 #        --seed 2021 \
@@ -27,19 +27,22 @@ parser.add_argument('--batch-size', type=int, default=32, help="Batch size for t
 parser.add_argument('--error-analysis-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
 parser.add_argument('--seed', type=int, required=False, default=2021)
 parser.add_argument('--produce_all_subsets', action='store_true', help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
-parser.add_argument('--confidence-threshold', type=float, default=0.9, help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
+parser.add_argument('--pos-threshold', type=float, default=0.999, help="Threshold to apply for extracting POS relations")
+parser.add_argument('--comb-threshold', type=float, default=0.999, help="Threshold to apply for extracting COMB relations")
 
-def generate_high_confidence_predictions(pred_proba, label2idx, threshold = 0.9):
+def generate_high_confidence_predictions(pred_proba, label2idx, pos_threshold, comb_threshold):
     predictions = []
     for i in range(len(pred_proba)):
         pred_idx = np.argmax(pred_proba[i])
-        if pred_proba[i][pred_idx] > threshold:
-            predictions.append(pred_idx)
+        if pred_idx == label2idx["POS"] and pred_proba[i][pred_idx] > pos_threshold:
+            predictions.append(label2idx["POS"])
+        elif pred_idx == label2idx["COMB"] and pred_proba[i][pred_idx] > comb_threshold:
+            predictions.append(label2idx["COMB"])
         else:
             predictions.append(label2idx["NO_COMB"])
     return predictions
 
-def compute_high_confidence_precision(test_data, fixed_high_confidence, label_of_interest, no_comb):
+def compute_high_confidence_precision(test_data, fixed_high_confidence, label2idx):
     true_positives = 0
     false_positives = 0
 
@@ -51,9 +54,9 @@ def compute_high_confidence_precision(test_data, fixed_high_confidence, label_of
         true_labels[(row_meta["doc_id"], tuple(sorted(row_meta["drug_idxs"])))] = true_label
 
     for high_confidence_pred in fixed_high_confidence:
-        true_label = true_labels.get((high_confidence_pred["doc_id"], tuple(sorted(high_confidence_pred["drug_idxs"]))), no_comb)
-        if high_confidence_pred["relation_label"] == label_of_interest:
-            if true_label == label_of_interest:
+        true_label = true_labels.get((high_confidence_pred["doc_id"], tuple(sorted(high_confidence_pred["drug_idxs"]))), label2idx["NO_COMB"])
+        if high_confidence_pred["relation_label"] in [label2idx["POS"], label2idx["COMB"]]:
+            if true_label == high_confidence_pred["relation_label"]:
                 true_positives += 1
             else:
                 false_positives += 1
@@ -101,10 +104,9 @@ if __name__ == "__main__":
     test_predictions = system.test_predictions
     test_pred_probas = system.test_pred_probas
 
-    high_confidence_predictions = generate_high_confidence_predictions(test_pred_probas, metadata.label2idx, args.confidence_threshold)
+    high_confidence_predictions = generate_high_confidence_predictions(test_pred_probas, metadata.label2idx, args.pos_threshold, args.comb_threshold)
     test_row_ids = [idx_row_id_mapping[row_idx] for row_idx in system.test_row_idxs]
     fixed_high_confidence = filter_overloaded_predictions(adjust_data(test_row_ids, high_confidence_predictions))
 
-    high_confidence_positive_precision, num_high_confidence_positive_predictions = compute_high_confidence_precision(test_data, fixed_high_confidence, metadata.label2idx["POS"], metadata.label2idx["NO_COMB"])
-    print(f"High confidence precision is {high_confidence_positive_precision}, based on {num_high_confidence_positive_predictions} positive predictions with probability over {args.confidence_threshold}.")
-
+    high_confidence_positive_precision, num_high_confidence_positive_predictions = compute_high_confidence_precision(test_data, fixed_high_confidence, metadata.label2idx)
+    print(f"High confidence precision is {high_confidence_positive_precision}, based on {num_high_confidence_positive_predictions} predictions with probability over {args.pos_threshold} for POS and {args.comb_threshold} for COMB.")
