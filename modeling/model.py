@@ -236,7 +236,7 @@ class RelationExtractor(pl.LightningModule):
         self.log("recall", rec, prog_bar=True, logger=True)
         self.log("f1", f, prog_bar=True, logger=True)
 
-def load_model(checkpoint_directory: str,) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
+def load_model(checkpoint_directory: str) -> Tuple[BertForRelation, AutoTokenizer, int, Dict, bool]:
     '''Given a directory containing a model checkpoint, return the model, and other metadata regarding the data
     preprocessing that the model expects.
 

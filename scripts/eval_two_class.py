@@ -23,13 +23,17 @@ labels2 = {3: Label.POS.value, 1: Label.NEG_AND_COMB.value, 2: Label.NEG_AND_COM
 labels3 = {1: Label.POS.value, 0: Label.NO_COMB.value}
 str_label2idx = {"POS": 3, "NEG": 2, "COMB": 1, "NO_COMB": 0}
 
+label_mapping = {"POS": 1, "NEG": 0, "COMB": 0, "NO_COMB": 0}
+
+prediction_mapping = {3: 1, 2: 0, 1: 0, 0: 0}
 
 def get_label(rel, unify_negs):
     idx_label = rel['relation_label']
     if type(rel['relation_label']) == str:
-        idx_label = str_label2idx[rel['relation_label']]
-    return labels[idx_label] if not unify_negs else labels3[idx_label]
-
+        idx_label = label_mapping[rel['relation_label']]
+    else:
+        idx_label = prediction_mapping[rel['relation_label']]
+    return idx_label
 
 def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], unify_negs: bool, exact_match: bool) \
         -> Tuple[Dict[Tuple[str, str, int], List[Tuple[int, float]]],

@@ -10,6 +10,7 @@ from typing import List, Dict, Tuple, Any
 
 from common.types import DrugEntity
 
+
 def accuracy(predictions: torch.Tensor, labels: torch.Tensor) -> float:
     """Compute accuracy of predictions against ground truth.
 

@@ -6,7 +6,7 @@ declare -a names=("scibert_cpt" "bluebert_cpt" "biobert_cpt" "pubmedbert_cpt" "s
 
 for i in {0..7};
 do
-	for seed in {2021..2025};
+	for seed in {2021..2024};
 	do
 		echo "${arr[i]}"
 		echo "${names[i]}"
