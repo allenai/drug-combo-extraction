@@ -37,7 +37,7 @@ from typing import List, Dict, Any, Tuple
 
 import sys
 sys.path.extend(["..", "."])
-from eval_three_class import create_vectors, get_max_sum_score
+from eval import create_vectors, get_max_sum_score
 from preprocessing.preprocess import powerset
 
 parser = argparse.ArgumentParser()
@@ -201,7 +201,7 @@ if __name__ == "__main__":
     all_paired_golds = []
     all_paired_preds = []
     for pred in all_preds:
-        gs, ts = create_vectors(gold, pred, False, args.exact_match)
+        gs, ts = create_vectors(gold, pred, False, args.exact_match, any_comb=False)
         all_paired_golds.append(gs)
         all_paired_preds.append(ts)
     preds_split, gold_split = split_data(all_paired_golds, all_paired_preds, filter_map)
