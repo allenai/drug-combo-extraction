@@ -18,20 +18,27 @@ class Label(Enum):
     NEG_AND_COMB = 4
 
 
-labels = {3: Label.POS.value, 1: Label.COMB.value, 2: Label.NEG.value, 0: Label.NO_COMB.value}
-labels2 = {3: Label.POS.value, 1: Label.NEG_AND_COMB.value, 2: Label.NEG_AND_COMB.value, 0: Label.NO_COMB.value}
-labels3 = {1: Label.POS.value, 0: Label.NO_COMB.value}
-str_label2idx = {"POS": 3, "NEG": 2, "COMB": 1, "NO_COMB": 0}
-
-
-def get_label(rel, unify_negs):
-    idx_label = rel['relation_label']
+def get_label_pos_comb(rel):
+    str_label2idx = {"POS": 1, "NEG": 0, "COMB": 0, "NO_COMB": 0}
+    int_label2idx = {2: 1, 1: 0, 0: 0}
     if type(rel['relation_label']) == str:
         idx_label = str_label2idx[rel['relation_label']]
-    return labels[idx_label] if not unify_negs else labels3[idx_label]
+    else:
+        idx_label = int_label2idx[rel['relation_label']]
+    return idx_label
+
+def get_label_any_comb(rel):
+    str_label2idx = {"POS": 1, "NEG": 1, "COMB": 1, "NO_COMB": 0}
+    int_label2idx = {2: 1, 1: 1, 0: 0}
+    if type(rel['relation_label']) == str:
+        idx_label = str_label2idx[rel['relation_label']]
+    else:
+        idx_label = int_label2idx[rel['relation_label']]
+    return idx_label
 
 
-def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], unify_negs: bool, exact_match: bool) \
+
+def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], exact_match: bool, any_comb: bool) \
         -> Tuple[Dict[Tuple[str, str, int], List[Tuple[int, float]]],
                  Dict[Tuple[str, str, int], List[Tuple[int, float]]]]:
     """This function constructs the gold and predicted vectors such that each gold/prediction,
@@ -42,7 +49,6 @@ def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], unify
             each has a doc_id to identify which doc did it came from, drug_idxs to pinpoint the drugs participating in this relation,
             and a relation_label to state the gold labels.
         test: the same as gold but having the predicted labels instead.
-        unify_negs: if True, unifies the NEG and COMB relations to a single class. default is False.
         exact_match: if True, restricts the matching criteria to be have the same spans in both relations.
             default is False, which gives the partial matching behavior in which we require at least two spans in common
 
@@ -60,6 +66,11 @@ def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], unify
     """
     g_out = defaultdict(list)
     t_out = defaultdict(list)
+    if any_comb:
+        get_label = get_label_any_comb
+    else:
+        get_label = get_label_pos_comb
+
     matched = set()
     for rel1 in gold:
         found = False
@@ -73,17 +84,18 @@ def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], unify
             if ((spans_intersecting >= 2) and (not exact_match)) or (score == 1):
                 # we use as mapping the "row id" (sentence hash, drug indices, and the label). and we map a list
                 #   of aligned relations (+ scores) of the other vector
-                g_out[(rel1["doc_id"], str(rel1["drug_idxs"]), get_label(rel1, unify_negs))].append((get_label(rel2, unify_negs), score))
-                t_out[(rel2["doc_id"], str(rel2["drug_idxs"]), get_label(rel2, unify_negs))].append((get_label(rel1, unify_negs), score))
+                g_out[(rel1["doc_id"], str(rel1["drug_idxs"]), get_label(rel1))].append((get_label(rel2), score))
+                t_out[(rel2["doc_id"], str(rel2["drug_idxs"]), get_label(rel2))].append((get_label(rel1), score))
                 found = True
                 matched.add(k)
         # if a gold positive not found by test, add a false negative pair
         if not found:
-            g_out[(rel1["doc_id"], str(rel1["drug_idxs"]), get_label(rel1, unify_negs))].append((Label.NO_COMB.value, 0))
+            g_out[(rel1["doc_id"], str(rel1["drug_idxs"]), get_label(rel1))].append((Label.NO_COMB.value, 0))
     # now we iterate on the remaining relations in the test, and add the false positives
     for k, rel2 in enumerate(test):
         if k not in matched:
-            t_out[(rel2["doc_id"], str(rel2["drug_idxs"]), get_label(rel2, unify_negs))].append((Label.NO_COMB.value, 0))
+            t_out[(rel2["doc_id"], str(rel2["drug_idxs"]), get_label(rel2))].append((Label.NO_COMB.value, 0))
+    breakpoint()
     return g_out, t_out
 
 
@@ -101,12 +113,10 @@ def f_from_p_r(gs, ts, labeled=False):
     return (2 * p * r) / (p + r), p, r
 
 
-def f_score(gold, test, unify_negs=False, exact_match=False):
-    gs, ts = create_vectors(gold, test, unify_negs, exact_match)
+def f_score(gold, test, exact_match=False, any_comb=False):
+    gs, ts = create_vectors(gold, test, exact_match, any_comb=any_comb)
     f, p, r = f_from_p_r(gs, ts)
-    f_labeled, p_l, r_l = f_from_p_r(gs, ts, labeled=True)
-    print(f"F1/P/R score: unlabeled = {f, p, r}, labeled = {f_labeled, p_l, r_l}")
-    return f, p, r, f_labeled, p_l, r_l
+    return f, p, r
 
 
 if __name__ == "__main__":
@@ -115,10 +125,16 @@ if __name__ == "__main__":
         pred = [json.loads(l) for l in f.readlines()]
     with open(args.gold_file) as f:
         gold = [json.loads(l) for l in f.readlines()]
-    ret = f_score(gold, pred, exact_match=args.exact_match)
+    f, p, r = f_score(gold, pred, exact_match=args.exact_match, any_comb=True)
+    f_l, p_l, r_l = f_score(gold, pred, exact_match=args.exact_match, any_comb=False)
+    print(f"F1/P/R score: unlabeled = {f, p, r}, labeled = {f_l, p_l, r_l}")
+
     # TODO (Aryeh): make this a "real" unit test at some point
     if args.pred_file == "data/unittest_pred.jsonl":
-        ret2 = f_score(gold, pred, exact_match=not args.exact_match)
+        partial_f, partial_p, partial_r = f_score(gold, pred, exact_match=not args.exact_match, any_comb=True)
+        partial_f_l, partial_p_l, partial_r_l = f_score(gold, pred, exact_match=not args.exact_match, any_comb=False)
+        ret = (f, p, r, f_l, p_l, r_l)
+        ret2 = (partial_f, partial_p, partial_r, partial_f_l, partial_p_l, partial_r_l)
         scores = {False: (0.5950540958268934, 0.6481481481481481, 0.55, 0.3760886777513856, 0.4629629629629629, 0.31666666666666665),
                   True: (0.3157894736842105, 0.3333333333333333, 0.3, 0.2105263157894737, 0.2222222222222222, 0.2)}
         assert ret == scores[args.exact_match]
