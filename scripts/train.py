@@ -22,11 +22,11 @@ from modeling.model import BertForRelation, RelationExtractor
 from common.utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretrained-lm', type=str, required=False, default="allenai/scibert_scivocab_uncased", help="Path to pretrained Huggingface Transformers model")
+parser.add_argument('--pretrained-lm', type=str, required=False, default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext", help="Path to pretrained Huggingface Transformers model")
 parser.add_argument('--training-file', type=str, required=False, default="data/train_set.jsonl")
 parser.add_argument('--test-file', type=str, required=False, default="data/test_set.jsonl")
 parser.add_argument('--label2idx', type=str, required=False, default="data/label2idx.json")
-parser.add_argument('--batch-size', type=int, required=False, default=19) # This number is good for training on an 11GB Tesla K80 GPU.
+parser.add_argument('--batch-size', type=int, required=False, default=18) # This number is good for training on an 11GB Tesla K80 GPU.
 parser.add_argument('--dev-train-split', type=float, required=False, default=0.1, help="Fraction of the training set to hold out for validation")
 parser.add_argument('--max-seq-length', type=int, required=False, default=512, help="Maximum subword length of the document passed to the encoder, including inserted marker tokens")
 parser.add_argument('--preserve-case', action='store_true')

@@ -3,8 +3,7 @@
 #        --checkpoint-path /home/vijay/checkpoints_pubmedbert_cpt_2021_three_class \
 #        --test-file data/final_test_set.jsonl \
 #        --batch-size 70 \
-#        --seed 2021 \
-#        --produce_all_subsets
+#        --seed 2021
 
 import argparse
 import json
@@ -26,7 +25,6 @@ parser.add_argument('--test-file', type=str, required=False, default="data/dev_s
 parser.add_argument('--batch-size', type=int, default=32, help="Batch size for testing (larger batch -> faster evaluation)")
 parser.add_argument('--error-analysis-file', type=str, required=False, help="Output file containing error analysis information", default="test_output.tsv")
 parser.add_argument('--seed', type=int, required=False, default=2021)
-parser.add_argument('--produce_all_subsets', action='store_true', help="If true, and we are including no-comb relations, then include all subsets of existing relations as NO_COMB as well")
 parser.add_argument('--pos-threshold', type=float, default=0.999, help="Threshold to apply for extracting POS relations")
 parser.add_argument('--comb-threshold', type=float, default=0.999, help="Threshold to apply for extracting COMB relations")
 
@@ -79,7 +77,7 @@ if __name__ == "__main__":
                                only_include_binary_no_comb_relations=metadata.only_include_binary_no_comb_relations,
                                include_paragraph_context=metadata.include_paragraph_context,
                                context_window_size=metadata.context_window_size,
-                               produce_all_subsets=args.produce_all_subsets)
+                               produce_all_subsets=True)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(test_data)
     dm = DrugSynergyDataModule(None,
                                test_data,
