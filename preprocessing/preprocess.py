@@ -79,7 +79,7 @@ def find_no_combination_examples(relations: List[Dict], entities: List[DrugEntit
             no_comb_relations.append(no_comb_relation)
     return no_comb_relations
 
-def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True, produce_all_subsets: bool = False) -> Document:
+def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool = True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context: bool = True, produce_all_subsets: bool = False, max_candidate_entities: int = 15) -> Document:
     """Convert a raw annotated document into a Document class.
 
     Args:
@@ -107,8 +107,19 @@ def process_doc(raw: Dict, label2idx: Dict, add_no_combination_relations: bool =
         entity = DrugEntity(span['text'], idx, span['start'] + sentence_start_idx, span['end'] + sentence_start_idx)
         drug_entities.append(entity)
 
+    if len(drug_entities) > max_candidate_entities:
+        return None
+
     if produce_all_subsets:
-        relations = [{'class': NOT_COMB, 'spans': list(candidate)} for candidate in powerset(range(len(drug_entities)))]
+        relation_label_mapping = {}
+        if 'rels' in raw:
+            for rel in raw['rels']:
+                relation_label_mapping[tuple(sorted(rel["spans"]))] = rel["class"]
+        relations = []
+        for candidate in powerset(range(len(drug_entities))):
+            relation_class = relation_label_mapping.get(tuple(sorted(candidate)), NOT_COMB)
+            relation_dict = {'class': relation_class, 'spans': list(candidate)}
+            relations.append(relation_dict)
     else:
         relations = raw['rels']
         if add_no_combination_relations:
@@ -128,6 +139,8 @@ def process_doc_with_unknown_relations(raw: Dict, label2idx: Dict, include_parag
     doc_with_no_relations = raw.copy()
     doc_with_no_relations['rels'] = []
     document_with_unknown_relations = process_doc(raw, label2idx, add_no_combination_relations=True, include_paragraph_context=include_paragraph_context, produce_all_subsets=True)
+    if document_with_unknown_relations is None:
+        return None
     for relation in document_with_unknown_relations.relations:
         # Set all relation labels to be UNKNOWN_RELATION, to ensure no confusion
         relation.relation_label = RELATION_UNKNOWN
@@ -172,6 +185,17 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         position_offsets.append((drug.span_end, len(end_marker + " ")))
     return text
 
+def truncate_text_into_window(text, context_window_size):
+    tokens = text.split()
+    first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
+    final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
+    entity_distance = final_entity_end_token - first_entity_start_token
+    add_left = (context_window_size - entity_distance) // 2
+    start_window_left = max(0, first_entity_start_token - add_left)
+    add_right = (context_window_size - entity_distance) - add_left
+    start_window_right = min(len(tokens), final_entity_end_token + add_right)
+    return " ".join(tokens[start_window_left:start_window_right])
+
 def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
@@ -195,6 +219,8 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
                                      only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                      include_paragraph_context=include_paragraph_context,
                                      produce_all_subsets=produce_all_subsets)
+    if processed_document is None:
+        return []
     samples = []
     for relation in processed_document.relations:
         # Mark drug entities with special tokens.
@@ -203,15 +229,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         else:
             text = processed_document.text
         if context_window_size is not None:
-            tokens = text.split()
-            first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
-            final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
-            entity_distance = final_entity_end_token - first_entity_start_token
-            add_left = (context_window_size - entity_distance) // 2
-            start_window_left = max(0, first_entity_start_token - add_left)
-            add_right = (context_window_size - entity_distance) - add_left
-            start_window_right = min(len(tokens), final_entity_end_token + add_right)
-            text = " ".join(tokens[start_window_left:start_window_right])
+            text = truncate_text_into_window(text, context_window_size)
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
         row_id = json.dumps(row_metadata)

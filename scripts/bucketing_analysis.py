@@ -3,27 +3,36 @@
 # the metric distributions on each split.
 
 '''
-python scripts/bucketing_analysis.py --pred-files \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2021_three_class/outputs/predictions.jsonl \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2022_three_class/outputs/predictions.jsonl \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2023_three_class/outputs/predictions.jsonl \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2024_three_class/outputs/predictions.jsonl \
---gold-file /home/vijay/drug-synergy-models/data/final_test_rows.jsonl \
---bucket-type context_required # --exact-match
+python produce_gold_jsonl.py /home/vijay/drug-synergy-models/data/final_test_set.jsonl /home/vijay/drug-synergy-models/data/final_test_rows.jsonl
 
 python scripts/bucketing_analysis.py --pred-files \
 /home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2021_three_class/outputs/predictions.jsonl \
 /home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2022_three_class/outputs/predictions.jsonl \
 /home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2023_three_class/outputs/predictions.jsonl \
 /home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2024_three_class/outputs/predictions.jsonl \
+--gold-file /home/vijay/drug-synergy-models/data/final_test_rows.jsonl \
+--bucket-type context_required
+python scripts/bucketing_analysis.py --pred-files \
+/home/vijay/checkpoints_pubmedbert_cpt_2021_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2022_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2023_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2024_three_class/outputs/predictions.jsonl \
+--gold-file /home/vijay/drug-synergy-models/data/final_test_rows.jsonl \
+--bucket-type context_required --exact-match
+
+python scripts/bucketing_analysis.py --pred-files \
+/home/vijay/checkpoints_pubmedbert_cpt_2021_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2022_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2023_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2024_three_class/outputs/predictions.jsonl \
 --gold-file /home/vijay/drug-synergy-models/data/final_test_rows.jsonl \
 --bucket-type arity # --exact-match
 
 python scripts/bucketing_analysis.py --pred-files \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2021_three_class/outputs/predictions.jsonl \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2022_three_class/outputs/predictions.jsonl \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2023_three_class/outputs/predictions.jsonl \
-/home/vijay/drug-synergy-models/checkpoints_pubmedbert_cpt_2024_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2021_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2022_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2023_three_class/outputs/predictions.jsonl \
+/home/vijay/checkpoints_pubmedbert_cpt_2024_three_class/outputs/predictions.jsonl \
 --gold-file /home/vijay/drug-synergy-models/data/final_test_rows.jsonl \
 --bucket-type relations_seen_in_training # --exact-match
 '''
@@ -37,7 +46,7 @@ from typing import List, Dict, Any, Tuple
 
 import sys
 sys.path.extend(["..", "."])
-from eval_three_class import create_vectors, get_max_sum_score
+from eval import create_vectors, get_max_sum_score
 from preprocessing.preprocess import powerset
 
 parser = argparse.ArgumentParser()
@@ -201,7 +210,7 @@ if __name__ == "__main__":
     all_paired_golds = []
     all_paired_preds = []
     for pred in all_preds:
-        gs, ts = create_vectors(gold, pred, False, args.exact_match)
+        gs, ts = create_vectors(gold, pred, args.exact_match, any_comb=args.unlabeled)
         all_paired_golds.append(gs)
         all_paired_preds.append(ts)
     preds_split, gold_split = split_data(all_paired_golds, all_paired_preds, filter_map)

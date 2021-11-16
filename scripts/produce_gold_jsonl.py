@@ -1,15 +1,11 @@
 import argparse
 import json
-import hashlib
+
+from postprocessing import hash_string
 
 parser = argparse.ArgumentParser()
 parser.add_argument('ann_infile', type=str, help="Path to the gold file")
 parser.add_argument('gold_outfile', type=str, help="Path to the predictions file")
-
-
-def hash_string(string):
-    return hashlib.md5((string).encode()).hexdigest()
-
 
 if __name__ == "__main__":
     args = parser.parse_args()
