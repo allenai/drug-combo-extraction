@@ -14,8 +14,7 @@ from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
 import sys
-sys.path.append('.')
-sys.path.append('..')
+sys.path.extend(["..", "."])
 from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB
 from preprocessing.data_loader import DrugSynergyDataModule
 from preprocessing.preprocess import create_dataset
