@@ -35,15 +35,7 @@ def get_label_any_comb(rel):
     else:
         idx_label = int_label2idx[rel['relation_label']]
     return idx_label
-<<<<<<< HEAD
 
-
-
-=======
-
-
-
->>>>>>> 4258deb46326efa43448e8c701ab052b5702b9eb
 def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], exact_match: bool, any_comb: bool) \
         -> Tuple[Dict[Tuple[str, str, int], List[Tuple[int, float]]],
                  Dict[Tuple[str, str, int], List[Tuple[int, float]]]]:
@@ -101,10 +93,6 @@ def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], exact
     for k, rel2 in enumerate(test):
         if k not in matched:
             t_out[(rel2["doc_id"], str(rel2["drug_idxs"]), get_label(rel2))].append((Label.NO_COMB.value, 0))
-<<<<<<< HEAD
-    breakpoint()
-=======
->>>>>>> 4258deb46326efa43448e8c701ab052b5702b9eb
     return g_out, t_out
 
 
