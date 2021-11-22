@@ -7,13 +7,6 @@ import jsonlines
 import os
 import pytorch_lightning as pl
 
-<<<<<<< HEAD:test_only.py
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER
-from data_loader import  DrugSynergyDataModule
-from model import RelationExtractor, load_model
-from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, set_seed, write_error_analysis_file, write_jsonl, adjust_data, filter_overloaded_predictions
-=======
 import sys
 sys.path.append('.')
 sys.path.append('..')
@@ -22,7 +15,6 @@ from common.utils import construct_row_id_idx_mapping, set_seed, write_error_ana
 from modeling.model import RelationExtractor, load_model
 from preprocessing.data_loader import  DrugSynergyDataModule
 from preprocessing.preprocess import create_dataset
->>>>>>> main:scripts/test_only.py
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', type=str, required=False, default="checkpoints", help="Path to pretrained Huggingface Transformers model")
@@ -36,15 +28,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_seed(args.seed)
     model, tokenizer, metadata = load_model(args.checkpoint_path)
-<<<<<<< HEAD:test_only.py
-    tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
-=======
     if ENTITY_START_MARKER not in tokenizer.vocab:
         tokenizer.add_tokens([ENTITY_START_MARKER])
     if ENTITY_END_MARKER not in tokenizer.vocab:
         tokenizer.add_tokens([ENTITY_END_MARKER])
     model.eval()
->>>>>>> main:scripts/test_only.py
 
     test_data_raw = list(jsonlines.open(args.test_file))
     # TODO(Vijay): add `add_no_combination_relations`, `only_include_binary_no_comb_relations`, `include_paragraph_context`,
