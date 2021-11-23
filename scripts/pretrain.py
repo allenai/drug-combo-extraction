@@ -21,12 +21,14 @@ import os
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
 from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+import sys
 
-from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, LOW_FREQ_RELATION_IDX
-from data_loader import PretrainingDataModule
-from pretraining_model import PretrainForRelation, Pretrainer
-from preprocess import create_dataset
-from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file
+sys.path.extend(['.', '..'])
+from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER, LOW_FREQ_RELATION_IDX
+from common.utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file
+from modeling.pretraining_model import PretrainForRelation, Pretrainer
+from preprocessing.data_loader import PretrainingDataModule
+from preprocessing.preprocess import create_dataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained-lm', type=str, required=False, default="allenai/scibert_scivocab_uncased", help="Path to pretrained Huggingface Transformers model")
