@@ -86,8 +86,15 @@ if __name__ == "__main__":
                                context_window_size=args.context_window_size)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
-    tokenizer.add_tokens([ENTITY_START_MARKER, ENTITY_END_MARKER])
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
+    except:
+        tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case, subfolder="tokenizer")
+
+    if ENTITY_START_MARKER not in tokenizer.vocab:
+        tokenizer.add_tokens([ENTITY_START_MARKER])
+    if ENTITY_END_MARKER not in tokenizer.vocab:
+        tokenizer.add_tokens([ENTITY_END_MARKER])
 
     dm = DrugSynergyDataModule(training_data,
                                test_data,
