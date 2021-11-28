@@ -234,6 +234,38 @@ class Pretrainer(pl.LightningModule):
         self.log("val_mlm_loss", mlm_loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         self.log("val_loss", loss, prog_bar=False, logger=True, on_step=False, on_epoch=False)
         self.log("val_forward_time", forward_time, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+
+        entity_bank_logits = F.softmax(entity_bank_scores)
+        mlm_logits = F.softmax(mlm_logits)
+        combined_logits = F.softmax(entity_bank_scores) + F.softmax(mlm_logits)
+
+        entity_bank_predictions = torch.argmax(entity_bank_logits, dim=1)
+        entity_bank_acc = accuracy(entity_bank_predictions, labels)
+        entity_bank_metrics_dict = compute_f1(entity_bank_predictions, labels)
+        entity_bank_f, entity_bank_prec, entity_bank_rec = entity_bank_metrics_dict["f1"], entity_bank_metrics_dict["precision"], entity_bank_metrics_dict["recall"]
+        self.log("val_entity_bank_accuracy", entity_bank_acc, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_entity_bank_precision", entity_bank_prec, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_entity_bank_recall", entity_bank_rec, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_entity_bank_ff1", entity_bank_f, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+
+        mlm_predictions = torch.argmax(mlm_logits, dim=1)
+        mlm_acc = accuracy(mlm_predictions, labels)
+        mlm_metrics_dict = compute_f1(mlm_predictions, labels)
+        mlm_f, mlm_prec, mlm_rec = mlm_metrics_dict["f1"], mlm_metrics_dict["precision"], mlm_metrics_dict["recall"]
+        self.log("val_mlm_accuracy", mlm_acc, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_mlm_precision", mlm_prec, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_mlm_recall", mlm_rec, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_mlm_f1", mlm_f, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+
+        predictions = torch.argmax(combined_logits, dim=1)
+        acc = accuracy(predictions, labels)
+        metrics_dict = compute_f1(predictions, labels)
+        f, prec, rec = metrics_dict["f1"], metrics_dict["precision"], metrics_dict["recall"]
+        self.log("val_accuracy", acc, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_precision", prec, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_recall", rec, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+        self.log("val_f1", f, prog_bar=False, logger=True, on_step=False, on_epoch=False)
+
         return loss
 
     def test_step(self, inputs, batch_idx):
@@ -256,8 +288,28 @@ class Pretrainer(pl.LightningModule):
         self.log("test_entity_bank_loss", entity_bank_loss, prog_bar=True, logger=True)
         self.log("test_mlm_loss", mlm_loss, prog_bar=True, logger=True)
         self.log("test_loss", loss, prog_bar=True, logger=True)
-
+        entity_bank_logits = F.softmax(entity_bank_scores)
+        mlm_logits = F.softmax(mlm_logits)
         combined_logits = F.softmax(entity_bank_scores) + F.softmax(mlm_logits)
+
+        entity_bank_predictions = torch.argmax(entity_bank_logits, dim=1)
+        entity_bank_acc = accuracy(entity_bank_predictions, labels)
+        entity_bank_metrics_dict = compute_f1(entity_bank_predictions, labels)
+        entity_bank_f, entity_bank_prec, entity_bank_rec = entity_bank_metrics_dict["f1"], entity_bank_metrics_dict["precision"], entity_bank_metrics_dict["recall"]
+        self.log("entity_bank_accuracy", entity_bank_acc, prog_bar=True, logger=True)
+        self.log("entity_bank_precision", entity_bank_prec, prog_bar=True, logger=True)
+        self.log("entity_bank_recall", entity_bank_rec, prog_bar=True, logger=True)
+        self.log("entity_bank_ff1", entity_bank_f, prog_bar=True, logger=True)
+
+        mlm_predictions = torch.argmax(mlm_logits, dim=1)
+        mlm_acc = accuracy(mlm_predictions, labels)
+        mlm_metrics_dict = compute_f1(mlm_predictions, labels)
+        mlm_f, mlm_prec, mlm_rec = mlm_metrics_dict["f1"], mlm_metrics_dict["precision"], mlm_metrics_dict["recall"]
+        self.log("mlm_accuracy", mlm_acc, prog_bar=True, logger=True)
+        self.log("mlm_precision", mlm_prec, prog_bar=True, logger=True)
+        self.log("mlm_recall", mlm_rec, prog_bar=True, logger=True)
+        self.log("mlm_f1", mlm_f, prog_bar=True, logger=True)
+
         predictions = torch.argmax(combined_logits, dim=1)
         self.test_sentences.extend(raw_text)
         self.test_row_idxs.extend(row_ids.tolist())

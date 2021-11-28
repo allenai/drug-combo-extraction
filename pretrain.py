@@ -25,7 +25,7 @@ from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 
 from constants import ENTITY_END_MARKER, ENTITY_START_MARKER, LOW_FREQ_RELATION_IDX
 from data_loader import PretrainingDataModule
-from optimizers import adamw_with_higher_lr_for_knowledge_embeddings
+from optimizers import adamw_with_higher_lr_for_knowledge_embeddings, simple_adamw
 from pretraining_model import PretrainForRelation, Pretrainer
 from preprocess import create_dataset
 from utils import construct_row_id_idx_mapping, ModelMetadata, save_metadata, set_seed, write_error_analysis_file
@@ -164,7 +164,7 @@ if __name__ == "__main__":
                         num_train_optimization_steps,
                         lr=args.lr,
                         tokenizer=tokenizer,
-                        optimizer_strategy=adamw_with_higher_lr_for_knowledge_embeddings)
+                        optimizer_strategy=simple_adamw)
 
     trainer = pl.Trainer(
         gpus=4,
