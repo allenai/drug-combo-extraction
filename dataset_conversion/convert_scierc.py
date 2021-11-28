@@ -8,8 +8,7 @@ import os
 import sys
 from typing import List, Dict, Tuple
 
-sys.path.append('..')
-import utils
+import common.utils as utils
 
 BASIC_PUNCTUATION = [".", "!", "?", ",", ";", ":"]
 
