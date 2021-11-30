@@ -27,7 +27,6 @@ parser.add_argument('--spike-file', type=str, required=True, help="Downloaded CS
 parser.add_argument('--model-path', type=str, required=True, help="Checkpoint directory to BertForRelation model")
 parser.add_argument('--output-file', type=str, required=True, help="Output JSONLINES file to write relations to")
 parser.add_argument('--drug-list', type=str, required=False, default="data/drugs.txt", help="Path to list of drugs")
-parser.add_argument('--classifier-threshold', type=float, default=0.3, required=False, help="Threshold to use for classifier decisions")
 parser.add_argument('--batch-size', type=int, required=False, default=32)
 
 def load_spike_rows(spike_file):
