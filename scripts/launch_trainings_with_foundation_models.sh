@@ -3,11 +3,11 @@ HOME_DIR=/home/vijay
 declare -a arr=(50 100 200 300)
 declare -a seqlen=(300 400 512 512)
 
-declare -a names=("50" "100" "200" "300")
+declare -a names=("context_50" "context_100" "context_200" "context_300")
 
 for i in {0..3};
 do
-	for seed in {2021..2024};
+	for seed in {2021..2021};
 	do
 		echo "${names[i]}"
 		time python scripts/train.py --pretrained-lm "${HOME_DIR}/continued_pretraining_directory_pubmedbert_10_epochs/" --num-train-epochs 10 --lr 2e-4 --batch-size 18 --training-file data/final_train_set.jsonl --test-file data/final_test_set.jsonl --context-window-size ${arr[i]} --additive-context --max-seq-length ${seqlen[i]} --label2idx data/label2idx.json --seed $seed --unfreezing-strategy final-bert-layer --model-name ${names[i]}_${seed}  |& tee ~/logs/${names[i]}_${seed}.log
