@@ -43,7 +43,7 @@ if __name__ == "__main__":
                                only_include_binary_no_comb_relations=metadata.only_include_binary_no_comb_relations,
                                include_paragraph_context=metadata.include_paragraph_context,
                                context_window_size=metadata.context_window_size,
-                               produce_all_subsets=True)
+                               produce_all_subsets=False)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(test_data)
     dm = DrugSynergyDataModule(None,
                                test_data,

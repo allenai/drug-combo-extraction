@@ -200,13 +200,13 @@ def parse_xml(xml_file):
 
         if len(converted_relations) > 0:
             converted_row = {
-                "sentence": sentence,
+                "sentence": retokenized_sentence,
                 "spans": converted_spans,
                 "rels": converted_relations,
                 "paragraph": None,
             }
             rows.append(converted_row)
-        sentences.append(sentence)
+        sentences.append(retokenized_sentence)
     paragraph = " ".join(sentences)
     for i in range(len(rows)):
         rows[i]["paragraph"] = paragraph
@@ -214,8 +214,9 @@ def parse_xml(xml_file):
 
 def load_relation_annotations(xml_files):
     rows = []
-    for i, f in tqdm(enumerate(xml_files)):
-        rows.extend(parse_xml(f))
+    for f in tqdm(xml_files):
+        if not os.path.basename(f).startswith('.'):
+            rows.extend(parse_xml(f))
     return rows
 
 if __name__ == "__main__":

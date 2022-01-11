@@ -1,18 +1,17 @@
 mkdir ~/logs/
 HOME_DIR=/home/vijay
-declare -a arr=("${HOME_DIR}/continued_pretraining_directory_large_scale_10_epochs/" "${HOME_DIR}/continued_pretraining_directory_bluebert_10_epochs/" "${HOME_DIR}/continued_pretraining_directory_biobert_10_epochs/" "${HOME_DIR}/continued_pretraining_directory_pubmedbert_10_epochs/" "allenai/scibert" "bionlp/bluebert_pubmed_uncased_L-12_H-768_A-12" "dmis-lab/biobert-v1.1" "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext")
+declare -a arr=("microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext" "${HOME_DIR}/continued_pretraining_directory_pubmedbert_10_epochs/")
 
-declare -a names=("scibert_cpt" "bluebert_cpt" "biobert_cpt" "pubmedbert_cpt" "scibert" "bluebert" "biobert" "pubmedbert")
+declare -a names=("ddi_pubmedbert_no_dapt" "ddi_pubmedbert")
 
-for i in {0..7};
+for i in {1..1};
 do
 	for seed in {2021..2024};
 	do
 		echo "${arr[i]}"
 		echo "${names[i]}"
-		time python scripts/train.py --pretrained-lm "${arr[i]}" --num-train-epochs 10 --lr 2e-4 --batch-size 18 --training-file data/final_train_set.jsonl --test-file data/final_test_set.jsonl --context-window-size 400 --max-seq-length 512 --label2idx data/label2idx.json --seed $seed --unfreezing-strategy final-bert-layer --model-name ${names[i]}_${seed}  |& tee ~/logs/${names[i]}_${seed}.log
-		python scripts/test_only.py --checkpoint-path ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed} --test-file ${HOME_DIR}/drug-synergy-models/data/final_test_set.jsonl --batch-size 100 --outputs-directory ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/ --seed $seed
-		(cd scripts && ./eval.sh ${HOME_DIR}/drug-synergy-models/data/final_test_set.jsonl ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/predictions.jsonl > ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/eval_partial.txt)
-		(cd scripts && ./eval.sh ${HOME_DIR}/drug-synergy-models/data/final_test_set.jsonl ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/predictions.jsonl --exact-match > ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/eval_exact.txt)
+		# time python scripts/train.py --pretrained-lm microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext --num-train-epochs 10 --lr 2e-4 --batch-size 28 --training-file /home/vijay/drug-synergy-models/dataset_conversion/DDICorpus/synergy_format/train.jsonl --test-file /home/vijay/drug-synergy-models/dataset_conversion/DDICorpus/synergy_format/test.jsonl --ignore-no-comb-relations --context-window-size 256 --max-seq-length 400 --label2idx /home/vijay/drug-synergy-models/dataset_conversion/DDICorpus/synergy_format/label2idx.json --seed $seed --unfreezing-strategy final-bert-layer --model-name ${names[i]}_${seed}  |& tee ~/logs/${names[i]}_${seed}.log
+		# python scripts/test_only.py --checkpoint-path /home/vijay/drug-synergy-models/checkpoints_ddi_pubmedbert_no_dapt_${seed} --test-file /home/vijay/drug-synergy-models/dataset_conversion/DDICorpus/synergy_format/test.jsonl  --batch-size 28 --outputs-directory ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/ --seed $seed
+		./scripts/eval.sh ${HOME_DIR}/drug-synergy-models/dataset_conversion/DDICorpus/synergy_format/test.jsonl  ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/predictions.jsonl --micro-f1 # > ${HOME_DIR}/drug-synergy-models/checkpoints_${names[i]}_${seed}/outputs/eval_micro_f1.txt
 	done
 done
