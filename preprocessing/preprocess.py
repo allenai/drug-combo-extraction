@@ -185,18 +185,32 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         position_offsets.append((drug.span_end, len(end_marker + " ")))
     return text
 
-def truncate_text_into_window(text, context_window_size):
+def truncate_text_into_window(text, context_window_size, additive=False):
     tokens = text.split()
     first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
     final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
     entity_distance = final_entity_end_token - first_entity_start_token
-    add_left = (context_window_size - entity_distance) // 2
+    if additive:
+        add_left = context_window_size // 2
+    else:
+        add_left = (context_window_size - entity_distance) // 2
     start_window_left = max(0, first_entity_start_token - add_left)
-    add_right = (context_window_size - entity_distance) - add_left
+    if additive:
+        add_right = context_window_size // 2
+    else:
+        add_right = (context_window_size - entity_distance) - add_left
     start_window_right = min(len(tokens), final_entity_end_token + add_right)
     return " ".join(tokens[start_window_left:start_window_right])
 
-def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, add_no_combination_relations=True, only_include_binary_no_comb_relations: bool = False, include_paragraph_context=True, context_window_size: Optional[int] = None, produce_all_subsets: bool = False):
+def create_datapoints(raw: Dict,
+                      label2idx: Dict,
+                      mark_entities: bool = True,
+                      add_no_combination_relations=True,
+                      only_include_binary_no_comb_relations: bool = False,
+                      include_paragraph_context=True,
+                      additive_context: bool = False,
+                      context_window_size: Optional[int] = None,
+                      produce_all_subsets: bool = False):
     """Given a single document, process it, add entity markers, and return a (text, relation label) pair.
 
     Args:
@@ -229,7 +243,7 @@ def create_datapoints(raw: Dict, label2idx: Dict, mark_entities: bool = True, ad
         else:
             text = processed_document.text
         if context_window_size is not None:
-            text = truncate_text_into_window(text, context_window_size)
+            text = truncate_text_into_window(text, context_window_size, additive=additive_context)
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
         row_id = json.dumps(row_metadata)
@@ -243,6 +257,7 @@ def create_dataset(raw_data: List[Dict],
                    add_no_combination_relations=True,
                    only_include_binary_no_comb_relations: bool = False,
                    include_paragraph_context=True,
+                   additive_context=False,
                    context_window_size: Optional[int] = None,
                    produce_all_subsets: bool = False) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
@@ -270,6 +285,7 @@ def create_dataset(raw_data: List[Dict],
                                        add_no_combination_relations=add_no_combination_relations,
                                        only_include_binary_no_comb_relations=only_include_binary_no_comb_relations,
                                        include_paragraph_context=include_paragraph_context,
+                                       additive_context=additive_context,
                                        context_window_size=context_window_size,
                                        produce_all_subsets=produce_all_subsets)
         dataset.extend(datapoints)
