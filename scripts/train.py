@@ -39,7 +39,7 @@ parser.add_argument('--ignore-paragraph-context', action='store_true', help="If 
 parser.add_argument('--lr', default=2e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=300, help="Amount of cross-sentence context to use (including the sentence in question")
-parser.add_argument('--additive-context', type=bool, default=False, help="Whether to add the context to the minimal distance between entities (versus using an absolute context size)")
+parser.add_argument('--additive-context', action="store_true", help="Whether to add the context to the minimal distance between entities (versus using an absolute context size)")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 parser.add_argument('--model-name', type=str, required=True)
 parser.add_argument('--seed', type=int, required=False, default=2021)
