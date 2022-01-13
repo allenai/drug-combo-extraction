@@ -203,7 +203,6 @@ def generate_sentence_boundaries(text):
 
 def truncate_text_into_window(text, context_window_size, additive=False, sentence_width=-1):
     sentence_boundaries = generate_sentence_boundaries(text)
-    breakpoint()
     tokens = text.split()
     first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
     final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
