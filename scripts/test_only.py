@@ -44,7 +44,8 @@ if __name__ == "__main__":
                                include_paragraph_context=metadata.include_paragraph_context,
                                additive_context=metadata.additive_context,
                                context_window_size=metadata.context_window_size,
-                               produce_all_subsets=True)
+                               produce_all_subsets=True,
+                               sentence_width=metadata.sentence_width)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(test_data)
     dm = DrugSynergyDataModule(None,
                                test_data,

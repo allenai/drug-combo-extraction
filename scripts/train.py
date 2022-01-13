@@ -39,6 +39,7 @@ parser.add_argument('--ignore-paragraph-context', action='store_true', help="If 
 parser.add_argument('--lr', default=2e-4, type=float, help="Learning rate")
 parser.add_argument('--unfreezing-strategy', type=str, choices=["all", "final-bert-layer", "BitFit"], default="BitFit", help="Whether to finetune all bert layers, just the final layer, or bias terms only.")
 parser.add_argument('--context-window-size', type=int, required=False, default=300, help="Amount of cross-sentence context to use (including the sentence in question")
+parser.add_argument('--sentence-width', type=int, required=False, default=-1, help="Amount of cross-sentence context to use in terms of sentences (including the sentence in question)")
 parser.add_argument('--additive-context', action="store_true", help="Whether to add the context to the minimal distance between entities (versus using an absolute context size)")
 parser.add_argument('--balance-training-batch-labels', action='store_true', help="If true, load training batches to ensure that each batch contains samples of each class.")
 parser.add_argument('--model-name', type=str, required=True)
@@ -72,7 +73,8 @@ if __name__ == "__main__":
                                    only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
                                    include_paragraph_context=include_paragraph_context,
                                    additive_context=args.additive_context,
-                                   context_window_size=args.context_window_size)
+                                   context_window_size=args.context_window_size,
+                                   sentence_width=args.sentence_width)
     label_values = sorted(set(label2idx.values()))
     num_labels = len(label_values)
     assert label_values == list(range(num_labels))
@@ -84,7 +86,8 @@ if __name__ == "__main__":
                                only_include_binary_no_comb_relations=args.only_include_binary_no_comb_relations,
                                include_paragraph_context=include_paragraph_context,
                                additive_context=args.additive_context,
-                               context_window_size=args.context_window_size)
+                               context_window_size=args.context_window_size,
+                               sentence_width=args.sentence_width)
     row_id_idx_mapping, idx_row_id_mapping = construct_row_id_idx_mapping(training_data + test_data)
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_lm, do_lower_case=not args.preserve_case)
@@ -143,7 +146,8 @@ if __name__ == "__main__":
                              args.only_include_binary_no_comb_relations,
                              include_paragraph_context,
                              args.context_window_size,
-                             args.additive_context)
+                             args.additive_context,
+                             args.sentence_width)
     save_metadata(metadata, model_dir)
     trainer.test(system, datamodule=dm)
     test_predictions = system.test_predictions

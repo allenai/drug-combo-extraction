@@ -128,7 +128,8 @@ class ModelMetadata:
                  only_include_binary_no_comb_relations: bool,
                  include_paragraph_context: bool,
                  context_window_size: int,
-                 additive_context: bool):
+                 additive_context: bool,
+                 sentence_width: int):
         self.model_name = model_name
         self.max_seq_length = max_seq_length
         self.num_labels = num_labels
@@ -138,6 +139,7 @@ class ModelMetadata:
         self.include_paragraph_context = include_paragraph_context
         self.context_window_size = context_window_size
         self.additive_context = additive_context
+        self.sentence_width = sentence_width
 
 
 def save_metadata(metadata: ModelMetadata, checkpoint_directory: str):
@@ -157,6 +159,7 @@ def save_metadata(metadata: ModelMetadata, checkpoint_directory: str):
         "include_paragraph_context":  metadata.include_paragraph_context,
         "context_window_size":  metadata.context_window_size,
         "additive_context": metadata.additive_context,
+        "sentence_width": metadata.sentence_width
     }
     metadata_file = os.path.join(checkpoint_directory, "metadata.json")
     json.dump(metadata_dict, open(metadata_file, 'w'))
@@ -180,7 +183,8 @@ def load_metadata(checkpoint_directory: str) -> ModelMetadata:
                              metadata_dict["only_include_binary_no_comb_relations"],
                              metadata_dict["include_paragraph_context"],
                              metadata_dict["context_window_size"],
-                             metadata_dict["additive_context"])
+                             metadata_dict["additive_context"],
+                             metadata_dict["sentence_width"])
     return metadata
 
 def construct_row_id_idx_mapping(dataset: List[Dict]) -> Tuple[Dict, Dict]:

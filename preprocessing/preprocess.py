@@ -1,13 +1,18 @@
 from itertools import chain, combinations
 import json
 import random
+import sys
+sys.path.extend(["..", "."])
 from tqdm import tqdm
 from typing import Dict, Iterable, List, Optional, Set
+from dataset_conversion.utils.tokenizer import make_tok_seg
 
 from common.constants import ENTITY_END_MARKER, ENTITY_START_MARKER, NOT_COMB, RELATION_UNKNOWN
 from common.types import DrugEntity, DrugRelation, Document
 
 random.seed(2021)
+
+tok_seg = make_tok_seg()
 
 def pairset(iterable: Iterable) -> List[Set]:
     """Return the set of pairs of an iterable.
@@ -185,21 +190,45 @@ def add_entity_markers(text: str, relation_entities: List[DrugEntity]) -> str:
         position_offsets.append((drug.span_end, len(end_marker + " ")))
     return text
 
-def truncate_text_into_window(text, context_window_size, additive=False):
+def generate_sentence_boundaries(text):
+    tokenized_text = tok_seg(text)
+    sentence_boundaries = []
+    for sentence in tokenized_text.sents:
+        sentence_start = text.find(sentence.text)
+        assert sentence_start >= 0 and sentence_start < len(text), breakpoint()
+        sentence_boundaries.append([sentence_start, sentence_start + len(sentence)])
+    return sentence_boundaries
+    
+
+
+def truncate_text_into_window(text, context_window_size, additive=False, sentence_width=-1):
+    sentence_boundaries = generate_sentence_boundaries(text)
+    breakpoint()
     tokens = text.split()
     first_entity_start_token = min([i for i, t in enumerate(tokens) if t == "<<m>>"])
     final_entity_end_token = max([i for i, t in enumerate(tokens) if t == "<</m>>"])
-    entity_distance = final_entity_end_token - first_entity_start_token
-    if additive:
-        add_left = context_window_size // 2
+    if sentence_width == -1:
+        entity_distance = final_entity_end_token - first_entity_start_token
+        if additive:
+            add_left = context_window_size // 2
+        else:
+            add_left = (context_window_size - entity_distance) // 2
+        start_window_left = max(0, first_entity_start_token - add_left)
+        if additive:
+            add_right = context_window_size // 2
+        else:
+            add_right = (context_window_size - entity_distance) - add_left
+        start_window_right = min(len(tokens), final_entity_end_token + add_right)
     else:
-        add_left = (context_window_size - entity_distance) // 2
-    start_window_left = max(0, first_entity_start_token - add_left)
-    if additive:
-        add_right = context_window_size // 2
-    else:
-        add_right = (context_window_size - entity_distance) - add_left
-    start_window_right = min(len(tokens), final_entity_end_token + add_right)
+        entity_bearing_sentence_idx = -1
+        for sentence_idx, ([sentence_start, sentence_end]) in enumerate(sentence_boundaries):
+            if first_entity_start_token >= sentence_start and final_entity_end_token < sentence_end:
+                break
+        assert sentence_idx >= 0
+        sentence_window_start = max(sentence_idx - sentence_width, 0)
+        sentence_window_end = max(sentence_idx + sentence_width, len(sentence_boundaries) - 1)
+        start_window_left = sentence_boundaries[sentence_window_start][0]
+        start_window_right = sentence_boundaries[sentence_window_end][1]
     return " ".join(tokens[start_window_left:start_window_right])
 
 def create_datapoints(raw: Dict,
@@ -207,6 +236,7 @@ def create_datapoints(raw: Dict,
                       mark_entities: bool = True,
                       add_no_combination_relations=True,
                       only_include_binary_no_comb_relations: bool = False,
+                      sentence_width=-1,
                       include_paragraph_context=True,
                       additive_context: bool = False,
                       context_window_size: Optional[int] = None,
@@ -243,7 +273,7 @@ def create_datapoints(raw: Dict,
         else:
             text = processed_document.text
         if context_window_size is not None:
-            text = truncate_text_into_window(text, context_window_size, additive=additive_context)
+            text = truncate_text_into_window(text, context_window_size, additive=additive_context, sentence_width=sentence_width)
         drug_idxs = sorted([drug.drug_idx for drug in relation.drug_entities])
         row_metadata = {"doc_id": raw["doc_id"], "drug_idxs": drug_idxs, "relation_label": relation.relation_label}
         row_id = json.dumps(row_metadata)
@@ -259,7 +289,8 @@ def create_dataset(raw_data: List[Dict],
                    include_paragraph_context=True,
                    additive_context=False,
                    context_window_size: Optional[int] = None,
-                   produce_all_subsets: bool = False) -> List[Dict]:
+                   produce_all_subsets: bool = False,
+                   sentence_width = -1) -> List[Dict]:
     """Given the raw Drug Synergy dataset (directly read from JSON), convert it to a list of pairs
     consisting of marked text and a relation label, for each candidate relation in each document.
 
@@ -287,7 +318,8 @@ def create_dataset(raw_data: List[Dict],
                                        include_paragraph_context=include_paragraph_context,
                                        additive_context=additive_context,
                                        context_window_size=context_window_size,
-                                       produce_all_subsets=produce_all_subsets)
+                                       produce_all_subsets=produce_all_subsets,
+                                       sentence_width=sentence_width)
         dataset.extend(datapoints)
     if set(label_sampling_ratios) != {1.0}:
         # If all classes' sampling ratios are uniform, then we can simply use the dataset as is.
