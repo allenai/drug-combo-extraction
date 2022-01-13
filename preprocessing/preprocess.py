@@ -218,17 +218,23 @@ def truncate_text_into_window(text, context_window_size, additive=False, sentenc
         else:
             add_right = (context_window_size - entity_distance) - add_left
         start_window_right = min(len(tokens), final_entity_end_token + add_right)
+        truncated_text = " ".join(tokens[start_window_left:start_window_right])
     else:
-        entity_bearing_sentence_idx = -1
+        min_entity_bearing_sentence_idx = -1
+        max_entity_bearing_sentence_idx = -1
         for sentence_idx, ([sentence_start, sentence_end]) in enumerate(sentence_boundaries):
-            if first_entity_start_token >= sentence_start and final_entity_end_token < sentence_end:
-                break
-        assert sentence_idx >= 0
-        sentence_window_start = max(sentence_idx - sentence_width, 0)
-        sentence_window_end = max(sentence_idx + sentence_width, len(sentence_boundaries) - 1)
+            if min_entity_bearing_sentence_idx == -1 and first_entity_start_token >= sentence_start:
+                min_entity_bearing_sentence_idx = sentence_idx
+            if max_entity_bearing_sentence_idx == -1 and final_entity_end_token < sentence_end:
+                max_entity_bearing_sentence_idx = sentence_idx
+        assert min_entity_bearing_sentence_idx >= 0, breakpoint()
+        assert max_entity_bearing_sentence_idx >= 0, breakpoint()
+        sentence_window_start = max(min_entity_bearing_sentence_idx - sentence_width, 0)
+        sentence_window_end = min(max_entity_bearing_sentence_idx + sentence_width, len(sentence_boundaries) - 1)
         start_window_left = sentence_boundaries[sentence_window_start][0]
         start_window_right = sentence_boundaries[sentence_window_end][1]
-    return " ".join(tokens[start_window_left:start_window_right])
+        truncated_text = text[start_window_left:start_window_right]
+    return truncated_text
 
 def create_datapoints(raw: Dict,
                       label2idx: Dict,
