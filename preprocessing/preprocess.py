@@ -223,9 +223,9 @@ def truncate_text_into_window(text, context_window_size, additive=False, sentenc
         min_entity_bearing_sentence_idx = -1
         max_entity_bearing_sentence_idx = -1
         for sentence_idx, ([sentence_start, sentence_end]) in enumerate(sentence_boundaries):
-            if min_entity_bearing_sentence_idx == -1 and first_entity_start_token >= sentence_start:
+            if min_entity_bearing_sentence_idx == -1 and (first_entity_start_token >= sentence_start and first_entity_start_token < sentence_end):
                 min_entity_bearing_sentence_idx = sentence_idx
-            if max_entity_bearing_sentence_idx == -1 and final_entity_end_token < sentence_end:
+            if max_entity_bearing_sentence_idx == -1 and (final_entity_end_token >= sentence_start and final_entity_end_token < sentence_end):
                 max_entity_bearing_sentence_idx = sentence_idx
         assert min_entity_bearing_sentence_idx >= 0, breakpoint()
         assert max_entity_bearing_sentence_idx >= 0, breakpoint()

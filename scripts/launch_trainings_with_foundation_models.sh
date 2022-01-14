@@ -1,9 +1,9 @@
 mkdir ~/logs/
 HOME_DIR=/home/vijay
 declare -a arr=(1 2 3)
-declare -a seqlen=(150 300 450 512)
+declare -a seqlen=(220 300 450 512)
 
-declare -a names=("context_0" "context_1" "context_2" "context_3")
+declare -a names=("context_1_v2" "context_2_v2" "context_3_v2")
 
 for i in {0..2};
 do
