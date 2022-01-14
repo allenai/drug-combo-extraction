@@ -196,10 +196,9 @@ def generate_sentence_boundaries(text):
     for sentence in tokenized_text.sents:
         sentence_start = text.find(sentence.text)
         assert sentence_start >= 0 and sentence_start < len(text), breakpoint()
-        sentence_boundaries.append([sentence_start, sentence_start + len(sentence)])
+        sentence_boundaries.append([sentence_start, sentence_start + len(sentence.text)])
     return sentence_boundaries
     
-
 
 def truncate_text_into_window(text, context_window_size, additive=False, sentence_width=-1):
     sentence_boundaries = generate_sentence_boundaries(text)
@@ -222,13 +221,19 @@ def truncate_text_into_window(text, context_window_size, additive=False, sentenc
     else:
         min_entity_bearing_sentence_idx = -1
         max_entity_bearing_sentence_idx = -1
+        start_token = "<<m>>"
+        end_token = "<</m>>"
+        first_entity_start_token_char_start = min([i for i in range(len(text) - len(start_token)) if text[i:i+len(start_token)] == start_token])
+        first_entity_start_token_char_end = max([i for i in range(len(text) - len(end_token)) if text[i:i+len(end_token)] == end_token])
+
         for sentence_idx, ([sentence_start, sentence_end]) in enumerate(sentence_boundaries):
-            if min_entity_bearing_sentence_idx == -1 and (first_entity_start_token >= sentence_start and first_entity_start_token < sentence_end):
+            if min_entity_bearing_sentence_idx == -1 and (first_entity_start_token_char_start >= sentence_start and first_entity_start_token_char_start < sentence_end):
                 min_entity_bearing_sentence_idx = sentence_idx
-            if max_entity_bearing_sentence_idx == -1 and (final_entity_end_token >= sentence_start and final_entity_end_token < sentence_end):
+            if max_entity_bearing_sentence_idx == -1 and (first_entity_start_token_char_end >= sentence_start and first_entity_start_token_char_end < sentence_end):
                 max_entity_bearing_sentence_idx = sentence_idx
         assert min_entity_bearing_sentence_idx >= 0, breakpoint()
-        assert max_entity_bearing_sentence_idx >= 0, breakpoint()
+        assert max_entity_bearing_sentence_idx >= min_entity_bearing_sentence_idx, breakpoint()
+
         sentence_window_start = max(min_entity_bearing_sentence_idx - sentence_width, 0)
         sentence_window_end = min(max_entity_bearing_sentence_idx + sentence_width, len(sentence_boundaries) - 1)
         start_window_left = sentence_boundaries[sentence_window_start][0]
