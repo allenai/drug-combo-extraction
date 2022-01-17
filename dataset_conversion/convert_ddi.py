@@ -195,7 +195,12 @@ def parse_xml(xml_file):
                     relation_sentence_idx = int(entity_id.split('.')[-2][1:])
                     assert relation_sentence_idx == sentence_idx
                     span_ids.append(entity_id_to_span_id[entity_id])
-                converted_relation = {"class": relation.get('ddi'), "spans": span_ids}
+                ddi_label = relation.get("type") if relation.get('ddi') == "true" else "false"
+                if ddi_label == "false":
+                    assert relation.get('ddi') == ddi_label
+                if ddi_label == None:
+                    continue
+                converted_relation = {"class": ddi_label, "spans": span_ids}
                 converted_relations.append(converted_relation)
 
         if len(converted_relations) > 0:
@@ -230,7 +235,7 @@ if __name__ == "__main__":
     test_xml_files = get_xml_files(args.ddi_dir, "Test")
     test_rows = load_relation_annotations(test_xml_files)
 
-    label2idx = accumulate_relation_labels(train_rows + test_rows)
+    label2idx = accumulate_relation_labels(train_rows + test_rows, no_comb = "false")
     utils.write_json(label2idx, os.path.join(args.out_dir, "label2idx.json"))
     utils.write_jsonl(train_rows, os.path.join(args.out_dir, "train.jsonl"))
     utils.write_jsonl(test_rows, os.path.join(args.out_dir, "test.jsonl"))
