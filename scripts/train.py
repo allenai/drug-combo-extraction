@@ -114,8 +114,9 @@ if __name__ == "__main__":
                                    include_paragraph_context=include_paragraph_context,
                                    context_window_size=args.context_window_size,
                                    relation2idx=relation2idx)
-
-    assert label_values == list(range(num_labels))
+    label_values = sorted(set(label2idx.values()))
+    num_labels = len(label_values)
+    assert label_values == list(range(num_labels)), breakpoint()
     assert len(label_sampling_ratios) == num_labels
     assert len(label_loss_weights) == num_labels
     test_data = create_dataset(test_data_raw,
@@ -185,4 +186,4 @@ if __name__ == "__main__":
     os.makedirs("outputs", exist_ok=True)
     test_output = os.path.join("outputs", args.model_name + "_predictions.jsonl")
     write_jsonl(fixed_test, test_output)
-    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))
+    # write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, os.path.join("outputs", args.model_name + ".tsv"))

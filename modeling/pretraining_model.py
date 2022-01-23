@@ -62,7 +62,7 @@ class PretrainForRelation(BertPreTrainedModel):
         self.max_seq_length = max_seq_length
 
         self.relation2idx = relation2idx
-        self.idx2relation = {idx:rel for rel, idx in self.relation2idx.items()}
+        self.idx2relation = {idx:rel for rel, idx in self.relation2idx["relation2idx"].items()}
         self.register_parameter("relation_embeddings", nn.Parameter(torch.randn(len(self.relation2idx), config.hidden_size), requires_grad=True))
         # self.relation_embeddings = Variable(torch.randn(len(self.relation2idx), config.hidden_size, device='cuda'), requires_grad=True)
 
