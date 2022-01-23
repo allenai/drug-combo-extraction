@@ -1,4 +1,7 @@
 {
     "false": 0,
-    "true": 1
+    "effect": 1,
+    "mechanism": 2,
+    "advise": 3,
+    "int": 4
 }

@@ -73,4 +73,4 @@ if __name__ == "__main__":
     test_output = os.path.join(args.outputs_directory, "predictions.jsonl")
 
     write_jsonl(fixed_test, test_output)
-    write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)
+    # write_error_analysis_file(test_data, test_data_raw, test_row_ids, test_predictions, args.error_analysis_file)

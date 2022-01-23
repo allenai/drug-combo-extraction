@@ -19,8 +19,14 @@ class Label(Enum):
 
 
 def get_label_pos_comb(rel):
-    str_label2idx = {"true": 1, "false": 0, "NO_COMB": 0}
-    int_label2idx = {1: 0, 0: 0, 2: 1}
+    str_label2idx = {
+        "false": 0,
+        "effect": 1,
+        "mechanism": 2,
+        "advise": 3,
+        "int": 4
+    }
+    int_label2idx = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
     if type(rel['relation_label']) == str:
         idx_label = str_label2idx[rel['relation_label']]
     else:
@@ -28,8 +34,14 @@ def get_label_pos_comb(rel):
     return idx_label
 
 def get_label_any_comb(rel):
-    str_label2idx = {"true": 1, "false": 0, "NO_COMB": 0}
-    int_label2idx = {1: 0, 0: 0, 2: 1}
+    str_label2idx = {
+        "false": 0,
+        "effect": 1,
+        "mechanism": 1,
+        "advise": 1,
+        "int": 1
+    }
+    int_label2idx = {0: 0, 1: 1, 2: 1, 3: 1, 4: 1}
     if type(rel['relation_label']) == str:
         idx_label = str_label2idx[rel['relation_label']]
     else:

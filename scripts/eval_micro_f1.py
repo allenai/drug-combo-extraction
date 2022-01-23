@@ -18,8 +18,14 @@ class Label(Enum):
 
 
 def get_label_pos_comb(rel):
-    str_label2idx = {"true": 1, "false": 0, "NO_COMB": 0}
-    int_label2idx = {1: 1, 0: 0, 2: 0}
+    str_label2idx = {
+        "false": 0,
+        "effect": 1,
+        "mechanism": 2,
+        "advise": 3,
+        "int": 4
+    }
+    int_label2idx = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
     if type(rel['relation_label']) == str:
         idx_label = str_label2idx[rel['relation_label']]
     else:
@@ -83,7 +89,7 @@ def micro_f1(vectors):
     for (t, p) in vectors.values():
         y_true.append(t)
         y_pred.append(p)
-    return sklearn.metrics.precision_recall_fscore_support(y_true, y_pred, labels=[0,1], average='micro')
+    return sklearn.metrics.precision_recall_fscore_support(y_true, y_pred, labels=[1,2,3,4], average='micro')
 
 def f_score(gold, test):
     union_vectors = create_vectors(gold, test)
