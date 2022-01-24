@@ -188,8 +188,8 @@ def convert_scierc_split(split_data: List[Dict]) -> List[Dict]:
         converted_rows.extend(convert_scierc_rows(raw_row))
     return converted_rows
 
-def accumulate_relation_labels(dataset: List[Dict]) -> List[Dict]:
-    label2idx = {}
+def accumulate_relation_labels(dataset: List[Dict], no_comb = "NO_COMB") -> List[Dict]:
+    label2idx = {no_comb: 0}
     for document in dataset:
         for relation in document["rels"]:
             relation_label = relation["class"]
