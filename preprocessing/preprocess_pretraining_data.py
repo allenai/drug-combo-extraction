@@ -14,9 +14,11 @@ import jsonlines
 import os
 import re
 import random
+import sys
 from tqdm import tqdm
 random.seed(2021)
 
+sys.path.extend(["..", "."])
 from preprocessing.preprocess import add_entity_markers, DrugEntity
 from common.utils import find_sent_in_para, is_sublist
 
