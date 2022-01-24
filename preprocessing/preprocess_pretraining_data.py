@@ -203,6 +203,8 @@ if __name__ == "__main__":
     for dataset in [train_set, test_set]:
         for row in jsonlines.open(dataset):
             relation_drugs = sorted([span['text'].lower() for span in row['spans']])
+            if len(set(relation_drugs)) < 2:
+                continue
             processed_rows, relation_counts = process_document(row['sentence'], row['paragraph'], row['source'], relation_drugs, mask_one_drug_at_a_time)
             train_writer.write_all(processed_rows)
             train_dev_writer.write_all(processed_rows)
