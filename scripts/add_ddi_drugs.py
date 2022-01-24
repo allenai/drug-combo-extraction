@@ -37,6 +37,9 @@ if __name__ == "__main__":
         dataset_entities.extend(rel_spans)
 
     drug_set = list(drug_set.union(dataset_entities))
+    drug_set.remove("receptor")
+    drug_set.remove("dopamine")
+
     outfile = open(args.new_drug_list, 'w')
     outfile.write("\n".join(drug_set))
     outfile.close()
