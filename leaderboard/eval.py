@@ -7,15 +7,13 @@ from typing import List, Dict, Any, Tuple
 parser = argparse.ArgumentParser()
 parser.add_argument('--gold-file', type=str, required=True, default="data/unittest_gold.jsonl", help="Path to the gold file")
 parser.add_argument('--pred-file', type=str, required=True, default="data/unittest_pred.jsonl", help="Path to the predictions file")
-parser.add_argument('--exact-match', action='store_true', help="whether to preform an exact match (bo partials)")
 
 
 class Label(Enum):
     NO_COMB = 0
     NEG = 1
-    COMB = 2
-    POS = 3
-    NEG_AND_COMB = 4
+    COMB = 1
+    POS = 2
 
 
 def get_label_pos_comb(rel):
@@ -27,6 +25,7 @@ def get_label_pos_comb(rel):
         idx_label = int_label2idx[rel['relation_label']]
     return idx_label
 
+
 def get_label_any_comb(rel):
     str_label2idx = {"POS": 1, "NEG": 1, "COMB": 1, "NO_COMB": 0}
     int_label2idx = {2: 1, 1: 1, 0: 0}
@@ -35,6 +34,7 @@ def get_label_any_comb(rel):
     else:
         idx_label = int_label2idx[rel['relation_label']]
     return idx_label
+
 
 def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], exact_match: bool, any_comb: bool) \
         -> Tuple[Dict[Tuple[str, str, int], List[Tuple[int, float]]],
@@ -47,7 +47,7 @@ def create_vectors(gold: List[Dict[str, Any]], test: List[Dict[str, Any]], exact
             each has a doc_id to identify which doc did it came from, drug_idxs to pinpoint the drugs participating in this relation,
             and a relation_label to state the gold labels.
         test: the same as gold but having the predicted labels instead.
-        exact_match: if True, restricts the matching criteria to be have the same spans in both relations.
+        exact_match: if True, restricts the matching criteria to have the same spans in both relations.
             default is False, which gives the partial matching behavior in which we require at least two spans in common
 
     Example:
@@ -105,6 +105,7 @@ def get_max_sum_score(v, labeled):
             score += max([s if ((not labeled and other != Label.NO_COMB.value) or (other == label)) else 0 for other, s in matched])
     return score / interesting
 
+
 def f_from_p_r(gs, ts, labeled=False):
     p = get_max_sum_score(ts.items(), labeled)
     r = get_max_sum_score(gs.items(), labeled)
@@ -123,17 +124,34 @@ if __name__ == "__main__":
         pred = [json.loads(l) for l in f.readlines()]
     with open(args.gold_file) as f:
         gold = [json.loads(l) for l in f.readlines()]
-    f, p, r = f_score(gold, pred, exact_match=args.exact_match, any_comb=True)
-    f_l, p_l, r_l = f_score(gold, pred, exact_match=args.exact_match, any_comb=False)
-    print(f"F1/P/R score: unlabeled = {f, p, r}, labeled = {f_l, p_l, r_l}")
+    f_partial, p_partial, r_partial = f_score(gold, pred, exact_match=False, any_comb=True)
+    f_labeled_partial, p_labeled_partial, r_labeled_partial = f_score(gold, pred, exact_match=False, any_comb=False)
+    f_exact, p_exact, r_exact = f_score(gold, pred, exact_match=True, any_comb=True)
+    f_labeled_exact, p_labeled_exact, r_labeled_exact = f_score(gold, pred, exact_match=True, any_comb=False)
+    print(f"F1/P/R score: partial unlabeled = {f_partial, p_partial, r_partial}, partial labeled = {f_labeled_partial, p_labeled_partial, r_labeled_partial}")
+    print(f"F1/P/R score: exact unlabeled = {f_exact, p_exact, r_exact}, exact labeled = {f_labeled_exact, p_labeled_exact, r_labeled_exact}")
+    with open("metrics.json", "w") as f_out:
+        json.dump(
+            {
+                "f_partial": f_partial,
+                "p_partial": p_partial,
+                "r_partial": r_partial,
+                "f_labeled_partial": f_labeled_partial,
+                "p_labeled_partial": p_labeled_partial,
+                "r_labeled_partial": r_labeled_partial,
+                "f_exact": f_exact,
+                "p_exact": p_exact,
+                "r_exact": r_exact,
+                "f_labeled_exact": f_labeled_exact,
+                "p_labeled_exact": p_labeled_exact,
+                "r_labeled_exact": r_labeled_exact,
+            }, f_out)
 
     # TODO (Aryeh): make this a "real" unit test at some point
     if args.pred_file == "data/unittest_pred.jsonl":
-        partial_f, partial_p, partial_r = f_score(gold, pred, exact_match=not args.exact_match, any_comb=True)
-        partial_f_l, partial_p_l, partial_r_l = f_score(gold, pred, exact_match=not args.exact_match, any_comb=False)
-        ret = (f, p, r, f_l, p_l, r_l)
-        ret2 = (partial_f, partial_p, partial_r, partial_f_l, partial_p_l, partial_r_l)
-        scores = {False: (0.5950540958268934, 0.6481481481481481, 0.55, 0.3760886777513856, 0.4629629629629629, 0.31666666666666665),
-                  True: (0.3157894736842105, 0.3333333333333333, 0.3, 0.2105263157894737, 0.2222222222222222, 0.2)}
-        assert ret == scores[args.exact_match]
-        assert ret2 == scores[not args.exact_match]
+        ret = (f_partial, p_partial, r_partial, f_labeled_partial, p_labeled_partial, r_labeled_partial)
+        ret2 = (f_exact, p_exact, r_exact, f_labeled_exact, p_labeled_exact, r_labeled_exact)
+        scores = {False: (0.5950540958268934, 0.6481481481481481, 0.55, 0.4426523297491039, 0.4523809523809524, 0.4333333333333333),
+                  True: (0.3157894736842105, 0.3333333333333333, 0.3, 0.16666666666666666, 0.14285714285714285, 0.2)}
+        assert ret == scores[False]
+        assert ret2 == scores[True]

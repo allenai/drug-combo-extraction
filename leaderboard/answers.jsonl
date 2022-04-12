@@ -1,0 +1,209 @@
+{"doc_id": "f3c31f04fdf5a6a559c0fd215a4ebe4c", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "7c1b48c4fded5536004f52b2f9c14572", "drug_idxs": [0, 1], "relation_label": "NEG"}
+{"doc_id": "7639b3ca6251f63f76d161da9c24f217", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "70e681adca9791cf2e10d9bd14f4c430", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "faf0c9f77be3f3da48e14be921b759f0", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "64be1cf1b7842c1f1e561a1885ffcb34", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "259fcb11e8020d04ee63f8e43cb90c7a", "drug_idxs": [2, 3], "relation_label": "COMB"}
+{"doc_id": "dd0068d9fba06a8e7c381728dd8e1029", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "b0d5192b7353b914214db1d91f189d3a", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "00d0330eaf9fcbfda83b9dcc6dde58ce", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "af2a75784262b4e7c5c2ad00bb39becb", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "af2a75784262b4e7c5c2ad00bb39becb", "drug_idxs": [1, 2], "relation_label": "POS"}
+{"doc_id": "864521b20a79cd641bf02b5c5c24716a", "drug_idxs": [1, 2], "relation_label": "POS"}
+{"doc_id": "5edd6b7bf1ec8e231328a5a83f5b82ae", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0a53b483acefa9c81b17bd994c27ddfd", "drug_idxs": [0, 4], "relation_label": "POS"}
+{"doc_id": "0a53b483acefa9c81b17bd994c27ddfd", "drug_idxs": [1, 5], "relation_label": "POS"}
+{"doc_id": "7d64d6b1c7e8c6d3edc29168ad6c4477", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "a963d46b799a8ea638850359444188f9", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "773651170795da523779ad0a4d8fdd24", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "8a164fc8cdf186bd07aed353d735c00b", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "3065e65032c8537a0d4a53be07e8519a", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "304fb876f9dfa960295aef5a6099c04b", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "70bd47165d708bee82beff55a73c29fc", "drug_idxs": [0, 1], "relation_label": "NEG"}
+{"doc_id": "70bd47165d708bee82beff55a73c29fc", "drug_idxs": [0, 2], "relation_label": "NEG"}
+{"doc_id": "42c1681f652cf35adf1ced53b97516f8", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "373bedaa15b826ea4c469e0ce2643608", "drug_idxs": [1, 2, 3], "relation_label": "COMB"}
+{"doc_id": "373bedaa15b826ea4c469e0ce2643608", "drug_idxs": [4, 5], "relation_label": "COMB"}
+{"doc_id": "a4a83ba48665f39aac03658bbacb486b", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "509f0b830dc248843856cc659af95634", "drug_idxs": [0, 1, 2], "relation_label": "COMB"}
+{"doc_id": "f9f7d99cac5550bbc464785cf3e3db64", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "d9bc9e760dfd975a2703bfd8e7ef700e", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "4dfb347a107d0cb265cbec52dc05280d", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "8cc636e27faf0c1e91489ed1d054c255", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "e062362953dea1901bad45908e5e5566", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "e062362953dea1901bad45908e5e5566", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "fa7f8a42646dfc70fb18482ae0847d68", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "967ea702edc061a8a1b8b17a2d779d8c", "drug_idxs": [0, 1, 2, 3], "relation_label": "POS"}
+{"doc_id": "8c229f9bee992965dc0cac147088ce6d", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "e49b2723397411ce15b49761296e1576", "drug_idxs": [1, 2], "relation_label": "POS"}
+{"doc_id": "e49b2723397411ce15b49761296e1576", "drug_idxs": [0, 2], "relation_label": "COMB"}
+{"doc_id": "1a4b7002c34da6a84d3592bc7bc47325", "drug_idxs": [2, 3], "relation_label": "POS"}
+{"doc_id": "f084f9073c5c11b6bcc521f746c7f0f8", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0702354a47fff4da19d07a1467671915", "drug_idxs": [0, 1, 3], "relation_label": "POS"}
+{"doc_id": "0702354a47fff4da19d07a1467671915", "drug_idxs": [0, 1, 2], "relation_label": "COMB"}
+{"doc_id": "f9b1f1a93c415dc0e29c0a8bed13dc1c", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "dc747d23089de0920b9129198f64388e", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "9f6a5691861df15334acb4b555ed7ee0", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "9f6a5691861df15334acb4b555ed7ee0", "drug_idxs": [1, 3], "relation_label": "POS"}
+{"doc_id": "df88c83dd24ae56c97d4410a9555cf7c", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "7ac7f5459159308e28b92b4bf1bdf281", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "975254697195819e20dfd94a71918e9a", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "8426f8e8f60a6c637801b577610e05d9", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "fa1e8b298a512fc856c1e81df55911b0", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "d49e128f648e789ddc390d1f87e75031", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "400a1eae25bec51f7399dce5efbc4014", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "4f3b59fab506326763dc670b527a345f", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "90bfe4266085a7725c0b30a40fca9cc6", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "afb487e5f3a9ba9b35526d05826560e6", "drug_idxs": [1, 2], "relation_label": "NEG"}
+{"doc_id": "d27c12a579e30cabf1743a89badedece", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "8d395c0462d3164578455a4339b29ea1", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "e164b14965950212d9af8afd0dc70c96", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "f34bb0d6ddd6e05d3a7d9a2cac06618f", "drug_idxs": [0, 1], "relation_label": "NEG"}
+{"doc_id": "e168784c0e299ecd1e3b2e48bfe61993", "drug_idxs": [0, 1], "relation_label": "NEG"}
+{"doc_id": "c00ca372934cc418ceb8a2e859b60fbe", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "22e4c43526214a50dd7ba189ee96a40d", "drug_idxs": [0, 1, 2, 3, 4], "relation_label": "POS"}
+{"doc_id": "cb3413a04ed145ab2ccfc3b8ba5675d8", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "b0dcf3e3038370ed524af039d260b6ef", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "08f60e955a6158992b104ff65ea478bd", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "a3728ecff22176b9a5c91cf433c52ad7", "drug_idxs": [0, 1, 2, 3, 4, 5], "relation_label": "POS"}
+{"doc_id": "6940b79498c210d4948acbca8b303f0c", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "e464e3850c3026b2c1eb5be706e579ad", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "9e60e1297fe1d1a7991c6c60ce881374", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "615fe37e6e298fc0bc25eabe90123940", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "61e5eaac10e21ebad5a2d5e91724cf19", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "61e5eaac10e21ebad5a2d5e91724cf19", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "6d1750301095d2936cc280ebf081c991", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "2e896861e22edcf2d90edc62272567a9", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "5933f7af6df7dcb19a1acf8b3630c4dd", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "ae5a3d41fe6197db7a7fa13e47a8af4f", "drug_idxs": [0, 1, 2, 3], "relation_label": "POS"}
+{"doc_id": "520dc3a18b14a57a368bcd964095071e", "drug_idxs": [0, 1, 2, 3, 4], "relation_label": "COMB"}
+{"doc_id": "be817a111debcf11e63cf8c34861fed7", "drug_idxs": [0, 1, 2, 3], "relation_label": "COMB"}
+{"doc_id": "be817a111debcf11e63cf8c34861fed7", "drug_idxs": [4, 5, 6, 7], "relation_label": "COMB"}
+{"doc_id": "4d616b8b6d114e89d6958f931fe85aaa", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "251f5f7c9560eb8b5c97eec74bfe8344", "drug_idxs": [1, 2], "relation_label": "NEG"}
+{"doc_id": "251f5f7c9560eb8b5c97eec74bfe8344", "drug_idxs": [0, 2], "relation_label": "NEG"}
+{"doc_id": "6370dac70bb6f82f07d67292360f14ad", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "6370dac70bb6f82f07d67292360f14ad", "drug_idxs": [3, 4, 5], "relation_label": "POS"}
+{"doc_id": "6370dac70bb6f82f07d67292360f14ad", "drug_idxs": [9, 10, 6, 7], "relation_label": "POS"}
+{"doc_id": "1123d5ef9b6fdeb123b453991b3b6218", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "2f5b79becc8a6e69aaa31e1c49f396d2", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "2f5b79becc8a6e69aaa31e1c49f396d2", "drug_idxs": [2, 3], "relation_label": "COMB"}
+{"doc_id": "6b6df6ff4095a8857ad554d4cf0c8f15", "drug_idxs": [0, 1, 2], "relation_label": "NEG"}
+{"doc_id": "94f9dd27429e130f46f205da0891f4d4", "drug_idxs": [0, 1], "relation_label": "NEG"}
+{"doc_id": "64f929edb877af3cddf0c724ad66a1ba", "drug_idxs": [0, 1, 2], "relation_label": "NEG"}
+{"doc_id": "e227b7bceedb8122b04c7d13e3ee098c", "drug_idxs": [0, 1, 2, 3], "relation_label": "POS"}
+{"doc_id": "6d21b8fb44aec53cfdf566e8d7e95b68", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "91620a03f158f1956c52f44f1dcf437d", "drug_idxs": [0, 1, 2, 3, 4, 5], "relation_label": "POS"}
+{"doc_id": "f14c3c8dadbef1d8912067d367d600b3", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "e0cba36b58781c2288d8448732651b68", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "e0cba36b58781c2288d8448732651b68", "drug_idxs": [3, 4], "relation_label": "POS"}
+{"doc_id": "f2c019857efd32ae3b64a68ef6a2ecd0", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "f2c019857efd32ae3b64a68ef6a2ecd0", "drug_idxs": [2, 3], "relation_label": "COMB"}
+{"doc_id": "d2ab326fb295d3755d481670624d8d1a", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "d2ab326fb295d3755d481670624d8d1a", "drug_idxs": [3, 4, 5, 6], "relation_label": "COMB"}
+{"doc_id": "34d2058b1f46a61ed6efa1e0d2cc049f", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "26b52a93d8e856f6c5071f06c51f1393", "drug_idxs": [0, 1, 2], "relation_label": "COMB"}
+{"doc_id": "2bcb0a1c13e14733a47a2ce01f58095f", "drug_idxs": [0, 1, 4], "relation_label": "POS"}
+{"doc_id": "2bcb0a1c13e14733a47a2ce01f58095f", "drug_idxs": [0, 2, 3], "relation_label": "POS"}
+{"doc_id": "5b73032843858b59999366946c1e2aeb", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0cad00d5e84694cb17717fc3f749e2aa", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0d17f81c5efb1b73b80eb287f32c69e0", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "f2c24cda6984f8af1fd4c57784983b09", "drug_idxs": [1, 2], "relation_label": "COMB"}
+{"doc_id": "65d4616fe9641bc48a437be91566e364", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "fa9ec0fb6b4851232e80bbb0f13f1bab", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "dcd33444812f986d077de2eb9f79e65e", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "576c8ac8cc0fa93c995c35b5e17b8c95", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "6226da15ba7f4d73c2d17792fe9e79af", "drug_idxs": [0, 1, 2, 3], "relation_label": "POS"}
+{"doc_id": "bd1b614a9a5b0c1225075c98f84ca619", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "366808bdb989ebd4b56210b53fb3e265", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0cc39e9cd43eed735fbf93fa813da8a0", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "edbe761e468cedddb1012894057a128a", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "9b59233ac22acf3f6df19738ee0dccee", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "5ed89d28b16c808ded0f444bde90dc63", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "22cc4576d56fdf21b9fcd4001d2e46f9", "drug_idxs": [0, 1, 2, 3, 4], "relation_label": "POS"}
+{"doc_id": "69ce1c75c42d853e74eec788b249f146", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "fb1cdc336bfa44facd7d223ab0910933", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "38e0f18b20644a73a11a219785d8e7bf", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "bd9e3e4a321fffdb4c4e9ccdaf754cc3", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "2e00802dc163aa6e6be87ebdb2ca208f", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "63e916e263ec45ae78e3b37282fa746f", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "a852ffe5eeabb1b66257d24e56fa70bf", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "a852ffe5eeabb1b66257d24e56fa70bf", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "aa87c9c97af30d5f0c6ba4db662cd97d", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "6f5e628682c1f970cc1c941f78c757f9", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "bb7ddd4997f0951a2d47cc6d0d000cc5", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "bb7ddd4997f0951a2d47cc6d0d000cc5", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "a07c1da8ac6e880d708e348dee854111", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "ee28ea04905713e9b380ad3cbd796d56", "drug_idxs": [0, 2], "relation_label": "COMB"}
+{"doc_id": "94de76aa894156859854546a83ca433f", "drug_idxs": [0, 1, 2, 3], "relation_label": "NEG"}
+{"doc_id": "5386d10522b4ceab39a95e1adbc57b27", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "796ef671b82d8b62f17e74d857fe5411", "drug_idxs": [2, 3], "relation_label": "POS"}
+{"doc_id": "2ffc3bc4a2d4cef091142559f41db561", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "d3d3065094bd69c0fc64085832f1d55a", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "d3d3065094bd69c0fc64085832f1d55a", "drug_idxs": [2, 3], "relation_label": "POS"}
+{"doc_id": "6f0476440606d257ae4a2266a30878d1", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "fac270cf9d9f839bc49728d2d4f38fc7", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0e92133c9b682a28ac91ea5d2c6fcb9d", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "32a61c25a4ad01c272675f512c603206", "drug_idxs": [0, 1, 2, 3], "relation_label": "POS"}
+{"doc_id": "8153038603c4967e7f15cff9488531d3", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "26cdeb8104e8e3213f01593e3d4ec34a", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "3bc93c0827679996e6c214c767d3824d", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "65bcf2e8ba4bd0911cf6a8ed3352e2e9", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "1ed70d4deb51eaba9be4d2bdbada5d16", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "92445f629c7c8fa9a5f669f9895c4ca4", "drug_idxs": [1, 2], "relation_label": "POS"}
+{"doc_id": "92445f629c7c8fa9a5f669f9895c4ca4", "drug_idxs": [0, 2], "relation_label": "COMB"}
+{"doc_id": "d2cc5f8f48a70aafe4eb86abc0c90963", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "d2cc5f8f48a70aafe4eb86abc0c90963", "drug_idxs": [0, 2], "relation_label": "COMB"}
+{"doc_id": "d2cc5f8f48a70aafe4eb86abc0c90963", "drug_idxs": [0, 3], "relation_label": "COMB"}
+{"doc_id": "33b4a24c32bbaeaa9098849bae7fd55c", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "33b4a24c32bbaeaa9098849bae7fd55c", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "02016864b7b05842923fc562653e6d26", "drug_idxs": [0, 1, 2], "relation_label": "NEG"}
+{"doc_id": "cbb38295f9bb8e6d792b8d943d1ea03e", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "f76833b73a044ef61bb52a3c0dacafb8", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "aeff9357c8822f550a9039fff2c8eab1", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "cc21758921b269913859dccc84fcc675", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "285ff522dbf828beae54331363e1aa59", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "d94638045c3e1a5a7b55e25f7b2727bb", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "a4208d3dba815399d8e4010b689a8027", "drug_idxs": [0, 1, 2, 3, 4], "relation_label": "POS"}
+{"doc_id": "9e4a4ac0b5d6f5c60c5f0d73fcc3b766", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "d95a9f0bb64d0b88c37b7f2b8fa950f2", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "d95a9f0bb64d0b88c37b7f2b8fa950f2", "drug_idxs": [0, 2], "relation_label": "COMB"}
+{"doc_id": "4b31d5b4682f2cb6d4de9cd5ecdc3527", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "e1cbaee16f90b5f5cd216566c4f3348a", "drug_idxs": [0, 1, 2], "relation_label": "NEG"}
+{"doc_id": "e6ec9d1de8b404c19da2279ecaa39e05", "drug_idxs": [0, 1, 2], "relation_label": "COMB"}
+{"doc_id": "56767edbaaf4aa1833e32ccf779a6d71", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "d5f7976596eb3d6b0af16a3cf786c912", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0e3638fb7225dbfb492b6e28afaefb04", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "31a0bb182139720ca8b79d8e68089d7e", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "22debd462be9d02dd7750eb8021920c8", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "22debd462be9d02dd7750eb8021920c8", "drug_idxs": [0, 2], "relation_label": "POS"}
+{"doc_id": "22debd462be9d02dd7750eb8021920c8", "drug_idxs": [0, 3], "relation_label": "POS"}
+{"doc_id": "988f81203188bfe746d002e49e6c45d7", "drug_idxs": [1, 2], "relation_label": "POS"}
+{"doc_id": "029f80670066e918ad09b45caa1e326d", "drug_idxs": [0, 1], "relation_label": "NEG"}
+{"doc_id": "bf761dcf8faf97dba0151338f99b7f8a", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "ce0aa908b93d64279ac44dcaf232b957", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "ce0aa908b93d64279ac44dcaf232b957", "drug_idxs": [2, 3], "relation_label": "COMB"}
+{"doc_id": "73b3eae39bac7bc40153d6a660377f2b", "drug_idxs": [0, 1, 2, 3], "relation_label": "POS"}
+{"doc_id": "869722511c63922c25884fec67a7e0cb", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "3340a0163ab0c5a4a681d3b8d9a74668", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0bb682c2b7cf581f5630b073a89e2728", "drug_idxs": [0, 1], "relation_label": "NEG"}
+{"doc_id": "c9b122c2f0b11e182b4ed52d9f390055", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "b6851a7dde2051096158e6c807455512", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "0a7134a3a2612a4d409a7d631f5c6260", "drug_idxs": [0, 4], "relation_label": "POS"}
+{"doc_id": "0a7134a3a2612a4d409a7d631f5c6260", "drug_idxs": [1, 4], "relation_label": "POS"}
+{"doc_id": "0a7134a3a2612a4d409a7d631f5c6260", "drug_idxs": [2, 4], "relation_label": "POS"}
+{"doc_id": "ce729f6ebbcf5bb46bb08e16542fd835", "drug_idxs": [0, 1, 2, 3, 4, 5], "relation_label": "POS"}
+{"doc_id": "447854f1de95488c44ec5e39824f21d7", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "3727a540ed60fbcbe84867b9a216d7f7", "drug_idxs": [1, 2], "relation_label": "COMB"}
+{"doc_id": "cd89968df90b1bb4fb356d8c717e3738", "drug_idxs": [0, 1, 4], "relation_label": "POS"}
+{"doc_id": "cd89968df90b1bb4fb356d8c717e3738", "drug_idxs": [2, 3], "relation_label": "COMB"}
+{"doc_id": "bd252f7e7872efdd84ff4314959d2793", "drug_idxs": [0, 1, 2], "relation_label": "POS"}
+{"doc_id": "ee9b23ccfb165468071d9c7bcef4f590", "drug_idxs": [0, 1, 2, 3], "relation_label": "COMB"}
+{"doc_id": "08fdd1d12a13087c9d06f4b30fd12542", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "183c151df65c06b02c251456be7381a0", "drug_idxs": [0, 1], "relation_label": "COMB"}
+{"doc_id": "383db1cc0a36e83b809ae71e8657387a", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "84d5a3309ee9e753c55c12b8ae228c9c", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "975865298fd67bd4b6ff56a8d8929f5f", "drug_idxs": [0, 1], "relation_label": "POS"}
+{"doc_id": "975865298fd67bd4b6ff56a8d8929f5f", "drug_idxs": [2, 3], "relation_label": "POS"}
+{"doc_id": "975865298fd67bd4b6ff56a8d8929f5f", "drug_idxs": [4, 5], "relation_label": "POS"}
