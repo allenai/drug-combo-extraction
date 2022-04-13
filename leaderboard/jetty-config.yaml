@@ -1,0 +1,26 @@
+{
+  "inputFile": "predictions.jsnol",
+  "outputFile": "metrics.json",
+  "spec": {
+    "image": {
+      "beaker": "aryeht/eval7"
+    },
+    "arguments": [
+      "/stage/eval.py",
+      "--gold-file",
+      "/stage/answers.jsnol",
+      "--pred-file",
+      "/input/predictions.jsonl",
+      "--output",
+      "/output/metrics.json"
+    ],
+    "result": {
+      "path": "/stage/output"
+    },
+    "context": {
+      "cluster": "leaderboard/CPU"
+    }
+  },
+  "beakerUser": "leaderboard",
+  "beakerWorkspace": "leaderboard/jetty"
+}
