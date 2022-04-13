@@ -1,0 +1,17 @@
+version: v2-alpha
+description: Eval7
+tasks:
+  # We only have one step in our experiment, so there's only one entry in this list
+  - name: eval7
+    image:
+      # You will want to replace `username` below with your Beaker username
+      beaker: aryeht/eval7
+    command: [python, -u, eval.py]
+    arguments: [--gold-file, answers.jsonl, --pred-file, predictions.jsonl]
+    result:
+      # Beaker will capture anything that's written to this location and store it in the results
+      # dataset.
+      path: /stage/output
+    context:
+      cluster: ai2/general-cirrascale
+      priority: normal

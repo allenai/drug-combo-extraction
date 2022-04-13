@@ -1,3 +1,6 @@
-FROM python:3.7.0-alpine3.8
+FROM python:3.8
 WORKDIR /stage/
-COPY eval.py /stage/eval.py
+COPY eval.py .
+COPY predictions.jsonl .
+COPY answers.jsonl .
+CMD ["/bin/bash"]
