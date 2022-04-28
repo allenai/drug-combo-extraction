@@ -36,8 +36,7 @@ python scripts/test_only.py
 Evaluation (using exact-match or partial-match metrics):
 (cd scripts && ./eval.sh \
             ${HOME_DIR}/drug-synergy-models/data/final_test_set.jsonl \
-            checkpoints_${MODEL_NAME}/outputs/predictions.jsonl \
-            [--exact-match])
+            checkpoints_${MODEL_NAME}/outputs/predictions.jsonl)
 
 ```
 
