@@ -1,4 +1,4 @@
-# drug-synergy-models
+# Drug Combination Extraction
 
 ### Data
 Consumes drug synergy dataset, in jsonlines format. The dataset is found in `data/final_train_set.jsonl` and `data/final_test_set.jsonl`.
