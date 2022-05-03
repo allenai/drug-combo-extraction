@@ -1,12 +1,41 @@
 # Drug Combination Extraction
 
+### Dependencies
+Create a [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation) environment:
+```
+conda create --name speech python=3.8.5
+conda activate speech
+```
+
+On this virtual environment, install all required dependencies via pip:
+```
+pip install -r requirements.txt
+```
 ### Data
 Consumes drug synergy dataset, in jsonlines format. The dataset is found in `data/final_train_set.jsonl` and `data/final_test_set.jsonl`.
 
 ### Training
+We recommend training on a GPU machine. We trained our models on machines with a 15GB Nvidia Tesla T4 GPU running Ubuntu 18.04.
 
+**Single command to train a relation extractor based on PubmedBERT:**
 ```
-Training:
+python scripts/train.py \
+    --model-name pubmedbert_2021 \
+    --pretrained-lm microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext \
+    --num-train-epochs 10 \
+    --lr 2e-4 \
+    --batch-size 18 \
+    --training-file data/final_train_set.jsonl \
+    --test-file data/final_test_set.jsonl \
+    --context-window-size 400 \
+    --max-seq-length 512 \
+    --label2idx data/label2idx.json \
+    --seed 2022 \
+    --unfreezing-strategy final-bert-layer
+```
+
+**Full training script options:**
+```
 python scripts/train.py \
                 --model-name            MODEL_NAME
                 [--pretrained-lm        PRETRAINED_LM (defaults to "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext") \
@@ -23,6 +52,20 @@ python scripts/train.py \
 ```
 
 ### Testing and Evaluation
+
+**Three commands to evaluate the relation extractor based on PubmedBERT:**
+```
+python scripts/test_only.py \
+    --checkpoint-path checkpoints_pubmedbert_2022 \
+    --test-file ${HOME_DIR}/drug-synergy-models/data/final_test_set.jsonl \
+    --batch-size 100 \
+    --outputs-directory checkpoints_pubmedbert_2022/outputs/ \
+    --seed 2022
+(cd scripts && ./eval.sh ../data/final_test_set.jsonl ../checkpoints_pubmedbert_2022/outputs/predictions.jsonl > ../checkpoints_pubmedbert_2022/outputs/eval_partial.txt)
+(cd scripts && ./eval.sh ../data/final_test_set.jsonl ../checkpoints_pubmedbert_2022/outputs/predictions.jsonl --exact-match > ../checkpoints_pubmedbert_2022/outputs/eval_exact.txt)
+```
+
+**Full options for testing and evaluation scripts:**
 
 ```
 Testing:
