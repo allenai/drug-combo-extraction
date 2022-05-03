@@ -1,9 +1,21 @@
 # Drug Combination Extraction
 
+### Dependencies
+Create a [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation) environment:
+```
+conda create --name speech python=3.8.5
+conda activate speech
+```
+
+On this virtual environment, install all required dependencies via pip:
+```
+pip install -r requirements.txt
+```
 ### Data
 Consumes drug synergy dataset, in jsonlines format. The dataset is found in `data/final_train_set.jsonl` and `data/final_test_set.jsonl`.
 
 ### Training
+We recommend training on a GPU machine. We trained our models on machines with a 15GB Nvidia Tesla T4 GPU running Ubuntu 18.04.
 
 ```
 Training:
