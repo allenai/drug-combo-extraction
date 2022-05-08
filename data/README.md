@@ -2,7 +2,7 @@ We recommend to read our [NAACL 2022 paper](https://arxiv.org/abs/2205.02289) as
 
 # Trainset and Testset Format
 
-For this task we have two JSON-lines file (final-train-set and final-test-set), each line is a JSON corresponding to a "question" in which we expected to get predictions for. Each JSON consists of the following fields:
+For this task we have two JSON-lines file (final_train_set.jsonl and final_test_set.jsonl), each line is a JSON corresponding to a "question" in which we expected to get predictions for. Each JSON consists of the following fields:
 
 * doc_id: the ID of the document the sentence was taken from. we expect the same ID in the predictions.
 * sentence: the textual sentence containing of multiple drugs.
