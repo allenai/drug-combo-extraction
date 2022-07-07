@@ -3,8 +3,8 @@
 ### Dependencies
 Create a [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation) environment:
 ```
-conda create --name speech python=3.8.5
-conda activate speech
+conda create --name drug_combo python=3.8.5
+conda activate drug_combo
 ```
 
 On this virtual environment, install all required dependencies via pip:
