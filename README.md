@@ -1,5 +1,20 @@
 # Drug Combination Extraction
 
+Want to help researchers and clinicians plan treatments for acute medical conditions? Want to contribute to the health community by reducing drug research times? You came to the right place! This project created a dataset of drugs that go together well according to the biomedical literature (we've alse created appropriate solid baseline models). To participate, you will need to train a model on the data and when given a new sentence, predict which of the drugs in it combine together, and whether they combine in a positive/beneficial way.
+
+### Citing
+
+If you use the data or models from this work, please cite [A Dataset for N-ary Relation Extraction of Drug Combinations](https://arxiv.org/abs/2205.02289).
+
+```bibtex
+@inproceedings{Tiktinsky2022ADF,
+  title={A Dataset for N-ary Relation Extraction of Drug Combinations},
+  author={Aryeh Tiktinsky and Vijay Viswanathan and Danna Niezni and Dana Meron Azagury and Yosi Shamay and Hillel Taub-Tabib and Tom Hope and Yoav Goldberg},
+  booktitle={NAACL},
+  year={2022}
+}
+```
+
 ### Dependencies
 Create a [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation) environment:
 ```
@@ -13,19 +28,6 @@ pip install -r requirements.txt
 ```
 ### Data
 Consumes drug synergy dataset, in jsonlines format. The dataset is found in `data/final_train_set.jsonl` and `data/final_test_set.jsonl`.
-
-## Citing
-
-If you use the data or models from this work, please cite [A Dataset for N-ary Relation Extraction of Drug Combinations](https://arxiv.org/abs/2205.02289).
-
-```bibtex
-@inproceedings{Tiktinsky2022ADF,
-  title={A Dataset for N-ary Relation Extraction of Drug Combinations},
-  author={Aryeh Tiktinsky and Vijay Viswanathan and Danna Niezni and Dana Meron Azagury and Yosi Shamay and Hillel Taub-Tabib and Tom Hope and Yoav Goldberg},
-  booktitle={NAACL},
-  year={2022}
-}
-```
 
 ### Training
 We recommend training on a GPU machine. We trained our models on machines with a 15GB Nvidia Tesla T4 GPU running Ubuntu 18.04.
