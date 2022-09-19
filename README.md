@@ -14,6 +14,19 @@ pip install -r requirements.txt
 ### Data
 Consumes drug synergy dataset, in jsonlines format. The dataset is found in `data/final_train_set.jsonl` and `data/final_test_set.jsonl`.
 
+## Citing
+
+If you use the data or models from this work, please cite [A Dataset for N-ary Relation Extraction of Drug Combinations](https://arxiv.org/abs/2205.02289).
+
+```bibtex
+@inproceedings{Tiktinsky2022ADF,
+  title={A Dataset for N-ary Relation Extraction of Drug Combinations},
+  author={Aryeh Tiktinsky and Vijay Viswanathan and Danna Niezni and Dana Meron Azagury and Yosi Shamay and Hillel Taub-Tabib and Tom Hope and Yoav Goldberg},
+  booktitle={NAACL},
+  year={2022}
+}
+```
+
 ### Training
 We recommend training on a GPU machine. We trained our models on machines with a 15GB Nvidia Tesla T4 GPU running Ubuntu 18.04.
 
