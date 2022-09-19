@@ -1,6 +1,7 @@
 # Drug Combination Extraction
 
 Want to help researchers and clinicians plan treatments for acute medical conditions? Want to contribute to the health community by reducing drug research times? You came to the right place! This project created a dataset of drugs that go together well according to the biomedical literature (we've alse created appropriate solid baseline models). To participate, you will need to train a model on the data and when given a new sentence, predict which of the drugs in it combine together, and whether they combine in a positive/beneficial way.
+To participate take a look at our [Leaderboard](https://leaderboard.allenai.org/drug_combo/submissions/public)
 
 ### Citing
 
