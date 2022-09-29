@@ -3,10 +3,12 @@ import json
 from enum import Enum
 from collections import defaultdict
 from typing import List, Dict, Any, Tuple
+import os
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--gold-file', type=str, required=True, default="data/unittest_gold.jsonl", help="Path to the gold file")
-parser.add_argument('--pred-file', type=str, required=True, default="data/unittest_pred.jsonl", help="Path to the predictions file")
+parser.add_argument('--gold-file', type=str, required=False, default="../data/unittest_gold.jsonl", help="Path to the gold file")
+parser.add_argument('--pred-file', type=str, required=False, default="../data/unittest_pred.jsonl", help="Path to the predictions file")
+parser.add_argument('--output', type=str, required=False, default="output/metrics.json", help="Path to the output metrics file")
 
 
 class Label(Enum):
@@ -130,7 +132,8 @@ if __name__ == "__main__":
     f_labeled_exact, p_labeled_exact, r_labeled_exact = f_score(gold, pred, exact_match=True, any_comb=False)
     print(f"F1/P/R score: partial unlabeled = {f_partial, p_partial, r_partial}, partial labeled = {f_labeled_partial, p_labeled_partial, r_labeled_partial}")
     print(f"F1/P/R score: exact unlabeled = {f_exact, p_exact, r_exact}, exact labeled = {f_labeled_exact, p_labeled_exact, r_labeled_exact}")
-    with open("output/metrics.json", "w") as f_out:
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    with open(args.output, "w") as f_out:
         json.dump(
             {
                 "f_partial": f_partial,
