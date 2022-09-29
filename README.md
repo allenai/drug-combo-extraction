@@ -77,8 +77,8 @@ python scripts/test_only.py \
     --batch-size 100 \
     --outputs-directory checkpoints_pubmedbert_2022/outputs/ \
     --seed 2022
-(cd scripts && ./eval.sh ../data/final_test_set.jsonl ../checkpoints_pubmedbert_2022/outputs/predictions.jsonl > ../checkpoints_pubmedbert_2022/outputs/eval_partial.txt)
-(cd scripts && ./eval.sh ../data/final_test_set.jsonl ../checkpoints_pubmedbert_2022/outputs/predictions.jsonl --exact-match > ../checkpoints_pubmedbert_2022/outputs/eval_exact.txt)
+(cd scripts && ./eval.sh ../data/final_test_set.jsonl ../checkpoints_pubmedbert_2022/outputs/predictions.jsonl > ../checkpoints_pubmedbert_2022/outputs/eval.txt)
+
 ```
 
 **Full options for testing and evaluation scripts:**
@@ -95,7 +95,8 @@ python scripts/test_only.py
 Evaluation (using exact-match or partial-match metrics):
 (cd scripts && ./eval.sh \
             ${HOME_DIR}/drug-synergy-models/data/final_test_set.jsonl \
-            checkpoints_${MODEL_NAME}/outputs/predictions.jsonl)
+            checkpoints_${MODEL_NAME}/outputs/predictions.jsonl) \
+            ${OPTIONAL_OUTPUT_PATH}
 
 ```
 
