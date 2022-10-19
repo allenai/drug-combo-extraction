@@ -9,10 +9,23 @@ If you use the data or models from this work, please cite [A Dataset for N-ary R
 
 ```bibtex
 @inproceedings{Tiktinsky2022ADF,
-  title={A Dataset for N-ary Relation Extraction of Drug Combinations},
-  author={Aryeh Tiktinsky and Vijay Viswanathan and Danna Niezni and Dana Meron Azagury and Yosi Shamay and Hillel Taub-Tabib and Tom Hope and Yoav Goldberg},
-  booktitle={NAACL},
-  year={2022}
+    title = "A Dataset for N-ary Relation Extraction of Drug Combinations",
+    author = "Tiktinsky, Aryeh  and
+      Viswanathan, Vijay  and
+      Niezni, Danna  and
+      Meron Azagury, Dana  and
+      Shamay, Yosi  and
+      Taub-Tabib, Hillel  and
+      Hope, Tom  and
+      Goldberg, Yoav",
+    booktitle = "Proceedings of the 2022 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies",
+    month = jul,
+    year = "2022",
+    address = "Seattle, United States",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2022.naacl-main.233",
+    doi = "10.18653/v1/2022.naacl-main.233",
+    pages = "3190--3203",
 }
 ```
 
