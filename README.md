@@ -3,48 +3,31 @@
 Want to help researchers and clinicians plan treatments for acute medical conditions? Want to contribute to the health community by reducing drug research times? You came to the right place! This project created a dataset of drugs that go together well according to the biomedical literature (we've alse created appropriate solid baseline models). To participate, you will need to train a model on the data and when given a new sentence, predict which of the drugs in it combine together, and whether they combine in a positive/beneficial way.
 To participate take a look at our [Leaderboard](https://leaderboard.allenai.org/drug_combo/submissions/public)
 
-### Citing
+-----
 
-If you use the data or models from this work, please cite [A Dataset for N-ary Relation Extraction of Drug Combinations](https://arxiv.org/abs/2205.02289).
-
-```bibtex
-@inproceedings{Tiktinsky2022ADF,
-    title = "A Dataset for N-ary Relation Extraction of Drug Combinations",
-    author = "Tiktinsky, Aryeh  and
-      Viswanathan, Vijay  and
-      Niezni, Danna  and
-      Meron Azagury, Dana  and
-      Shamay, Yosi  and
-      Taub-Tabib, Hillel  and
-      Hope, Tom  and
-      Goldberg, Yoav",
-    booktitle = "Proceedings of the 2022 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies",
-    month = jul,
-    year = "2022",
-    address = "Seattle, United States",
-    publisher = "Association for Computational Linguistics",
-    url = "https://aclanthology.org/2022.naacl-main.233",
-    doi = "10.18653/v1/2022.naacl-main.233",
-    pages = "3190--3203",
-}
-```
-
-### Dependencies
+## Dependencies
 Create a [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation) environment:
 ```
 conda create --name drug_combo python=3.8.5
 conda activate drug_combo
-```
 
+```
 On this virtual environment, install all required dependencies via pip:
 ```
 pip install -r requirements.txt
 ```
-### Data
-Consumes drug synergy dataset, in jsonlines format. The dataset is found in `data/final_train_set.jsonl` and `data/final_test_set.jsonl`.
+-----
+
+## Dataset
+Our dataset splits are `data/final_train_set.jsonl` and `data/final_test_set.jsonl`.
+
+-----
+## Models and Code
+### Pretrained Baseline Model
+You can find our strongest off-the-shelf model for this task on [Huggingface](https://huggingface.co/allenai/drug-combo-classifier-pubmedbert-dapt).
 
 ### Training
-We recommend training on a GPU machine. We trained our models on machines with a 15GB Nvidia Tesla T4 GPU running Ubuntu 18.04.
+To reproduce or tweak the baseline model above, you can train your own with our provided scripts. We recommend training on a GPU machine. We trained our models on machines with a 15GB Nvidia Tesla T4 GPU running Ubuntu 18.04.
 
 **Single command to train a relation extractor based on PubmedBERT:**
 ```
@@ -134,7 +117,9 @@ To train 8 models with different foundation models (SciBERT, PubmedBert, etc), r
 ```
 
 ### Domain-Adaptive Pretraining
-To modify pretrained language models with domain-adaptive pretraining, we need to use a separate training script from the HugggingFace library. First, unzip the pretraining data we have prepared in our data directory: `continued_pretraining_large_lowercased_train.txt.tgz` and `continued_pretraining_large_lowercased_val.txt.tgz` (these text files are 166M and 42M unzipped).
+You can find our strongest domain-adapted contextualized encoder (PubmedBERT
+
+To perform domain-adaptive pretraining yourself, unzip the pretraining data we have prepared in our data directory: `continued_pretraining_large_lowercased_train.txt.tgz` and `continued_pretraining_large_lowercased_val.txt.tgz` (these text files are 166M and 42M unzipped).
 
 Then do:
 ```
@@ -155,12 +140,23 @@ python run_mlm.py \
     --overwrite_output_dir
 ```
 
-### Requirements
-[PyTorch](https://pytorch.org/get-started/locally/)
+------
 
-pytorch_lightning
+## Cite Our Paper
 
-jsonlines
+If you use the data or models from this work in your own work, cite [A Dataset for N-ary Relation Extraction of Drug Combinations](https://arxiv.org/abs/2205.02289).
 
-streamlit
-
+```bibtex
+@inproceedings{Tiktinsky2022ADF,
+    title = "A Dataset for N-ary Relation Extraction of Drug Combinations",
+    author = "Tiktinsky, Aryeh and Viswanathan, Vijay and Niezni, Danna and Meron Azagury, Dana and Shamay, Yosi and Taub-Tabib, Hillel and Hope, Tom and Goldberg, Yoav",
+    booktitle = "Proceedings of the 2022 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies",
+    month = jul,
+    year = "2022",
+    address = "Seattle, United States",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2022.naacl-main.233",
+    doi = "10.18653/v1/2022.naacl-main.233",
+    pages = "3190--3203",
+}
+```
